@@ -26,14 +26,6 @@ type DebugRenderReasons = {
   selectedPreviewId: number;
   sameInputs: number;
 };
-const FORM_FILLER_DEBUG_PREFIX = "[FormFillerDebug]";
-type DebugXMLHttpRequest = XMLHttpRequest & {
-  __formFillerDebugRequest?: {
-    method: string;
-    url: string;
-    startedAt: number;
-  };
-};
 
 export function FormFillerRenderer({
   hideActions = false,
@@ -48,8 +40,6 @@ export function FormFillerRenderer({
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const renderCountRef = useRef(0);
-  const lastScrollLogAtRef = useRef(0);
-  const lastLoggedActiveFieldRef = useRef("");
   renderCountRef.current += 1;
   const previousRenderInputsRef = useRef<{
     autofillValues: unknown;
@@ -57,7 +47,7 @@ export function FormFillerRenderer({
     finalValues: unknown;
     formFiller: unknown;
     selectedPreviewId: unknown;
-  } | null>(null);
+  }>();
   const renderReasonsRef = useRef<DebugRenderReasons>({
     autofillValues: 0,
     blocks: 0,
@@ -67,6 +57,9 @@ export function FormFillerRenderer({
     sameInputs: 0,
   });
 
+  const debugEnabled =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("debug-form-filler");
   const [debugState, setDebugState] = useState({
     lastEvent: "init",
     lastField: "",
@@ -98,7 +91,7 @@ export function FormFillerRenderer({
     [formFiller, autofillValues]
   );
 
-  if (typeof window !== "undefined") {
+  if (debugEnabled) {
     const previousInputs = previousRenderInputsRef.current;
     const nextInputs = {
       autofillValues,
@@ -110,13 +103,11 @@ export function FormFillerRenderer({
 
     if (previousInputs) {
       let changed = false;
-      const changedKeys: string[] = [];
 
       Object.keys(nextInputs).forEach((key) => {
         const typedKey = key as keyof typeof nextInputs;
         if (previousInputs[typedKey] !== nextInputs[typedKey]) {
           renderReasonsRef.current[typedKey] += 1;
-          changedKeys.push(key);
           changed = true;
         }
       });
@@ -124,18 +115,6 @@ export function FormFillerRenderer({
       if (!changed) {
         renderReasonsRef.current.sameInputs += 1;
       }
-
-      console.warn(`${FORM_FILLER_DEBUG_PREFIX} render`, {
-        renderCount: renderCountRef.current,
-        changed: changedKeys.length ? changedKeys : ["sameInputs"],
-        reasons: renderReasonsRef.current,
-        selectedPreviewId: form.selectedPreviewId,
-        blockCount: filteredBlocks.length,
-        manualFieldCount: deduplicatedBlocks.filter((block) => {
-          if (!isBlockField(block)) return false;
-          return getBlockField(block)?.source === "manual";
-        }).length,
-      });
     }
 
     previousRenderInputsRef.current = nextInputs;
@@ -173,41 +152,12 @@ export function FormFillerRenderer({
     return { activeField, activeElement: activeElementLabel };
   }, []);
 
-  const getEventTargetInfo = useCallback((target: EventTarget | null) => {
-    const element = target instanceof HTMLElement ? target : null;
-    const fieldId =
-      element
-        ?.closest("[data-form-field-id]")
-        ?.getAttribute("data-form-field-id") ?? "";
-
-    return {
-      fieldId,
-      tag: element?.tagName.toLowerCase() ?? "",
-      type: element?.getAttribute("type") ?? "",
-      role: element?.getAttribute("role") ?? "",
-      id: element?.id ?? "",
-      className:
-        typeof element?.className === "string"
-          ? element.className.slice(0, 160)
-          : "",
-      text: element?.textContent?.trim().slice(0, 80) ?? "",
-    };
-  }, []);
-
   const recordDebugEvent = useCallback(
     (eventType: DebugEventType, fieldId: string) => {
+      if (!debugEnabled) return;
+
       window.setTimeout(() => {
         const activeInfo = getActiveElementInfo();
-        const nextDebugState = {
-          eventType,
-          fieldId,
-          activeInfo,
-          renderCount: renderCountRef.current,
-          reasons: renderReasonsRef.current,
-          selectedPreviewId: form.selectedPreviewId,
-        };
-
-        console.warn(`${FORM_FILLER_DEBUG_PREFIX} field-event`, nextDebugState);
 
         setDebugState((prev) => ({
           ...prev,
@@ -223,157 +173,8 @@ export function FormFillerRenderer({
         }));
       }, 0);
     },
-    [form.selectedPreviewId, getActiveElementInfo]
+    [debugEnabled, getActiveElementInfo]
   );
-
-  useEffect(() => {
-    console.warn(`${FORM_FILLER_DEBUG_PREFIX} mounted`, {
-      formName: form.formName,
-      blockCount: filteredBlocks.length,
-      manualFieldCount,
-      selectedPreviewId: form.selectedPreviewId,
-      autoScrollToSelectedField,
-    });
-  }, [
-    autoScrollToSelectedField,
-    filteredBlocks.length,
-    form.formName,
-    form.selectedPreviewId,
-    manualFieldCount,
-  ]);
-
-  useEffect(() => {
-    console.warn(`${FORM_FILLER_DEBUG_PREFIX} selectedPreviewId`, {
-      selectedPreviewId: form.selectedPreviewId,
-      selectionTick,
-      autoScrollToSelectedField,
-      renderCount: renderCountRef.current,
-    });
-  }, [autoScrollToSelectedField, form.selectedPreviewId, selectionTick]);
-
-  useEffect(() => {
-    const root = scrollContainerRef.current;
-    if (!root || typeof window === "undefined") return;
-
-    const logDomEvent = (event: Event) => {
-      const activeInfo = getActiveElementInfo();
-      const targetInfo = getEventTargetInfo(event.target);
-
-      if (
-        event.type === "scroll" &&
-        Date.now() - lastScrollLogAtRef.current < 250
-      ) {
-        return;
-      }
-
-      if (event.type === "scroll") {
-        lastScrollLogAtRef.current = Date.now();
-      }
-
-      console.warn(`${FORM_FILLER_DEBUG_PREFIX} dom-${event.type}`, {
-        target: targetInfo,
-        active: activeInfo,
-        renderCount: renderCountRef.current,
-        scrollTop: root.scrollTop,
-        selectedPreviewId: form.selectedPreviewId,
-      });
-    };
-
-    const logActiveElementChange = () => {
-      window.setTimeout(() => {
-        const activeInfo = getActiveElementInfo();
-        if (activeInfo.activeField === lastLoggedActiveFieldRef.current) return;
-
-        lastLoggedActiveFieldRef.current = activeInfo.activeField;
-        console.warn(`${FORM_FILLER_DEBUG_PREFIX} active-element`, {
-          active: activeInfo,
-          renderCount: renderCountRef.current,
-          selectedPreviewId: form.selectedPreviewId,
-        });
-      }, 0);
-    };
-
-    const eventNames = [
-      "touchstart",
-      "touchend",
-      "pointerdown",
-      "pointerup",
-      "mousedown",
-      "mouseup",
-      "click",
-      "focusin",
-      "focusout",
-      "input",
-      "change",
-      "keydown",
-    ] as const;
-
-    eventNames.forEach((eventName) => {
-      root.addEventListener(eventName, logDomEvent, true);
-    });
-    root.addEventListener("focusin", logActiveElementChange, true);
-    root.addEventListener("focusout", logActiveElementChange, true);
-    root.addEventListener("scroll", logDomEvent, { passive: true });
-
-    return () => {
-      eventNames.forEach((eventName) => {
-        root.removeEventListener(eventName, logDomEvent, true);
-      });
-      root.removeEventListener("focusin", logActiveElementChange, true);
-      root.removeEventListener("focusout", logActiveElementChange, true);
-      root.removeEventListener("scroll", logDomEvent);
-    };
-  }, [form.selectedPreviewId, getActiveElementInfo, getEventTargetInfo]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const OriginalXMLHttpRequest = window.XMLHttpRequest;
-    const originalOpen = OriginalXMLHttpRequest.prototype.open;
-    const originalSend = OriginalXMLHttpRequest.prototype.send;
-
-    OriginalXMLHttpRequest.prototype.open = function (
-      this: DebugXMLHttpRequest,
-      method: string,
-      url: string | URL,
-      async?: boolean,
-      username?: string | null,
-      password?: string | null
-    ) {
-      this.__formFillerDebugRequest = {
-        method,
-        url: String(url),
-        startedAt: Date.now(),
-      };
-      return originalOpen.call(this, method, url, async ?? true, username, password);
-    } as XMLHttpRequest["open"];
-
-    OriginalXMLHttpRequest.prototype.send = function (
-      this: DebugXMLHttpRequest,
-      body?: Document | XMLHttpRequestBodyInit | null
-    ) {
-      const debugRequest = this.__formFillerDebugRequest;
-
-      if (debugRequest?.url.includes("/api/forms/fields")) {
-        console.warn(`${FORM_FILLER_DEBUG_PREFIX} xhr-start`, debugRequest);
-        this.addEventListener("loadend", () => {
-          console.warn(`${FORM_FILLER_DEBUG_PREFIX} xhr-end`, {
-            ...debugRequest,
-            status: this.status,
-            durationMs: Date.now() - debugRequest.startedAt,
-            responseText: String(this.responseText ?? "").slice(0, 300),
-          });
-        });
-      }
-
-      return originalSend.call(this, body);
-    };
-
-    return () => {
-      OriginalXMLHttpRequest.prototype.open = originalOpen;
-      OriginalXMLHttpRequest.prototype.send = originalSend;
-    };
-  }, []);
 
   // Scroll to selected field
   useEffect(() => {
@@ -389,14 +190,6 @@ export function FormFillerRenderer({
     const scrollContainer = scrollContainerRef.current;
 
     if (fieldElement && scrollContainer) {
-      console.warn(`${FORM_FILLER_DEBUG_PREFIX} scroll-to-selected`, {
-        selectedPreviewId: form.selectedPreviewId,
-        selectionTick,
-        autoScrollToSelectedField,
-        fieldTop: fieldElement.getBoundingClientRect().top,
-        scrollTop: scrollContainer.scrollTop,
-      });
-
       // Scroll the field into view with a small padding
       fieldElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
@@ -420,12 +213,6 @@ export function FormFillerRenderer({
             errors={formFiller.errors}
             onDebugEvent={recordDebugEvent}
             setSelected={(fieldId) => {
-              console.warn(`${FORM_FILLER_DEBUG_PREFIX} set-selected`, {
-                fieldId,
-                viaParent: Boolean(onFieldSelect),
-                previousSelectedPreviewId: form.selectedPreviewId,
-                renderCount: renderCountRef.current,
-              });
               if (onFieldSelect) {
                 onFieldSelect(fieldId);
                 return;
@@ -440,14 +227,16 @@ export function FormFillerRenderer({
           />
         </div>
       </div>
-      <FormFillerDebugOverlay
-        blockCount={deduplicatedBlocks.length}
-        manualFieldCount={manualFieldCount}
-        renderCount={renderCountRef.current}
-        renderReasons={renderReasonsRef.current}
-        selectedFieldId={form.selectedPreviewId}
-        debugState={debugState}
-      />
+      {debugEnabled && (
+        <FormFillerDebugOverlay
+          blockCount={deduplicatedBlocks.length}
+          manualFieldCount={manualFieldCount}
+          renderCount={renderCountRef.current}
+          renderReasons={renderReasonsRef.current}
+          selectedFieldId={form.selectedPreviewId}
+          debugState={debugState}
+        />
+      )}
       {!hideActions && (
         <div className="hidden border-t border-r border-gray-300 bg-gray-100 p-2 sm:block">
           <FormActionButtons />
@@ -501,17 +290,11 @@ export const BlocksRenderer = <T extends any[]>({
               data-form-field-id={field.field}
               onClick={() => {
                 onDebugEvent?.("click", field.field);
-                console.warn(`${FORM_FILLER_DEBUG_PREFIX} wrapper-click`, {
-                  fieldId: field.field,
-                });
                 setSelected(field.field);
               }}
               className={`flex-1 cursor-pointer px-1 py-2 transition-all ${isSelected ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2" : ""}`}
               onFocus={() => {
                 onDebugEvent?.("focus", field.field);
-                console.warn(`${FORM_FILLER_DEBUG_PREFIX} wrapper-focus`, {
-                  fieldId: field.field,
-                });
                 setSelected(field.field);
               }}
             >
@@ -520,21 +303,11 @@ export const BlocksRenderer = <T extends any[]>({
                 value={values[field.field]}
                 onChange={(v) => {
                   onDebugEvent?.("change", field.field);
-                  console.warn(`${FORM_FILLER_DEBUG_PREFIX} value-change`, {
-                    fieldId: field.field,
-                    fieldType: field.type,
-                    valueLength: String(v ?? "").length,
-                  });
                   onChange(field.field, v);
                 }}
                 onAuxValueChange={onChange}
                 onBlur={(nextValue) => {
                   onDebugEvent?.("blur", field.field);
-                  console.warn(`${FORM_FILLER_DEBUG_PREFIX} value-blur`, {
-                    fieldId: field.field,
-                    fieldType: field.type,
-                    nextValueLength: String(nextValue ?? "").length,
-                  });
                   onBlurValidate?.(field.field, field, nextValue);
                 }}
                 error={errors[field.field]}

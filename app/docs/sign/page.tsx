@@ -508,7 +508,7 @@ function PageContent() {
                         >
                           {renderMobileFieldsTabs()}
                           <div className="min-h-0 flex-1">
-                            {formProcess.latest_document_url ? (
+                            {isMobilePreviewTabActive && formProcess.latest_document_url ? (
                               <FormPreviewPdfDisplay
                                 key="mobile-preview-fields"
                                 documentUrl={formProcess.latest_document_url}
@@ -527,11 +527,11 @@ function PageContent() {
                                 prefillMode="live"
                                 prefillUser={previewPrefillUser}
                               />
-                            ) : (
+                            ) : isMobilePreviewTabActive ? (
                               <div className="flex h-full items-center justify-center p-4 text-sm text-gray-500">
                                 No preview available
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         </div>
 

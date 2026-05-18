@@ -12,9 +12,17 @@ import { useMyAutofill } from "@/hooks/use-my-autofill";
 
 interface FormFillerRendererProps {
   hideActions?: boolean;
+  onFieldSelect?: (fieldId: string) => void;
+  selectionTick?: number;
+  autoScrollToSelectedField?: boolean;
 }
 
-export function FormFillerRenderer({ hideActions = false }: FormFillerRendererProps) {
+export function FormFillerRenderer({
+  hideActions = false,
+  onFieldSelect,
+  selectionTick = 0,
+  autoScrollToSelectedField = true,
+}: FormFillerRendererProps) {
   const form = useFormRendererContext();
   const formFiller = useFormFiller();
   const autofillValues = useMyAutofill();
@@ -43,7 +51,13 @@ export function FormFillerRenderer({ hideActions = false }: FormFillerRendererPr
 
   // Scroll to selected field
   useEffect(() => {
-    if (!form.selectedPreviewId || !fieldRefs.current[form.selectedPreviewId]) return;
+    if (
+      !autoScrollToSelectedField ||
+      !form.selectedPreviewId ||
+      !fieldRefs.current[form.selectedPreviewId]
+    ) {
+      return;
+    }
 
     const fieldElement = fieldRefs.current[form.selectedPreviewId];
     const scrollContainer = scrollContainerRef.current;
@@ -58,7 +72,7 @@ export function FormFillerRenderer({ hideActions = false }: FormFillerRendererPr
         fieldElement.classList.remove("ring-2", "ring-blue-400", "ring-offset-2", "rounded");
       }, 1500);
     }
-  }, [form.selectedPreviewId]);
+  }, [autoScrollToSelectedField, form.selectedPreviewId, selectionTick]);
 
   return (
     <div className="relative flex h-full flex-col">
@@ -70,7 +84,13 @@ export function FormFillerRenderer({ hideActions = false }: FormFillerRendererPr
             values={finalValues}
             onChange={formFiller.setValue}
             errors={formFiller.errors}
-            setSelected={form.setSelectedPreviewId}
+            setSelected={(fieldId) => {
+              if (onFieldSelect) {
+                onFieldSelect(fieldId);
+                return;
+              }
+              form.setSelectedPreviewId(fieldId);
+            }}
             onBlurValidate={(fieldKey, field, nextValue) =>
               formFiller.validateField(fieldKey, field, autofillValues, nextValue)
             }

@@ -12,6 +12,7 @@ export interface IFormFiller {
   getFinalValues: (autofillValues?: FormValues) => FormValues;
   setValue: (field: string, value: any) => void;
   setValues: (values: Record<string, any>) => void;
+  initializeValues: (defaultValues: Record<string, any>) => void;
   validateField: (
     fieldKey: string,
     field: ClientField<any> | ClientPhantomField<any>,
@@ -57,6 +58,31 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
       {} as Record<string, string>
     );
     const next = { ...valuesRef.current, ...stringifiedValues };
+    valuesRef.current = next;
+    _setValues(next);
+  };
+
+  const initializeValues = (defaultValues: Record<string, any>) => {
+    const prev = valuesRef.current;
+    const stringifiedValues = Object.entries(defaultValues).reduce(
+      (acc, [key, val]) => {
+        const currentValue = prev[key];
+        const hasExistingValue =
+          currentValue !== null &&
+          currentValue !== undefined &&
+          String(currentValue).trim().length > 0;
+
+        acc[key] = hasExistingValue
+          ? String(currentValue)
+          : val === null || val === undefined
+            ? ""
+            : String(val);
+        return acc;
+      },
+      {} as Record<string, string>
+    );
+
+    const next = { ...prev, ...stringifiedValues };
     valuesRef.current = next;
     _setValues(next);
   };
@@ -107,6 +133,7 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
         getFinalValues,
         setValue,
         setValues,
+        initializeValues,
         validateField,
 
         validate,

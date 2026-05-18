@@ -148,7 +148,7 @@ function PageContent() {
       signatureImage: profile.signatureImage,
     });
 
-    formFiller.setValues(valuesWithSavedSignatureImages);
+    formFiller.initializeValues(valuesWithSavedSignatureImages);
     signContext.setRequiredSignatures(
       signatureFields.map((signatureField) => signatureField.field)
     );

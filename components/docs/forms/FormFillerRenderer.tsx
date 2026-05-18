@@ -18,14 +18,6 @@ interface FormFillerRendererProps {
 }
 
 type DebugEventType = "click" | "focus" | "change" | "blur";
-type DebugRenderReasons = {
-  autofillValues: number;
-  blocks: number;
-  finalValues: number;
-  formFiller: number;
-  selectedPreviewId: number;
-  sameInputs: number;
-};
 
 export function FormFillerRenderer({
   hideActions = false,
@@ -41,21 +33,6 @@ export function FormFillerRenderer({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
-  const previousRenderInputsRef = useRef<{
-    autofillValues: unknown;
-    blocks: unknown;
-    finalValues: unknown;
-    formFiller: unknown;
-    selectedPreviewId: unknown;
-  }>();
-  const renderReasonsRef = useRef<DebugRenderReasons>({
-    autofillValues: 0,
-    blocks: 0,
-    finalValues: 0,
-    formFiller: 0,
-    selectedPreviewId: 0,
-    sameInputs: 0,
-  });
 
   const debugEnabled =
     typeof window !== "undefined" &&
@@ -90,35 +67,6 @@ export function FormFillerRenderer({
     () => formFiller.getFinalValues(autofillValues),
     [formFiller, autofillValues]
   );
-
-  if (debugEnabled) {
-    const previousInputs = previousRenderInputsRef.current;
-    const nextInputs = {
-      autofillValues,
-      blocks: filteredBlocks,
-      finalValues,
-      formFiller,
-      selectedPreviewId: form.selectedPreviewId,
-    };
-
-    if (previousInputs) {
-      let changed = false;
-
-      Object.keys(nextInputs).forEach((key) => {
-        const typedKey = key as keyof typeof nextInputs;
-        if (previousInputs[typedKey] !== nextInputs[typedKey]) {
-          renderReasonsRef.current[typedKey] += 1;
-          changed = true;
-        }
-      });
-
-      if (!changed) {
-        renderReasonsRef.current.sameInputs += 1;
-      }
-    }
-
-    previousRenderInputsRef.current = nextInputs;
-  }
 
   const manualFieldCount = useMemo(
     () =>
@@ -232,7 +180,6 @@ export function FormFillerRenderer({
           blockCount={deduplicatedBlocks.length}
           manualFieldCount={manualFieldCount}
           renderCount={renderCountRef.current}
-          renderReasons={renderReasonsRef.current}
           selectedFieldId={form.selectedPreviewId}
           debugState={debugState}
         />
@@ -335,14 +282,12 @@ const FormFillerDebugOverlay = ({
   blockCount,
   manualFieldCount,
   renderCount,
-  renderReasons,
   selectedFieldId,
   debugState,
 }: {
   blockCount: number;
   manualFieldCount: number;
   renderCount: number;
-  renderReasons: DebugRenderReasons;
   selectedFieldId?: string | null;
   debugState: {
     lastEvent: string;
@@ -364,12 +309,6 @@ const FormFillerDebugOverlay = ({
       <div>
         renders: {renderCount} (+{rendersSinceEvent})
       </div>
-      <div>
-        why b/v/f/a/same: {renderReasons.blocks}/{renderReasons.formFiller}/
-        {renderReasons.finalValues}/{renderReasons.autofillValues}/
-        {renderReasons.sameInputs}
-      </div>
-      <div>why selected: {renderReasons.selectedPreviewId}</div>
       <div>
         fields: {manualFieldCount} / blocks: {blockCount}
       </div>

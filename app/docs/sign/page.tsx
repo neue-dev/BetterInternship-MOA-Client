@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { ArrowLeft, LucideClipboardCheck } from "lucide-react";
 import { formsControllerMarkFormAsFirstViewed } from "@/app/api";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
+import { withSavedSignatureImagesForFields } from "@/lib/saved-signature-image";
 import { cn } from "@/lib/utils";
 import { DelegateEmailScreen } from "./components/DelegateEmailScreen";
 import { MobileStepTabs } from "./components/MobileStepTabs";
@@ -53,6 +54,8 @@ function PageContent() {
   const [desktopStep, setDesktopStep] = useState<MobileSigningStep>("fields");
   const [mobileFieldsTab, setMobileFieldsTab] = useState<"form" | "preview">("form");
   const [mobilePreviewNeedsAttention, setMobilePreviewNeedsAttention] = useState(false);
+  const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf">("form");
+  const [selectionTick, setSelectionTick] = useState(0);
   const [hasConfirmedDetails, setHasConfirmedDetails] = useState(false);
   const [delegateEmail, setDelegateEmail] = useState("");
   const params = useSearchParams();
@@ -141,19 +144,24 @@ function PageContent() {
       profile.name,
       formProcess.my_signing_party_id
     );
+    const valuesWithSavedSignatureImages = withSavedSignatureImagesForFields({
+      values: valuesWithPrefilledSignatures,
+      signatureFields,
+      signatureImage: profile.signatureImage,
+    });
 
-    formFiller.setValues(valuesWithPrefilledSignatures);
+    formFiller.initializeValues(valuesWithSavedSignatureImages);
     signContext.setRequiredSignatures(
       signatureFields.map((signatureField) => signatureField.field)
     );
 
     for (const signatureField of signatureFields) {
-      const signatureValue = valuesWithPrefilledSignatures[signatureField.field];
+      const signatureValue = valuesWithSavedSignatureImages[signatureField.field];
       if (signatureValue?.trim()) {
         signContext.setHasAgreedForSignature(signatureField.field, signatureValue, true);
       }
     }
-  }, [formProcess, form]);
+  }, [formProcess, form, profile.signatureImage]);
 
   useEffect(() => {
     if (view !== "form") {
@@ -286,6 +294,19 @@ function PageContent() {
       setMobilePreviewNeedsAttention(false);
     }
   }, []);
+
+  const handlePdfFieldSelect = (fieldName: string) => {
+    setSelectedFieldSource("pdf");
+    setSelectionTick((prev) => prev + 1);
+    form.setSelectedPreviewId(fieldName);
+    handleMobileFieldsTabChange("form");
+  };
+
+  const handleFormFieldSelect = (fieldName: string) => {
+    setSelectedFieldSource("form");
+    setSelectionTick((prev) => prev + 1);
+    form.setSelectedPreviewId(fieldName);
+  };
 
   const validateFields = () => {
     const errors = formFiller.validate(form.fields, autofillValues);
@@ -494,10 +515,11 @@ function PageContent() {
                                 blocks={previewBlocks}
                                 values={previewValues}
                                 fieldErrors={formFiller.errors}
-                                onFieldClick={(fieldName) => {
-                                  form.setSelectedPreviewId(fieldName);
-                                  handleMobileFieldsTabChange("form");
-                                }}
+                                selectionTick={selectionTick}
+                                autoScrollToSelectedField={
+                                  !isMobileLayout && selectedFieldSource === "form"
+                                }
+                                onFieldClick={handlePdfFieldSelect}
                                 selectedFieldId={form.selectedPreviewId ?? undefined}
                                 scale={0.5}
                                 signingParties={signingParties}
@@ -526,7 +548,12 @@ function PageContent() {
                           <div className="flex h-full min-h-0 flex-col">
                             {renderMobileFieldsTabs()}
                             <div className="min-h-0 flex-1">
-                              <FormFillerRenderer hideActions />
+                              <FormFillerRenderer
+                                hideActions
+                                onFieldSelect={handleFormFieldSelect}
+                                selectionTick={selectionTick}
+                                autoScrollToSelectedField={selectedFieldSource === "pdf"}
+                              />
                             </div>
                             <div
                               className={cn(
@@ -571,9 +598,12 @@ function PageContent() {
                               blocks={previewBlocks}
                               values={previewValues}
                               fieldErrors={formFiller.errors}
+                              selectionTick={selectionTick}
+                              autoScrollToSelectedField={
+                                !isMobileLayout && selectedFieldSource === "form"
+                              }
                               onFieldClick={(fieldName) => {
-                                form.setSelectedPreviewId(fieldName);
-                                handleMobileFieldsTabChange("form");
+                                handlePdfFieldSelect(fieldName);
                                 goToMobileStep("fields");
                               }}
                               selectedFieldId={form.selectedPreviewId ?? undefined}
@@ -678,9 +708,9 @@ function PageContent() {
                             blocks={previewBlocks}
                             values={previewValues}
                             fieldErrors={formFiller.errors}
-                            onFieldClick={(fieldName) => {
-                              form.setSelectedPreviewId(fieldName);
-                            }}
+                            selectionTick={selectionTick}
+                            autoScrollToSelectedField={selectedFieldSource === "form"}
+                            onFieldClick={handlePdfFieldSelect}
                             selectedFieldId={form.selectedPreviewId ?? undefined}
                             scale={0.7}
                             signingParties={signingParties}
@@ -709,7 +739,12 @@ function PageContent() {
                       >
                         <div className="flex h-full min-h-0 flex-1 flex-col pt-4 sm:pt-8">
                           <div className="min-h-0 flex-1">
-                            <FormFillerRenderer hideActions />
+                            <FormFillerRenderer
+                              hideActions
+                              onFieldSelect={handleFormFieldSelect}
+                              selectionTick={selectionTick}
+                              autoScrollToSelectedField={selectedFieldSource === "pdf"}
+                            />
                           </div>
                           <div className="shrink-0 border-t border-gray-300 bg-gray-50 p-3">
                             <div className="flex items-center gap-2">

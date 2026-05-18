@@ -44,10 +44,17 @@ import {
   resolveSignaturePrintedNameDimensions,
 } from "@/lib/composite-block-factory";
 import type { ValidatorIRv0 } from "@/lib/validator-ir";
-import { computePreviewBaselineOffset, ensurePreviewFontsLoaded } from "@/lib/form-previewer-rendering";
+import {
+  computePreviewBaselineOffset,
+  ensurePreviewFontsLoaded,
+} from "@/lib/form-previewer-rendering";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
-import { runMissingFieldPipeline, type MissingFieldSuggestion } from "@/lib/missing-fields/pipeline";
+import {
+  getDetectedRegionBaselineY,
+  runMissingFieldPipeline,
+  type MissingFieldSuggestion,
+} from "@/lib/missing-fields/pipeline";
 import { createBlockFromSuggestionWithPreset } from "@/lib/missing-fields/presets";
 import { classifyBlankRegionsAgainstBlocks } from "@/lib/missing-fields/compare";
 import { toExistingFieldRects } from "@/lib/missing-fields/types";
@@ -91,6 +98,10 @@ type DraggedFieldPayload = {
 
 const DEFAULT_PAGE_WIDTH = 560;
 const DEFAULT_PAGE_HEIGHT = 760;
+const ALIGNMENT_HORIZONTAL_TOLERANCE = 28;
+const ALIGNMENT_VERTICAL_TOLERANCE = 120;
+const ALIGNMENT_MIN_BASELINE_Y = 6;
+const ALIGNMENT_MIN_DELTA = 0.25;
 const resolveDroppedFieldKey = (field: DraggedFieldPayload, selectedPartyId?: string | null) => {
   const base = field.name || "field";
   if (base === "auto.current-date") {
@@ -110,6 +121,143 @@ const getCompositePresets = (registryRows: unknown[]) => {
   return {
     signaturePreset: presets.find((preset) => preset.name === "signature"),
     shortTextPreset: presets.find((preset) => preset.name === "short_text"),
+  };
+};
+
+const rangesOverlap = (startA: number, endA: number, startB: number, endB: number) =>
+  startA < endB && endA > startB;
+
+const distanceBetweenRanges = (startA: number, endA: number, startB: number, endB: number) => {
+  if (rangesOverlap(startA, endA, startB, endB)) return 0;
+  return startA < startB ? startB - endA : startA - endB;
+};
+
+const centerInsideRect = (
+  centerX: number,
+  centerY: number,
+  rect: { x: number; y: number; w: number; h: number },
+  padding = 0
+) =>
+  centerX >= rect.x - padding &&
+  centerX <= rect.x + rect.w + padding &&
+  centerY >= rect.y - padding &&
+  centerY <= rect.y + rect.h + padding;
+
+const resolveBaselineAlignmentCandidate = (
+  block: IFormBlock,
+  suggestions: MissingFieldSuggestion[]
+) => {
+  const schema = block.field_schema;
+  if (!schema || block.block_type !== "form_field") return null;
+
+  const fieldCenterX = schema.x + schema.w / 2;
+  const fieldCenterY = schema.y + schema.h / 2;
+  const fieldBaselineOffset = computePreviewBaselineOffset({
+    fieldType: schema.type,
+    fieldFont: schema.font,
+    fontSize: schema.size,
+    fieldHeight: schema.h,
+    alignV: normalizeVerticalAlign(schema.align_v),
+  });
+  const currentBaselineY = schema.y + fieldBaselineOffset;
+
+  let best: {
+    baselineY: number;
+    overlapsRegion: boolean;
+    suggestionId: string;
+    score: number;
+  } | null = null;
+
+  for (const suggestion of suggestions) {
+    if (suggestion.page !== schema.page) continue;
+
+    const suggestionBaselineY = getDetectedRegionBaselineY(suggestion);
+    if (suggestionBaselineY < ALIGNMENT_MIN_BASELINE_Y) continue;
+
+    const suggestionCenterX = suggestion.x + suggestion.w / 2;
+    const suggestionCenterY = suggestion.y + suggestion.h / 2;
+    const horizontalGap = distanceBetweenRanges(
+      schema.x,
+      schema.x + schema.w,
+      suggestion.x,
+      suggestion.x + suggestion.w
+    );
+    const overlapsX = rangesOverlap(
+      schema.x,
+      schema.x + schema.w,
+      suggestion.x,
+      suggestion.x + suggestion.w
+    );
+    const overlapsY = rangesOverlap(
+      schema.y,
+      schema.y + schema.h,
+      suggestion.y,
+      suggestion.y + suggestion.h
+    );
+    const overlapsRegion = overlapsX && overlapsY;
+    const fieldCenterInSuggestion = centerInsideRect(fieldCenterX, fieldCenterY, suggestion, 8);
+    const suggestionCenterInField = centerInsideRect(
+      suggestionCenterX,
+      suggestionCenterY,
+      schema,
+      8
+    );
+    const horizontallyClose =
+      overlapsX ||
+      horizontalGap <= ALIGNMENT_HORIZONTAL_TOLERANCE ||
+      Math.abs(fieldCenterX - suggestionCenterX) <=
+        Math.max(ALIGNMENT_HORIZONTAL_TOLERANCE, (schema.w + suggestion.w) / 2);
+    const fieldVerticallyTouchesBaseline =
+      suggestionBaselineY >= schema.y - ALIGNMENT_VERTICAL_TOLERANCE &&
+      suggestionBaselineY <= schema.y + schema.h + ALIGNMENT_VERTICAL_TOLERANCE;
+    const verticallyClose =
+      Math.abs(currentBaselineY - suggestionBaselineY) <= ALIGNMENT_VERTICAL_TOLERANCE ||
+      Math.abs(fieldCenterY - suggestionCenterY) <= ALIGNMENT_VERTICAL_TOLERANCE ||
+      fieldVerticallyTouchesBaseline;
+    const sameRowCandidate =
+      Math.abs(currentBaselineY - suggestionBaselineY) <= ALIGNMENT_VERTICAL_TOLERANCE &&
+      horizontalGap <= Math.max(ALIGNMENT_HORIZONTAL_TOLERANCE, schema.w, suggestion.w);
+    const eligibleCandidate =
+      overlapsRegion ||
+      fieldCenterInSuggestion ||
+      suggestionCenterInField ||
+      (horizontallyClose && verticallyClose) ||
+      sameRowCandidate;
+
+    if (!eligibleCandidate) continue;
+
+    const baselineDistance = Math.abs(currentBaselineY - suggestionBaselineY);
+    const centerDistance = Math.hypot(
+      fieldCenterX - suggestionCenterX,
+      fieldCenterY - suggestionCenterY
+    );
+    const score =
+      baselineDistance * 4 +
+      horizontalGap * 1.5 +
+      centerDistance * 0.25 -
+      (overlapsRegion ? 40 : 0) -
+      (overlapsX ? 20 : 0) -
+      (fieldCenterInSuggestion || suggestionCenterInField ? 12 : 0) -
+      (horizontallyClose && verticallyClose ? 8 : 0) -
+      (sameRowCandidate ? 8 : 0);
+
+    if (!best || score < best.score) {
+      best = {
+        baselineY: suggestionBaselineY,
+        overlapsRegion,
+        suggestionId: suggestion.id,
+        score,
+      };
+    }
+  }
+
+  if (!best) return null;
+
+  return {
+    overlapsRegion: best.overlapsRegion,
+    score: best.score,
+    suggestionId: best.suggestionId,
+    y: Math.max(0, best.baselineY - fieldBaselineOffset),
   };
 };
 
@@ -213,10 +361,13 @@ export function PdfViewer() {
   const [showBaselineGuides, setShowBaselineGuides] = useState(false);
   const [showMissingFieldSuggestions, setShowMissingFieldSuggestions] = useState(false);
   const [isMissingFieldScanRunning, setIsMissingFieldScanRunning] = useState(false);
+  const [isBaselineAlignmentRunning, setIsBaselineAlignmentRunning] = useState(false);
   const [missingFieldSuggestions, setMissingFieldSuggestions] = useState<MissingFieldSuggestion[]>(
     []
   );
-  const [selectedMissingSuggestionId, setSelectedMissingSuggestionId] = useState<string | null>(null);
+  const [selectedMissingSuggestionId, setSelectedMissingSuggestionId] = useState<string | null>(
+    null
+  );
   const resolvedSystemPresets = useMemo(
     () => resolveSystemPresetTemplates(registry as any[]),
     [registry]
@@ -226,7 +377,10 @@ export function PdfViewer() {
   }, []);
   const visibleMissingSuggestions = useMemo(() => {
     const mappedFieldRects = toExistingFieldRects(blocks);
-    const reclassified = classifyBlankRegionsAgainstBlocks(missingFieldSuggestions, mappedFieldRects);
+    const reclassified = classifyBlankRegionsAgainstBlocks(
+      missingFieldSuggestions,
+      mappedFieldRects
+    );
     return reclassified.filter((suggestion) => suggestion.classification === "missing");
   }, [blocks, missingFieldSuggestions]);
 
@@ -261,41 +415,118 @@ export function PdfViewer() {
     }
   }, [blocks, pdfDoc, setPendingMissingFieldDraft]);
 
-  const selectSuggestionDraft = useCallback((suggestionId: string) => {
-    const target = visibleMissingSuggestions.find((suggestion) => suggestion.id === suggestionId);
-    if (!target) return;
+  const alignNearbyFieldsToBaselines = useCallback(async () => {
+    if (!pdfDoc) return;
 
-    const nextPartyId = selectedPartyId || formMetadata?.signing_parties?.[0]?._id || "";
-    if (!nextPartyId) {
-      toast.error("Please add a recipient before accepting suggested fields.", toastPresets.alert);
-      return;
+    setIsBaselineAlignmentRunning(true);
+    try {
+      const suggestions = await runMissingFieldPipeline({ pdfDoc, blocks });
+      if (suggestions.length <= 0) {
+        toast.info("No baselines found in this PDF.", toastPresets.alert);
+        return;
+      }
+
+      const pageHeights = new Map<number, number>();
+
+      for (let pageNumber = 1; pageNumber <= pdfDoc.numPages; pageNumber += 1) {
+        const page = await pdfDoc.getPage(pageNumber);
+        pageHeights.set(pageNumber, page.getViewport({ scale: 1 }).height);
+      }
+
+      let alignedCount = 0;
+      const alignmentCandidates = new Map<
+        string,
+        ReturnType<typeof resolveBaselineAlignmentCandidate>
+      >();
+
+      for (const block of blocks) {
+        const candidate = resolveBaselineAlignmentCandidate(block, suggestions);
+        if (!candidate) continue;
+
+        alignmentCandidates.set(block._id, candidate);
+      }
+
+      const nextBlocks = blocks.map((block) => {
+        const schema = block.field_schema;
+        if (!schema || block.block_type !== "form_field") return block;
+
+        const candidate = alignmentCandidates.get(block._id);
+        if (!candidate) return block;
+
+        const pageHeight = pageHeights.get(schema.page) ?? DEFAULT_PAGE_HEIGHT;
+        const nextY = clamp(candidate.y, 0, Math.max(0, pageHeight - schema.h));
+        if (nextY <= 0 && schema.y > ALIGNMENT_VERTICAL_TOLERANCE / 2) return block;
+        if (Math.abs(nextY - schema.y) < ALIGNMENT_MIN_DELTA) return block;
+
+        alignedCount += 1;
+        return {
+          ...block,
+          field_schema: {
+            ...schema,
+            y: nextY,
+          },
+        };
+      });
+
+      if (alignedCount <= 0) {
+        toast.info("No nearby fields found to align.", toastPresets.alert);
+        return;
+      }
+
+      updateBlocks(nextBlocks);
+      toast.success(
+        `Aligned ${alignedCount} field${alignedCount === 1 ? "" : "s"} to baselines.`,
+        toastPresets.success
+      );
+    } catch (error) {
+      console.error("Failed to align fields to baselines", error);
+      toast.error("Failed to align fields to baselines.", toastPresets.destructive);
+    } finally {
+      setIsBaselineAlignmentRunning(false);
     }
+  }, [blocks, pdfDoc, updateBlocks]);
 
-    setSelectedMissingSuggestionId(target.id);
-    setVisiblePage(target.page);
-    const pageNode = pageRefs.current.get(target.page);
-    pageNode?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const selectSuggestionDraft = useCallback(
+    (suggestionId: string) => {
+      const target = visibleMissingSuggestions.find((suggestion) => suggestion.id === suggestionId);
+      if (!target) return;
 
-    const draftBlock = createBlockFromSuggestionWithPreset({
-      suggestion: target,
-      signingPartyId: nextPartyId,
-      presets: resolvedSystemPresets,
-      registryFields: fieldRegistryDetails as any[],
-    });
-    setPendingMissingFieldDraft(draftBlock);
-    setSelectedBlockId(draftBlock._id);
-    setSelectedBlockGroup(null);
-  }, [
-    formMetadata?.signing_parties,
-    resolvedSystemPresets,
-    selectedPartyId,
-    setPendingMissingFieldDraft,
-    setSelectedBlockGroup,
-    setSelectedBlockId,
-    setVisiblePage,
-    fieldRegistryDetails,
-    visibleMissingSuggestions,
-  ]);
+      const nextPartyId = selectedPartyId || formMetadata?.signing_parties?.[0]?._id || "";
+      if (!nextPartyId) {
+        toast.error(
+          "Please add a recipient before accepting suggested fields.",
+          toastPresets.alert
+        );
+        return;
+      }
+
+      setSelectedMissingSuggestionId(target.id);
+      setVisiblePage(target.page);
+      const pageNode = pageRefs.current.get(target.page);
+      pageNode?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      const draftBlock = createBlockFromSuggestionWithPreset({
+        suggestion: target,
+        signingPartyId: nextPartyId,
+        presets: resolvedSystemPresets,
+        registryFields: fieldRegistryDetails as any[],
+      });
+      setPendingMissingFieldDraft(draftBlock);
+      setSelectedBlockId(draftBlock._id);
+      setSelectedBlockGroup(null);
+    },
+    [
+      formMetadata?.signing_parties,
+      resolvedSystemPresets,
+      selectedPartyId,
+      setPendingMissingFieldDraft,
+      setSelectedBlockGroup,
+      setSelectedBlockId,
+      setVisiblePage,
+      fieldRegistryDetails,
+      visibleMissingSuggestions,
+    ]
+  );
 
   const clearMissingFieldSuggestions = useCallback(() => {
     setShowMissingFieldSuggestions(false);
@@ -559,6 +790,12 @@ export function PdfViewer() {
                       : showMissingFieldSuggestions
                         ? "Clear Missing Fields"
                         : "Find Missing Fields"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => void alignNearbyFieldsToBaselines()}
+                    disabled={!pdfDoc || isMissingFieldScanRunning || isBaselineAlignmentRunning}
+                  >
+                    {isBaselineAlignmentRunning ? "Aligning..." : "Align Fields to Baselines"}
                   </DropdownMenuItem>
                   <DropdownMenuCheckboxItem
                     checked={showBaselineGuides}

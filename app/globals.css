@@ -295,14 +295,12 @@ html {
   }
 }
 
-/* iOS zoom fix: keep form controls at >=16px on mobile so Safari won't auto-zoom on focus */
-@layer base {
-  @media (max-width: 639.98px) {
-    input,
-    textarea,
-    select {
-      font-size: 1rem;
-    }
+/* Prevent Mobile Safari from auto-zooming compact form controls on focus. */
+@media (max-width: 639.98px) {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 1rem;
   }
 }
 

@@ -19,5 +19,10 @@ export async function runMissingFieldPipeline({
 }
 
 export { detectPdfBlankRegions } from "@/lib/missing-fields/detect";
+export { getDetectedRegionBaselineY } from "@/lib/missing-fields/detect";
 export { classifyBlankRegionsAgainstBlocks } from "@/lib/missing-fields/compare";
-export type { InferredFieldKind, DetectedBlankRegion, MissingFieldSuggestion } from "@/lib/missing-fields/types";
+export type {
+  InferredFieldKind,
+  DetectedBlankRegion,
+  MissingFieldSuggestion,
+} from "@/lib/missing-fields/types";

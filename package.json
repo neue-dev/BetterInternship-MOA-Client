@@ -17,7 +17,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@betterinternship/components": "^1.5.28",
-    "@betterinternship/core": "^2.10.1",
+    "@betterinternship/core": "^2.11.0",
     "@betterinternship/schema.base": "^1.0.21",
     "@betterinternship/schema.moa": "2.8.1",
     "@hookform/resolvers": "^5.2.1",

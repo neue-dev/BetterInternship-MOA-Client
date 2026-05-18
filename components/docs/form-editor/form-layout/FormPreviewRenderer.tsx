@@ -239,6 +239,7 @@ const BlocksRenderer = ({
                 field={metadataField}
                 value={values[blockField.field] ?? ""}
                 onChange={(v) => onChange(blockField.field, v)}
+                onAuxValueChange={onChange}
                 onBlur={(nextValue) => onBlurValidate?.(blockField.field, nextValue)}
                 error={errors[blockField.field]}
                 allValues={values}

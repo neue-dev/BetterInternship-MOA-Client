@@ -23,7 +23,6 @@ import { GroupableRadioDropdown } from "./dropdown";
 import { Input } from "./input";
 import { Textarea } from "./textarea";
 import { Matcher } from "react-day-picker";
-import { Tooltip } from "react-tooltip";
 
 interface EditFormContext<T extends IFormData> {
   formData: T;
@@ -135,7 +134,6 @@ export function LabelWithTooltip({
   label,
   required,
   tooltip,
-  tooltipId,
   labelAddon,
 }: {
   label: React.ReactNode;
@@ -144,32 +142,27 @@ export function LabelWithTooltip({
   tooltipId?: string | undefined;
   labelAddon?: React.ReactNode;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  const id = tooltipId ?? `${label?.toString().replace(/\s+/g, "-").toLowerCase()}-tooltip`;
+  const hasTooltip = !!tooltip?.trim();
   return (
     <div className="mb-1 flex w-full justify-between gap-2 md:items-center">
       <div className="flex gap-2 md:items-center">
         <span className="text-xs text-gray-600">
           {label} {required && <span className="text-red-500">*</span>}
         </span>
-        <div className="hover:cursor-help">
+        <div className="group relative hover:cursor-help">
           <MessageCircleQuestion
-            data-tooltip-id={id}
-            data-tooltip-content={tooltip ?? ""}
-            data-tooltip-place="bottom"
-            className={cn("text-primary h-3.5 w-3.5", tooltip?.trim() ? "" : "invisible")}
+            tabIndex={hasTooltip ? 0 : -1}
+            aria-label={hasTooltip ? tooltip : undefined}
+            className={cn("text-primary h-3.5 w-3.5", hasTooltip ? "" : "invisible")}
           />
+          {hasTooltip && (
+            <div className="pointer-events-none absolute top-full left-1/2 z-[1400] mt-1 hidden w-max max-w-[min(18rem,80vw)] -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-[10px] leading-snug whitespace-normal text-white shadow-lg group-hover:block group-focus-within:block">
+              {tooltip}
+            </div>
+          )}
         </div>
       </div>
       {labelAddon && <div>{labelAddon}</div>}
-      {tooltip && (
-        <Tooltip
-          id={id}
-          positionStrategy="fixed"
-          className="!max-w-[80vw] p-[0.05em] !text-[10px]"
-          style={{ zIndex: 1400 }}
-        />
-      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { ValidatorBaseType } from "@/lib/validator-ir";
 import {
   ValidatorDateInput,
   ValidatorFieldReferenceInput,
+  ValidatorMessageButton,
   ValidatorNumberInput,
   ValidatorOptionsInput,
   ValidatorRow,
@@ -16,11 +17,15 @@ import {
   getArrayOptions,
   getDateRelativeValidator,
   getEnumOptions,
+  getEnumMessage,
+  getValidationMessageDefault,
   type ToggleValidatorId,
   getToggleValidatorViewModel,
   setArrayOptions,
   setDateRelativeValidator,
+  setEnumMessage,
   setEnumOptions,
+  setToggleValidatorMessage,
   setToggleValidatorEnabled,
   setToggleValidatorValue,
 } from "@/components/docs/form-editor/validation/validator-state";
@@ -62,6 +67,7 @@ export function ValidatorGroups({
   const relativeDate = getDateRelativeValidator(config);
   const relativeDateMessage = "message" in relativeDate ? relativeDate.message : undefined;
   const enumOptions = getEnumOptions(config);
+  const enumMessage = getEnumMessage(config);
   const arrayOptions = getArrayOptions(config);
   const dateFieldOptions = fieldOptions.filter((option) => {
     if (currentFieldId && option.id === currentFieldId) return false;
@@ -152,6 +158,8 @@ export function ValidatorGroups({
     const comparator = kind === "dateOnOrAfterField" ? "on or after" : "on or before";
     return `Date must be ${comparator} ${offset.offsetValue} ${unit} ${offset.offsetDirection} ${referenceLabel}.`;
   };
+  const getBusinessDaysValidationMessage = (businessDays: number) =>
+    `Date must be at least ${businessDays} business day${businessDays === 1 ? "" : "s"} after today.`;
   const updateRelativeField = (
     kind: RelativeFieldKind,
     patch?: Partial<{
@@ -183,14 +191,25 @@ export function ValidatorGroups({
       nextOffsetDirection === "before" || nextOffsetDirection === "after"
         ? nextOffsetDirection
         : "after";
+    const previousMessage =
+      current?.message ||
+      buildRelativeDateValidationMessage(kind, nextField, baseFieldOffset);
+    const previousDefault = buildRelativeDateValidationMessage(kind, current?.field ?? nextField, {
+      offsetValue: current?.offsetValue ?? baseFieldOffset.offsetValue,
+      offsetUnit: current?.offsetUnit ?? baseFieldOffset.offsetUnit,
+      offsetDirection: current?.offsetDirection ?? baseFieldOffset.offsetDirection,
+    });
+    const nextDefault = buildRelativeDateValidationMessage(kind, nextField, {
+      offsetValue: normalizedOffsetValue,
+      offsetUnit: normalizedOffsetUnit,
+      offsetDirection: normalizedOffsetDirection,
+    });
     const nextMessage =
       patch?.message !== undefined
         ? patch.message
-        : buildRelativeDateValidationMessage(kind, nextField, {
-            offsetValue: normalizedOffsetValue,
-            offsetUnit: normalizedOffsetUnit,
-            offsetDirection: normalizedOffsetDirection,
-          });
+        : !previousMessage || previousMessage === previousDefault
+          ? nextDefault
+          : previousMessage;
 
     onConfigChange(
       setDateRelativeValidator(config, {
@@ -209,6 +228,28 @@ export function ValidatorGroups({
     onConfigChange(setToggleValidatorEnabled(config, id, enabled));
   const setValue = (id: Parameters<typeof setToggleValidatorValue>[1], value: string | number) =>
     onConfigChange(setToggleValidatorValue(config, id, value));
+  const setMessage = (id: ToggleValidatorId, message: string) =>
+    onConfigChange(setToggleValidatorMessage(config, id, message));
+  const renderMessageButton = (id: ToggleValidatorId, value?: string | number) => (
+    <ValidatorMessageButton
+      message={vm[id].message}
+      defaultMessage={getValidationMessageDefault(id, value)}
+      onChange={(next) => setMessage(id, next)}
+      disabled={readOnly}
+    />
+  );
+  const renderRelativeMessageButton = (defaultMessage: string) => (
+    <ValidatorMessageButton
+      message={relativeDateMessage}
+      defaultMessage={defaultMessage}
+      onChange={(next) => {
+        if (relativeDate.kind !== "none") {
+          onConfigChange(setDateRelativeValidator(config, { ...relativeDate, message: next }));
+        }
+      }}
+      disabled={readOnly}
+    />
+  );
   const isAllowed = (id: ValidationRuleId) => !allowedRuleIds || allowedRuleIds.includes(id);
   const isRequiredOnly =
     Array.isArray(allowedRuleIds) &&
@@ -221,6 +262,7 @@ export function ValidatorGroups({
       enabled={vm.required.enabled}
       onToggle={(enabled) => toggle("required", enabled)}
       disabled={readOnly}
+      messageControl={renderMessageButton("required")}
     />
   );
   const renderRelativeDateFieldRow = () => (
@@ -240,6 +282,7 @@ export function ValidatorGroups({
         updateRelativeField(activeRelativeFieldKind);
       }}
       disabled={readOnly || !hasDateFieldOptions}
+      messageControl={renderRelativeMessageButton(relativeRuleSentence)}
     >
       <ValidatorSelectInput
         value={activeRelativeFieldKind}
@@ -318,6 +361,7 @@ export function ValidatorGroups({
             enabled={vm.minLength.enabled}
             onToggle={(enabled) => toggle("minLength", enabled)}
             disabled={readOnly}
+            messageControl={renderMessageButton("minLength", vm.minLength.value)}
           >
             <ValidatorNumberInput
               value={vm.minLength.value as number | undefined}
@@ -334,6 +378,7 @@ export function ValidatorGroups({
             enabled={vm.maxLength.enabled}
             onToggle={(enabled) => toggle("maxLength", enabled)}
             disabled={readOnly}
+            messageControl={renderMessageButton("maxLength", vm.maxLength.value)}
           >
             <ValidatorNumberInput
               value={vm.maxLength.value as number | undefined}
@@ -366,6 +411,7 @@ export function ValidatorGroups({
             enabled={vm.minLength.enabled}
             onToggle={(enabled) => toggle("minLength", enabled)}
             disabled={readOnly}
+            messageControl={renderMessageButton("minLength", vm.minLength.value)}
           >
             <ValidatorNumberInput
               value={vm.minLength.value as number | undefined}
@@ -381,6 +427,7 @@ export function ValidatorGroups({
             enabled={vm.maxLength.enabled}
             onToggle={(enabled) => toggle("maxLength", enabled)}
             disabled={readOnly}
+            messageControl={renderMessageButton("maxLength", vm.maxLength.value)}
           >
             <ValidatorNumberInput
               value={vm.maxLength.value as number | undefined}
@@ -411,6 +458,7 @@ export function ValidatorGroups({
           enabled={vm.min.enabled}
           onToggle={(enabled) => toggle("min", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("min", vm.min.value)}
         >
           <ValidatorNumberInput
             value={vm.min.value as number | undefined}
@@ -424,6 +472,7 @@ export function ValidatorGroups({
           enabled={vm.max.enabled}
           onToggle={(enabled) => toggle("max", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("max", vm.max.value)}
         >
           <ValidatorNumberInput
             value={vm.max.value as number | undefined}
@@ -445,6 +494,7 @@ export function ValidatorGroups({
           enabled={vm.minDate.enabled}
           onToggle={(enabled) => toggle("minDate", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("minDate", vm.minDate.value)}
         >
           <ValidatorDateInput
             value={vm.minDate.value as string | undefined}
@@ -457,6 +507,7 @@ export function ValidatorGroups({
           enabled={vm.maxDate.enabled}
           onToggle={(enabled) => toggle("maxDate", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("maxDate", vm.maxDate.value)}
         >
           <ValidatorDateInput
             value={vm.maxDate.value as string | undefined}
@@ -472,12 +523,13 @@ export function ValidatorGroups({
               setDateRelativeValidator(
                 config,
                 enabled
-                  ? { kind: "dateOnOrAfterToday", message: relativeDateMessage }
+                  ? { kind: "dateOnOrAfterToday", message: relativeDateMessage || "Date must be on or after today." }
                   : { kind: "none" }
               )
             )
           }
           disabled={readOnly}
+          messageControl={renderRelativeMessageButton("Date must be on or after today.")}
         />
         <ValidatorRow
           label="On or after business days from today"
@@ -493,13 +545,21 @@ export function ValidatorGroups({
                         relativeDate.kind === "dateOnOrAfterBusinessDays"
                           ? relativeDate.businessDays
                           : 1,
-                      message: undefined,
+                      message:
+                        relativeDate.kind === "dateOnOrAfterBusinessDays"
+                          ? relativeDate.message
+                          : getBusinessDaysValidationMessage(1),
                     }
                   : { kind: "none" }
               )
             )
           }
           disabled={readOnly}
+          messageControl={renderRelativeMessageButton(
+            getBusinessDaysValidationMessage(
+              relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.businessDays : 1
+            )
+          )}
         >
           <ValidatorNumberInput
             value={
@@ -508,11 +568,19 @@ export function ValidatorGroups({
             onChange={(next) => {
               const parsed = Number(next);
               const businessDays = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+              const previousBusinessDays =
+                relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.businessDays : 1;
+              const previousDefault = getBusinessDaysValidationMessage(previousBusinessDays);
+              const currentMessage =
+                relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.message : undefined;
               onConfigChange(
                 setDateRelativeValidator(config, {
                   kind: "dateOnOrAfterBusinessDays",
                   businessDays,
-                  message: undefined,
+                  message:
+                    !currentMessage || currentMessage === previousDefault
+                      ? getBusinessDaysValidationMessage(businessDays)
+                      : currentMessage,
                 })
               );
             }}
@@ -528,12 +596,13 @@ export function ValidatorGroups({
               setDateRelativeValidator(
                 config,
                 enabled
-                  ? { kind: "dateOnOrBeforeToday", message: relativeDateMessage }
+                  ? { kind: "dateOnOrBeforeToday", message: relativeDateMessage || "Date must be on or before today." }
                   : { kind: "none" }
               )
             )
           }
           disabled={readOnly}
+          messageControl={renderRelativeMessageButton("Date must be on or before today.")}
         />
         {renderRelativeDateFieldRow()}
       </div>
@@ -549,6 +618,7 @@ export function ValidatorGroups({
           enabled={vm.minTime.enabled}
           onToggle={(enabled) => toggle("minTime", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("minTime", vm.minTime.value)}
         >
           <ValidatorTimeInput
             value={vm.minTime.value as string | undefined}
@@ -561,6 +631,7 @@ export function ValidatorGroups({
           enabled={vm.maxTime.enabled}
           onToggle={(enabled) => toggle("maxTime", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("maxTime", vm.maxTime.value)}
         >
           <ValidatorTimeInput
             value={vm.maxTime.value as string | undefined}
@@ -577,6 +648,14 @@ export function ValidatorGroups({
       <div className="space-y-2">
         {renderRequiredRow()}
         <ValidatorStaticRow label="Dropdown options">
+          <div className="flex justify-end">
+            <ValidatorMessageButton
+              message={enumMessage}
+              defaultMessage="Please select an option"
+              onChange={(next) => onConfigChange(setEnumMessage(config, next))}
+              disabled={readOnly}
+            />
+          </div>
           <ValidatorOptionsInput
             values={enumOptions}
             onChange={(next) => onConfigChange(setEnumOptions(config, next))}
@@ -603,6 +682,7 @@ export function ValidatorGroups({
           enabled={vm.minItems.enabled}
           onToggle={(enabled) => toggle("minItems", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("minItems", vm.minItems.value)}
         >
           <ValidatorNumberInput
             value={vm.minItems.value as number | undefined}
@@ -616,6 +696,7 @@ export function ValidatorGroups({
           enabled={vm.maxItems.enabled}
           onToggle={(enabled) => toggle("maxItems", enabled)}
           disabled={readOnly}
+          messageControl={renderMessageButton("maxItems", vm.maxItems.value)}
         >
           <ValidatorNumberInput
             value={vm.maxItems.value as number | undefined}

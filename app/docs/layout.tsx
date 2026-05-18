@@ -6,9 +6,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSignatoryProfile } from "./auth/provider/signatory.ctx";
+import { Loader } from "@/components/ui/loader";
 
-const PROTECTED_ROUTE_PREFIXES = ["/dashboard", "/forms", "/students"];
 const PUBLIC_ROUTE_PREFIXES = ["/login", "/sign-in", "/auth/magic-link"];
+const ROUTE_ACCESS_RULES = [
+  { prefix: "/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq", requireGod: true },
+  { prefix: "/dashboard" },
+  { prefix: "/forms" },
+  { prefix: "/students" },
+] as const;
 
 function normalizeDocsPath(pathname: string) {
   return pathname.startsWith("/docs/") ? pathname.slice("/docs".length) : pathname;
@@ -18,26 +24,37 @@ function routeMatches(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
+function getDocsRouteAccess(pathname: string) {
+  const isPublic = PUBLIC_ROUTE_PREFIXES.some((prefix) => routeMatches(pathname, prefix));
+  const rule = ROUTE_ACCESS_RULES.find(({ prefix }) => routeMatches(pathname, prefix));
+
+  return {
+    requiresAuth: Boolean(!isPublic && rule),
+    requiresGod: Boolean(!isPublic && rule?.requireGod),
+  };
+}
+
 function DocsAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const profile = useSignatoryProfile();
   const normalizedPath = normalizeDocsPath(pathname ?? "/");
-  const isPublicRoute = PUBLIC_ROUTE_PREFIXES.some((prefix) =>
-    routeMatches(normalizedPath, prefix)
-  );
-  const requiresAuth =
-    !isPublicRoute &&
-    PROTECTED_ROUTE_PREFIXES.some((prefix) => routeMatches(normalizedPath, prefix));
+  const { requiresAuth, requiresGod } = getDocsRouteAccess(normalizedPath);
+  const profileLoaded = !profile.loading;
+  const isUnauthorized = requiresAuth && profileLoaded && profile.unauthorized;
+  const isMissingGodAccess = requiresGod && profileLoaded && !profile.unauthorized && !profile.god;
+  const redirectPath = isUnauthorized ? "/login" : isMissingGodAccess ? "/dashboard" : null;
+  const shouldBlockRender =
+    requiresAuth && (profile.loading || isUnauthorized || isMissingGodAccess);
+  const shouldShowLoadingShell = requiresAuth && profile.loading;
 
   useEffect(() => {
-    if (requiresAuth && !profile.loading && profile.unauthorized) {
-      router.replace("/login");
-    }
-  }, [requiresAuth, profile.loading, profile.unauthorized, router]);
+    if (redirectPath) router.replace(redirectPath);
+  }, [redirectPath, router]);
 
-  if (requiresAuth && (profile.loading || profile.unauthorized)) return null;
-  return <>{children}</>;
+  if (shouldShowLoadingShell) return <Loader>Loading...</Loader>;
+
+  return shouldBlockRender ? null : <>{children}</>;
 }
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

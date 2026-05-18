@@ -12,9 +12,9 @@ import type { FormGroup } from "@/components/docs/students/types";
 import {
   getSignatoryControllerGetSignatoryFormGroupMembersQueryKey,
   getSignatoryControllerGetSignatoryFormGroupsQueryKey,
+  formGroupsControllerResetOwnFormGroupCode,
   signatoryControllerClearFormGroupMembers,
   signatoryControllerRemoveFormGroupMember,
-  signatoryControllerResetFormGroupCode,
   type SignatoryControllerGetSignatoryFormGroupMembersQueryResult,
   type SignatoryControllerGetSignatoryFormGroupsQueryResult,
   useSignatoryControllerGetSignatoryFormGroupMembers,
@@ -194,7 +194,7 @@ export default function DocsStudentsPage() {
     if (!selectedFormGroupId) return toast.error("No form group selected.");
 
     try {
-      const response = await signatoryControllerResetFormGroupCode({
+      const response = await formGroupsControllerResetOwnFormGroupCode({
         formGroupId: selectedFormGroupId,
       });
 

@@ -82,6 +82,54 @@ const DATE_FIELD_OFFSET_DEFAULT = {
 const getBusinessDaysMessage = (businessDays: number) =>
   `Date must be at least ${businessDays} business day${businessDays === 1 ? "" : "s"} after today.`;
 
+function getDefaultToggleMessage(id: ToggleValidatorId, value?: string | number): string {
+  const resolved = value === undefined || value === "" ? undefined : value;
+  switch (id) {
+    case "required":
+      return "This field is required.";
+    case "minLength":
+      return `Please enter at least ${resolved ?? 0} characters.`;
+    case "maxLength":
+      return `Please enter no more than ${resolved ?? 0} characters.`;
+    case "min":
+      return `Please enter a value of at least ${resolved ?? 0}.`;
+    case "max":
+      return `Please enter a value no greater than ${resolved ?? 0}.`;
+    case "minDate":
+      return `Please choose a date on or after ${resolved ?? ""}.`;
+    case "maxDate":
+      return `Please choose a date on or before ${resolved ?? ""}.`;
+    case "minTime":
+      return `Please choose a time at or after ${resolved ?? "00:00"}.`;
+    case "maxTime":
+      return `Please choose a time at or before ${resolved ?? "23:59"}.`;
+    case "minItems": {
+      const count = Number(resolved ?? 1);
+      return `Please select at least ${count} item${count === 1 ? "" : "s"}.`;
+    }
+    case "maxItems": {
+      const count = Number(resolved ?? 5);
+      return `Please select no more than ${count} item${count === 1 ? "" : "s"}.`;
+    }
+    default:
+      return "Invalid value.";
+  }
+}
+
+export function getValidationMessageDefault(id: ToggleValidatorId, value?: string | number) {
+  return getDefaultToggleMessage(id, value);
+}
+
+function shouldRefreshGeneratedMessage(
+  id: ToggleValidatorId,
+  currentMessage: unknown,
+  previousValue?: string | number
+) {
+  const current = toStringOrUndefined(currentMessage as string | number | string[] | undefined);
+  if (!current) return true;
+  return current === getDefaultToggleMessage(id, previousValue);
+}
+
 function getDateRelativeFieldMessage(
   kind: "dateOnOrAfterField" | "dateOnOrBeforeField",
   field: string,
@@ -359,7 +407,10 @@ export function getToggleValidatorViewModel(config: ValidatorConfig): ToggleVali
   const maxItemsMessage = getRule(config, "array")?.params?.maxMessage;
 
   return {
-    required: { enabled: Boolean(getRule(config, "required")) },
+    required: {
+      enabled: Boolean(getRule(config, "required")),
+      message: toStringOrUndefined(getRule(config, "required")?.params?.message),
+    },
     minLength: {
       enabled: Boolean(getRule(config, "minLength")),
       value: toNumberOrUndefined(getRule(config, "minLength")?.params?.value),
@@ -439,14 +490,23 @@ export function setToggleValidatorEnabled(
       [messageKey]:
         enabled
           ? id === "minItems"
-            ? (arrayRule?.params?.minMessage ?? "Select at least 1 item.")
-            : (arrayRule?.params?.maxMessage ?? "Select at most 5 items.")
+            ? (arrayRule?.params?.minMessage ?? getDefaultToggleMessage("minItems", arrayRule?.params?.minItems ?? 1))
+            : (arrayRule?.params?.maxMessage ?? getDefaultToggleMessage("maxItems", arrayRule?.params?.maxItems ?? 5))
           : undefined,
     });
   }
 
   const mapped: ValidatorRuleType = id as ValidatorRuleType;
-  if (enabled) return upsertRule(config, mapped, {});
+  if (enabled) {
+    const existing = getRule(config, mapped);
+    const baselineParams = existing?.params || createValidatorRule(mapped).params || {};
+    return upsertRule(config, mapped, {
+      ...baselineParams,
+      message:
+        baselineParams.message ??
+        getDefaultToggleMessage(id, baselineParams.value as string | number | undefined),
+    });
+  }
   return removeRuleType(config, mapped);
 }
 
@@ -460,16 +520,32 @@ export function setToggleValidatorValue(
     const arrayRule = getRule(next, "array");
     if (!arrayRule) return next;
     const key = id === "minItems" ? "minItems" : "maxItems";
-    return upsertRule(next, "array", {
+    const messageKey = id === "minItems" ? "minMessage" : "maxMessage";
+    const previousValue = id === "minItems" ? arrayRule.params?.minItems : arrayRule.params?.maxItems;
+    const nextValue = toNumberOrUndefined(value) ?? undefined;
+    const nextParams: ValidatorRule["params"] = {
       ...arrayRule.params,
-      [key]: toNumberOrUndefined(value) ?? undefined,
+      [key]: nextValue,
+    };
+    if (shouldRefreshGeneratedMessage(id, arrayRule.params?.[messageKey], previousValue as number | undefined)) {
+      nextParams[messageKey] = getDefaultToggleMessage(id, nextValue);
+    }
+    return upsertRule(next, "array", {
+      ...nextParams,
     });
   }
 
   const mapped: ValidatorRuleType = id as ValidatorRuleType;
-  return upsertRule(config, mapped, {
-    ...(getRule(config, mapped)?.params || {}),
+  const existing = getRule(config, mapped);
+  const nextParams = {
+    ...(existing?.params || {}),
     value,
+  };
+  if (shouldRefreshGeneratedMessage(id, existing?.params?.message, existing?.params?.value as string | number | undefined)) {
+    nextParams.message = getDefaultToggleMessage(id, value);
+  }
+  return upsertRule(config, mapped, {
+    ...nextParams,
   });
 }
 

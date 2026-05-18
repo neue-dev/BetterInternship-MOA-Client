@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { DefaultValueSection } from "@/components/docs/form-editor/default-value.bundle";
 import type { DefaultValueFieldOption } from "@/components/docs/form-editor/default-value.bundle";
 import { ValidationSection } from "@/components/docs/form-editor/validation.bundle";
@@ -122,6 +122,7 @@ export function RevampedBlockEditor() {
 
   const [editedBlock, setEditedBlock] = useState<IFormBlock | null>(activeBlock);
   const [editedTextContent, setEditedTextContent] = useState<string>("");
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Local state for immediate typing feedback - will sync back to formMetadata through handler
   // This allows responsive typing while formMetadata remains the authoritative source
@@ -181,6 +182,10 @@ export function RevampedBlockEditor() {
 
   useEffect(() => {
     setIntegerDrafts({});
+  }, [parentGroup?.id, editedBlock?._id]);
+
+  useEffect(() => {
+    setShowAdvancedSettings(false);
   }, [parentGroup?.id, editedBlock?._id]);
 
   const getSource = (schema: any) => (schema?.source as string) || "manual";
@@ -506,9 +511,21 @@ export function RevampedBlockEditor() {
           {/* Field settings */}
           {!isSimpleBlock && fieldMetadata && (
             <Card className="gap-2.5 p-2.5">
-              <h4 className="text-muted-foreground text-xs font-semibold uppercase">
-                Field settings
-              </h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-muted-foreground text-xs font-semibold uppercase">
+                  Field settings
+                </h4>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={showAdvancedSettings ? "default" : "ghost"}
+                  className="h-7 w-7"
+                  title={showAdvancedSettings ? "Hide advanced settings" : "Show advanced settings"}
+                  onClick={() => setShowAdvancedSettings((prev) => !prev)}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <FormInput
                 label="Field Label"
                 value={
@@ -525,6 +542,25 @@ export function RevampedBlockEditor() {
                 placeholder="e.g., Full Name"
                 required={false}
               />
+              {showAdvancedSettings && (
+                <FormTextarea
+                  label="Tooltip Label"
+                  value={
+                    editingValues.tooltip_label !== undefined
+                      ? editingValues.tooltip_label
+                      : fieldMetadata.tooltip_label || ""
+                  }
+                  setter={(value) => {
+                    setEditingValues((prev) => ({ ...prev, tooltip_label: value }));
+                    if (parentGroup) {
+                      handleParentUpdate(parentGroup.id, { tooltip_label: value });
+                    }
+                  }}
+                  placeholder="Optional helper text shown beside the field"
+                  required={false}
+                  className="min-h-20"
+                />
+              )}
 
               {isDefaultParentField && (
                 <FormDropdown
@@ -882,13 +918,35 @@ export function RevampedBlockEditor() {
         </Card>
 
         <Card className="gap-2.5 p-2.5">
-          <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
+            <Button
+              type="button"
+              size="icon"
+              variant={showAdvancedSettings ? "default" : "ghost"}
+              className="h-7 w-7"
+              title={showAdvancedSettings ? "Hide advanced settings" : "Show advanced settings"}
+              onClick={() => setShowAdvancedSettings((prev) => !prev)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <FormInput
             label="Field Label"
             value={schema?.label || ""}
             setter={(value) => handleFieldChange("label", value)}
             required={false}
           />
+          {showAdvancedSettings && (
+            <FormTextarea
+              label="Tooltip Label"
+              value={schema?.tooltip_label || ""}
+              setter={(value) => handleFieldChange("tooltip_label", value)}
+              placeholder="Optional helper text shown beside the field"
+              required={false}
+              className="min-h-20"
+            />
+          )}
           {isDefaultChildField && (
             <FormDropdown
               label="Field Type"

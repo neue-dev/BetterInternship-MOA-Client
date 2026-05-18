@@ -17,6 +17,7 @@ interface ISignatoryProfile {
   name: string;
   autofill: Record<string, Record<string, string>>;
   autoFormPermissions: Record<string, string>;
+  signatureImage?: string | null;
   coordinatorId?: string;
   god?: boolean;
   loading?: boolean;

@@ -16,6 +16,7 @@ import { useFormFiller } from "./form-filler.ctx";
 import { useFormProcess } from "./form-process.ctx";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
+import { withSubmittedSignatureImages } from "@/lib/signature-image-submit";
 
 interface SubmitFormButtonProps {
   submitDisabled?: boolean;
@@ -51,24 +52,30 @@ function useFormActionController() {
     }
 
     try {
-      await updateAutofill(form.formName, form.fields, finalValues);
+      const finalValuesWithSignatures = await withSubmittedSignatureImages(finalValues);
+      await updateAutofill(form.formName, form.fields, finalValuesWithSignatures);
 
       if (signingPartyBlocks.length) {
         modalRegistry.specifySigningParties.open(
           form.fields,
           formFiller,
           signingPartyBlocks,
-          (signingPartyValues: FormValues) =>
-            formsControllerContinueFormProcess({
+          async (signingPartyValues: FormValues) => {
+            const valuesWithSignatures = await withSubmittedSignatureImages({
+              ...finalValuesWithSignatures,
+              ...signingPartyValues,
+            });
+            return formsControllerContinueFormProcess({
               formProcessId: formProcess.id,
               supposedSigningPartyId: formProcess.my_signing_party_id!,
-              values: { ...finalValues, ...signingPartyValues },
+              values: valuesWithSignatures,
               audit: getClientAudit(),
             }).then(async () => {
               modalRegistry.specifySigningParties.close();
               await queryClient.refetchQueries({ queryKey: ["my-forms"] });
               modalRegistry.formContinuationSuccess.open();
-            }),
+            });
+          },
           updateAutofill,
           {},
           autofillValues,
@@ -78,7 +85,7 @@ function useFormActionController() {
         await formsControllerContinueFormProcess({
           formProcessId: formProcess.id,
           supposedSigningPartyId: formProcess.my_signing_party_id!,
-          values: finalValues,
+          values: finalValuesWithSignatures,
           audit: getClientAudit(),
         });
         await queryClient.refetchQueries({ queryKey: ["my-forms"] });

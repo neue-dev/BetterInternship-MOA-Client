@@ -20,7 +20,6 @@ import {
   Loader2,
   Newspaper,
   Settings,
-  Search,
   SearchCheck,
   LucideArrowRightCircle,
   Users2,
@@ -33,6 +32,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { Badge } from "../ui/badge";
+
+const ADMIN_BASE_PATH = "/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq";
+const ADMIN_LINKS = [
+  { href: `${ADMIN_BASE_PATH}/registry`, label: "Registry" },
+  { href: `${ADMIN_BASE_PATH}/editor`, label: "Editor" },
+  { href: `${ADMIN_BASE_PATH}/create-form`, label: "Create Form" },
+  { href: `${ADMIN_BASE_PATH}/fields`, label: "Fields" },
+  { href: `${ADMIN_BASE_PATH}/form-groups`, label: "Form Groups" },
+  { href: `${ADMIN_BASE_PATH}/sync`, label: "Sync" },
+] as const;
 
 export default function DocsTopbarUser() {
   const queryClient = useQueryClient();
@@ -193,30 +202,17 @@ export default function DocsTopbarUser() {
 
                 {profile.god && (
                   <>
-                    <div className="mt-3 px-3 py-1.5 text-xs font-semibold tracking-wider text-gray-600 uppercase">
+                    <div className="px-3 py-1.5 text-xs font-semibold tracking-wider text-gray-600 uppercase">
                       Admin
                     </div>
-                    <Link
-                      href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/registry"
-                      className="block w-full"
-                    >
-                      <button className="flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-sm transition-colors hover:border-gray-200 hover:bg-gray-50">
-                        <span>Registry</span>
-                        <ChevronRight className="h-4 w-4 text-gray-300" />
-                      </button>
-                    </Link>
-                    <Link href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/editor" className="block w-full">
-                      <button className="flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-sm transition-colors hover:border-gray-200 hover:bg-gray-50">
-                        <span>Editor</span>
-                        <ChevronRight className="h-4 w-4 text-gray-300" />
-                      </button>
-                    </Link>
-                    <Link href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/fields" className="block w-full">
-                      <button className="flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-sm transition-colors hover:border-gray-200 hover:bg-gray-50">
-                        <span>Fields</span>
-                        <ChevronRight className="h-4 w-4 text-gray-300" />
-                      </button>
-                    </Link>
+                    {ADMIN_LINKS.map((link) => (
+                      <Link key={link.href} href={link.href} className="block w-full">
+                        <button className="flex w-full items-center justify-between rounded-md border border-transparent px-3 py-2 text-sm transition-colors hover:border-gray-200 hover:bg-gray-50">
+                          <span>{link.label}</span>
+                          <ChevronRight className="h-4 w-4 text-gray-300" />
+                        </button>
+                      </Link>
+                    ))}
                   </>
                 )}
               </nav>
@@ -258,21 +254,17 @@ export default function DocsTopbarUser() {
         {profile.god && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-1">
+              <Button size="sm" className="flex items-center gap-1 mt-0.5">
                 Admin
                 <ChevronDown size={14} className="mt-0.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem asChild>
-                <Link href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/registry">Registry</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/editor">Editor</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/ft2mkyEVxHrAJwaphVVSop3TIau0pWDq/fields">Fields</Link>
-              </DropdownMenuItem>
+              {ADMIN_LINKS.map((link) => (
+                <DropdownMenuItem key={link.href} asChild>
+                  <Link href={link.href}>{link.label}</Link>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

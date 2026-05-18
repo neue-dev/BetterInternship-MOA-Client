@@ -1,37 +1,29 @@
-import { OPS } from "pdfjs-dist";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/types/src/display/api";
-import type { DetectionResult, DetectedBlankRegion, PdfTextToken } from "@/lib/missing-fields/types";
+import type {
+  DetectionResult,
+  DetectedBlankRegion,
+  PdfTextToken,
+} from "@/lib/missing-fields/types";
 
 const MIN_LINE_LENGTH = 48;
-const MAX_LINE_THICKNESS = 3.5;
-const MIN_RECT_WIDTH = 12;
-const MAX_RECT_WIDTH = 280;
-const MIN_RECT_HEIGHT = 8;
-const MAX_RECT_HEIGHT = 48;
 const DEFAULT_LINE_FIELD_HEIGHT = 12;
-const DEFAULT_TEXT_BASELINE_FROM_TOP = 9.8;
+const RASTER_MAX_RENDER_WIDTH = 1400;
+const RASTER_MAX_SCALE = 2;
+const RASTER_DARK_LUMA = 96;
+const RASTER_MIN_DARK_RATIO = 0.45;
+const RASTER_MAX_RUN_GAP = 3;
+const RASTER_MAX_LINE_ROW_GAP = 3;
+export const DEFAULT_TEXT_BASELINE_FROM_TOP = 9.8;
+
+export const getDetectedRegionBaselineY = (region: DetectedBlankRegion) => {
+  if (region.patternType === "horizontal-line" || region.patternType === "underscore") {
+    return region.y + DEFAULT_TEXT_BASELINE_FROM_TOP;
+  }
+
+  return region.y + region.h / 2;
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const identityMatrix = (): number[] => [1, 0, 0, 1, 0, 0];
-
-const multiplyMatrix = (a: number[], b: number[]) => {
-  return [
-    a[0] * b[0] + a[2] * b[1],
-    a[1] * b[0] + a[3] * b[1],
-    a[0] * b[2] + a[2] * b[3],
-    a[1] * b[2] + a[3] * b[3],
-    a[0] * b[4] + a[2] * b[5] + a[4],
-    a[1] * b[4] + a[3] * b[5] + a[5],
-  ];
-};
-
-const applyMatrix = (m: number[], x: number, y: number) => {
-  return {
-    x: m[0] * x + m[2] * y + m[4],
-    y: m[1] * x + m[3] * y + m[5],
-  };
-};
 
 const stableRegionId = (region: Omit<DetectedBlankRegion, "id">) => {
   const rx = Math.round(region.x);
@@ -110,9 +102,7 @@ const dedupeRegions = (regions: DetectedBlankRegion[]) => {
       if (rectOverlapOverSmaller(existing, region) >= 0.72) return true;
 
       // Merge stacked near-identical horizontal suggestions (common in table lines).
-      const yCenterDistance = Math.abs(
-        existing.y + existing.h / 2 - (region.y + region.h / 2)
-      );
+      const yCenterDistance = Math.abs(existing.y + existing.h / 2 - (region.y + region.h / 2));
       const widthRatio = Math.min(existing.w, region.w) / Math.max(existing.w, region.w);
       const similarBand = yCenterDistance <= 10 && widthRatio >= 0.72;
       if (!similarBand) return false;
@@ -180,220 +170,174 @@ const extractTextTokensForPage = async (
   return tokens;
 };
 
-const detectUnderscoreRegions = (
-  page: number,
-  tokens: PdfTextToken[],
-  pageWidth: number,
-  pageHeight: number
-): DetectedBlankRegion[] => {
-  const candidates: DetectedBlankRegion[] = [];
+type RasterLineRun = {
+  x1: number;
+  x2: number;
+  y: number;
+  darkCount: number;
+};
 
-  for (const token of tokens) {
-    const matches = [...token.text.matchAll(/_{4,}/g)];
-    if (!matches.length) continue;
+const isDarkPixel = (data: Uint8ClampedArray, index: number) => {
+  const alpha = data[index + 3];
+  if (alpha < 32) return false;
 
-    for (const match of matches) {
-      const start = match.index || 0;
-      const length = match[0].length;
-      const ratioStart = start / Math.max(1, token.text.length);
-      const ratioLength = length / Math.max(1, token.text.length);
+  const red = data[index];
+  const green = data[index + 1];
+  const blue = data[index + 2];
+  const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return luma <= RASTER_DARK_LUMA;
+};
 
-      const baseRegion = normalizeCandidate(
-        {
-          page,
-          x: token.x + token.w * ratioStart,
-          // Align detected underline with the inferred text baseline inside the suggestion box.
-          y: token.y + token.h - DEFAULT_TEXT_BASELINE_FROM_TOP,
-          w: Math.max(36, token.w * ratioLength),
-          h: Math.max(DEFAULT_LINE_FIELD_HEIGHT, token.h + 2),
-          patternType: "underscore",
-          confidence: 0.92,
-        },
-        pageWidth,
-        pageHeight
-      );
+const findRasterLineRunsForRow = (
+  data: Uint8ClampedArray,
+  width: number,
+  row: number,
+  minRunWidthPx: number
+): RasterLineRun[] => {
+  const runs: RasterLineRun[] = [];
+  const rowOffset = row * width * 4;
+  let runStart: number | null = null;
+  let runEnd = 0;
+  let darkCount = 0;
+  let gap = 0;
 
-      if (baseRegion) {
-        candidates.push(baseRegion);
+  const flushRun = () => {
+    if (runStart === null) return;
+
+    const span = runEnd - runStart + 1;
+    const darkRatio = darkCount / Math.max(1, span);
+    if (span >= minRunWidthPx && darkRatio >= RASTER_MIN_DARK_RATIO) {
+      runs.push({
+        x1: runStart,
+        x2: runEnd,
+        y: row,
+        darkCount,
+      });
+    }
+
+    runStart = null;
+    runEnd = 0;
+    darkCount = 0;
+    gap = 0;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    const dark = isDarkPixel(data, rowOffset + x * 4);
+    if (dark) {
+      if (runStart === null) runStart = x;
+      runEnd = x;
+      darkCount += 1;
+      gap = 0;
+      continue;
+    }
+
+    if (runStart !== null) {
+      gap += 1;
+      if (gap > RASTER_MAX_RUN_GAP) {
+        runEnd = Math.max(runStart, x - gap);
+        flushRun();
       }
     }
   }
 
-  return candidates;
+  flushRun();
+  return runs;
 };
 
-const bboxFromPoints = (points: Array<{ x: number; y: number }>) => {
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  return {
-    minX: Math.min(...xs),
-    maxX: Math.max(...xs),
-    minY: Math.min(...ys),
-    maxY: Math.max(...ys),
-  };
+const mergeRasterLineRuns = (runs: RasterLineRun[]) => {
+  const sorted = [...runs].sort((a, b) => a.y - b.y || a.x1 - b.x1);
+  const merged: RasterLineRun[] = [];
+
+  for (const run of sorted) {
+    const previous = merged[merged.length - 1];
+    if (previous) {
+      const yClose = run.y - previous.y <= RASTER_MAX_LINE_ROW_GAP;
+      const overlap = Math.min(previous.x2, run.x2) - Math.max(previous.x1, run.x1);
+      const minWidth = Math.max(1, Math.min(previous.x2 - previous.x1, run.x2 - run.x1));
+      const xClose = overlap / minWidth >= 0.72 || Math.abs(run.x1 - previous.x1) <= 6;
+
+      if (yClose && xClose) {
+        previous.x1 = Math.min(previous.x1, run.x1);
+        previous.x2 = Math.max(previous.x2, run.x2);
+        previous.y = Math.round((previous.y + run.y) / 2);
+        previous.darkCount += run.darkCount;
+        continue;
+      }
+    }
+
+    merged.push({ ...run });
+  }
+
+  return merged;
 };
 
-const detectVectorRegions = async (
+const detectRasterHorizontalRegions = async (
   pdfPage: PDFPageProxy,
   page: number,
-  pageHeight: number,
-  pageWidth: number
+  pageWidth: number,
+  pageHeight: number
 ): Promise<DetectedBlankRegion[]> => {
-  const operatorList = await pdfPage.getOperatorList();
+  if (typeof document === "undefined") return [];
 
-  const candidates: DetectedBlankRegion[] = [];
-  const matrixStack: number[][] = [];
-  let ctm = identityMatrix();
-  let lineWidth = 1;
+  const scale = Math.min(RASTER_MAX_SCALE, RASTER_MAX_RENDER_WIDTH / Math.max(1, pageWidth));
+  const viewport = pdfPage.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return [];
 
-  for (let index = 0; index < operatorList.fnArray.length; index += 1) {
-    const fn = operatorList.fnArray[index];
-    const args = operatorList.argsArray[index] as unknown[];
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
 
-    if (fn === OPS.save) {
-      matrixStack.push([...ctm]);
-      continue;
-    }
+  const renderTask = pdfPage.render({
+    canvasContext: context,
+    viewport,
+  });
 
-    if (fn === OPS.restore) {
-      ctm = matrixStack.pop() || identityMatrix();
-      continue;
-    }
+  await renderTask.promise;
 
-    if (fn === OPS.transform) {
-      const transform = (args?.[0] || args) as number[];
-      if (Array.isArray(transform) && transform.length >= 6) {
-        ctm = multiplyMatrix(ctm, transform.slice(0, 6));
-      }
-      continue;
-    }
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const minRunWidthPx = Math.max(24, MIN_LINE_LENGTH * scale);
+  const runs: RasterLineRun[] = [];
 
-    if (fn === OPS.setLineWidth) {
-      const width = Number(args?.[0]);
-      if (Number.isFinite(width) && width > 0) {
-        lineWidth = width;
-      }
-      continue;
-    }
-
-    if (fn !== OPS.constructPath) continue;
-
-    const pathOps = (args?.[0] || []) as number[];
-    const pathCoords = (args?.[1] || []) as number[];
-
-    if (!Array.isArray(pathOps) || !Array.isArray(pathCoords)) continue;
-
-    let cursor = { x: 0, y: 0 };
-    let coordIndex = 0;
-
-    for (const pathOp of pathOps) {
-      if (pathOp === OPS.moveTo) {
-        const x = Number(pathCoords[coordIndex]);
-        const y = Number(pathCoords[coordIndex + 1]);
-        coordIndex += 2;
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          cursor = { x, y };
-        }
-        continue;
-      }
-
-      if (pathOp === OPS.lineTo) {
-        const x = Number(pathCoords[coordIndex]);
-        const y = Number(pathCoords[coordIndex + 1]);
-        coordIndex += 2;
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-
-        const start = applyMatrix(ctm, cursor.x, cursor.y);
-        const end = applyMatrix(ctm, x, y);
-        cursor = { x, y };
-
-        const dx = end.x - start.x;
-        const dy = end.y - start.y;
-        const length = Math.hypot(dx, dy);
-
-        if (length < MIN_LINE_LENGTH) continue;
-        if (Math.abs(dy) > MAX_LINE_THICKNESS) continue;
-
-        const yTop = pageHeight - (start.y + end.y) / 2;
-        const region = normalizeCandidate(
-          {
-            page,
-            x: Math.min(start.x, end.x),
-            // Place the suggestion so its text baseline sits on the detected line.
-            y: yTop - DEFAULT_TEXT_BASELINE_FROM_TOP,
-            w: Math.abs(dx),
-            h: DEFAULT_LINE_FIELD_HEIGHT,
-            patternType: "horizontal-line",
-            confidence: length > 100 ? 0.84 : 0.77,
-          },
-          pageWidth,
-          pageHeight
-        );
-
-        if (region) candidates.push(region);
-        continue;
-      }
-
-      if (pathOp === OPS.rectangle) {
-        const x = Number(pathCoords[coordIndex]);
-        const y = Number(pathCoords[coordIndex + 1]);
-        const w = Number(pathCoords[coordIndex + 2]);
-        const h = Number(pathCoords[coordIndex + 3]);
-        coordIndex += 4;
-
-        if (![x, y, w, h].every((value) => Number.isFinite(value))) continue;
-
-        const points = [
-          applyMatrix(ctm, x, y),
-          applyMatrix(ctm, x + w, y),
-          applyMatrix(ctm, x + w, y + h),
-          applyMatrix(ctm, x, y + h),
-        ];
-        const bbox = bboxFromPoints(points);
-        const width = Math.abs(bbox.maxX - bbox.minX);
-        const height = Math.abs(bbox.maxY - bbox.minY);
-
-        if (
-          width < MIN_RECT_WIDTH ||
-          width > MAX_RECT_WIDTH ||
-          height < MIN_RECT_HEIGHT ||
-          height > MAX_RECT_HEIGHT
-        ) {
-          continue;
-        }
-
-        const region = normalizeCandidate(
-          {
-            page,
-            x: bbox.minX,
-            y: pageHeight - bbox.maxY,
-            w: width,
-            h: height,
-            patternType: "rectangle",
-            confidence: lineWidth <= 2 ? 0.8 : 0.73,
-          },
-          pageWidth,
-          pageHeight
-        );
-
-        if (region) candidates.push(region);
-        continue;
-      }
-
-      if (pathOp === OPS.curveTo) {
-        coordIndex += 6;
-      } else if (pathOp === OPS.curveTo2 || pathOp === OPS.curveTo3) {
-        coordIndex += 4;
-      } else if (pathOp === OPS.closePath) {
-        // no-op
-      }
-    }
+  for (let y = 0; y < canvas.height; y += 1) {
+    runs.push(...findRasterLineRunsForRow(image.data, canvas.width, y, minRunWidthPx));
   }
 
-  return candidates;
+  const mergedRuns = mergeRasterLineRuns(runs);
+  const regions: DetectedBlankRegion[] = [];
+
+  for (const run of mergedRuns) {
+    const x = run.x1 / scale;
+    const baselineY = run.y / scale;
+    const w = (run.x2 - run.x1 + 1) / scale;
+
+    const region = normalizeCandidate(
+      {
+        page,
+        x,
+        y: baselineY - DEFAULT_TEXT_BASELINE_FROM_TOP,
+        w,
+        h: DEFAULT_LINE_FIELD_HEIGHT,
+        patternType: "horizontal-line",
+        confidence: w >= 100 ? 0.79 : 0.74,
+      },
+      pageWidth,
+      pageHeight
+    );
+
+    if (region) regions.push(region);
+  }
+
+  canvas.width = 0;
+  canvas.height = 0;
+
+  return regions;
 };
 
-const suppressDenseTextRegions = (regions: DetectedBlankRegion[], tokensByPage: Map<number, PdfTextToken[]>) => {
+const suppressDenseTextRegions = (
+  regions: DetectedBlankRegion[],
+  tokensByPage: Map<number, PdfTextToken[]>
+) => {
   return regions.filter((region) => {
     const pageTokens = tokensByPage.get(region.page) || [];
     const expanded = {
@@ -408,25 +352,6 @@ const suppressDenseTextRegions = (regions: DetectedBlankRegion[], tokensByPage: 
       const overlapsY = token.y < expanded.y2 && token.y + token.h > expanded.y1;
       return overlapsX && overlapsY;
     }).length;
-
-    if (region.patternType === "underscore") return true;
-
-    // Rectangles that contain explicit visible words are usually table/header cells,
-    // not fillable blank fields.
-    if (region.patternType === "rectangle") {
-      const hasVisibleTextInside = pageTokens.some((token) => {
-        if (!/[a-z0-9]/i.test(token.text)) return false;
-        const tokenCenterX = token.x + token.w / 2;
-        const tokenCenterY = token.y + token.h / 2;
-        return (
-          tokenCenterX >= region.x + 2 &&
-          tokenCenterX <= region.x + region.w - 2 &&
-          tokenCenterY >= region.y + 2 &&
-          tokenCenterY <= region.y + region.h - 2
-        );
-      });
-      if (hasVisibleTextInside) return false;
-    }
 
     return nearbyTextCount <= 4;
   });
@@ -449,8 +374,13 @@ export async function detectPdfBlankRegions(pdfDoc: PDFDocumentProxy): Promise<D
     const tokens = await extractTextTokensForPage(page, pageNumber, pageWidth, pageHeight);
     tokensByPage.set(pageNumber, tokens);
 
-    regions.push(...detectUnderscoreRegions(pageNumber, tokens, pageWidth, pageHeight));
-    regions.push(...(await detectVectorRegions(page, pageNumber, pageHeight, pageWidth)));
+    try {
+      regions.push(
+        ...(await detectRasterHorizontalRegions(page, pageNumber, pageWidth, pageHeight))
+      );
+    } catch (error) {
+      console.warn(`Raster blank-region detection failed on page ${pageNumber}`, error);
+    }
   }
 
   const highConfidence = keepHighConfidenceOnly(regions);

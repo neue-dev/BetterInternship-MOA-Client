@@ -3,8 +3,10 @@ import { formsControllerGetLatestFormDocumentAndMetadata } from "./app/api/endpo
 import { signatoryControllerGetSignedDocumentsBySignatory } from "./app/api/endpoints/signatory/signatory";
 import {
   formGroupsControllerAddFormToGroup,
+  formGroupsControllerAssignCoordinatorToFormGroup,
   formGroupsControllerCreateFormGroup,
   formGroupsControllerRemoveFormFromGroup,
+  formGroupsControllerResetFormGroupCode,
 } from "./app/api/endpoints/form-groups/form-groups";
 export const getFormFields = async (name: string) => {
   return await formsControllerGetLatestFormDocumentAndMetadata({ name });
@@ -50,7 +52,7 @@ export const requestGenerateForm = async (data: {
 export const fetchAllFormGroups = async () => {
   try {
     const res = await formGroupsControllerGetAllFormGroups();
-    const groups = res?.groups ?? [];
+    const groups = (res as any)?.groups ?? [];
     return { groups, isLoading: false, error: null };
   } catch (error) {
     return { groups: null, isLoading: false, error };
@@ -60,12 +62,30 @@ export const fetchAllFormGroups = async () => {
 export const createFormGroup = async (name: string) => {
   try {
     const res = await formGroupsControllerCreateFormGroup({
-      body: { name },
+      name,
     });
-    const group = res?.response ?? null;
+    const group = res ?? null;
     return { group, isLoading: false, error: null };
   } catch (error) {
     return { group: null, isLoading: false, error };
+  }
+};
+
+export const assignCoordinatorToFormGroup = async (formGroupId: string, email: string) => {
+  try {
+    const res = await formGroupsControllerAssignCoordinatorToFormGroup({ formGroupId, email });
+    return { result: res ?? null, isLoading: false, error: null };
+  } catch (error) {
+    return { result: null, isLoading: false, error };
+  }
+};
+
+export const resetFormGroupCode = async (formGroupId: string) => {
+  try {
+    const res = await formGroupsControllerResetFormGroupCode({ formGroupId });
+    return { result: res ?? null, isLoading: false, error: null };
+  } catch (error) {
+    return { result: null, isLoading: false, error };
   }
 };
 
@@ -73,7 +93,7 @@ export const addFormToGroup = async (formNames: string[], groupId: string) => {
   console.log("API call to addFormToGroup with", { formNames, groupId });
   try {
     const res = await formGroupsControllerAddFormToGroup({ formNames, groupId });
-    const result = res?.response ?? null;
+    const result = (res as any)?.response ?? res ?? null;
     return { result, isLoading: false, error: null };
   } catch (error) {
     return { result: null, isLoading: false, error };
@@ -83,7 +103,7 @@ export const addFormToGroup = async (formNames: string[], groupId: string) => {
 export const removeFormsFromGroup = async (formNames: string[], groupId: string) => {
   try {
     const res = await formGroupsControllerRemoveFormFromGroup({ formNames, groupId });
-    const result = res?.response ?? null;
+    const result = (res as any)?.response ?? res ?? null;
     return { result, isLoading: false, error: null };
   } catch (error) {
     return { result: null, isLoading: false, error };

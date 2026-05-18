@@ -303,6 +303,12 @@ html {
     select {
       font-size: 1rem;
     }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      font-size: 1rem;
+    }
   }
 }
 

@@ -181,6 +181,7 @@ export const GroupableRadioDropdown = <ID extends number | string>({
   const [value, setValue] = useState(defaultValue);
   const ref = useDetectClickOutside({
     onTriggered: () => {
+      if (!isOpen) return;
       setIsOpen(false);
       onBlur?.();
     },

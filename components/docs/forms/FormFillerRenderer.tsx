@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientBlock } from "@betterinternship/core/forms";
 import { FieldRenderer } from "./FieldRenderer";
 import { HeaderRenderer, ParagraphRenderer } from "@/components/docs/forms/BlockrRenderer";
@@ -17,6 +17,8 @@ interface FormFillerRendererProps {
   autoScrollToSelectedField?: boolean;
 }
 
+type DebugEventType = "click" | "focus" | "change" | "blur";
+
 export function FormFillerRenderer({
   hideActions = false,
   onFieldSelect,
@@ -29,6 +31,23 @@ export function FormFillerRenderer({
   const filteredBlocks = form.blocks;
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+
+  const debugEnabled =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("debug-form-filler");
+  const [debugState, setDebugState] = useState({
+    lastEvent: "init",
+    lastField: "",
+    clickCount: 0,
+    focusCount: 0,
+    changeCount: 0,
+    blurCount: 0,
+    activeField: "",
+    activeElement: "",
+    rendersAtLastEvent: 0,
+  });
 
   // Deduplicate blocks: only keep first instance of each field ID
   const deduplicatedBlocks = useMemo(() => {
@@ -47,6 +66,62 @@ export function FormFillerRenderer({
   const finalValues = useMemo(
     () => formFiller.getFinalValues(autofillValues),
     [formFiller, autofillValues]
+  );
+
+  const manualFieldCount = useMemo(
+    () =>
+      deduplicatedBlocks.filter((block) => {
+        if (!isBlockField(block)) return false;
+        return getBlockField(block)?.source === "manual";
+      }).length,
+    [deduplicatedBlocks]
+  );
+
+  const getActiveElementInfo = useCallback(() => {
+    if (typeof document === "undefined") {
+      return { activeField: "", activeElement: "" };
+    }
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    const activeField =
+      activeElement
+        ?.closest("[data-form-field-id]")
+        ?.getAttribute("data-form-field-id") ?? "";
+    const activeElementLabel = activeElement
+      ? [
+          activeElement.tagName.toLowerCase(),
+          activeElement.getAttribute("type"),
+          activeElement.getAttribute("role"),
+        ]
+          .filter(Boolean)
+          .join(":")
+      : "";
+
+    return { activeField, activeElement: activeElementLabel };
+  }, []);
+
+  const recordDebugEvent = useCallback(
+    (eventType: DebugEventType, fieldId: string) => {
+      if (!debugEnabled) return;
+
+      window.setTimeout(() => {
+        const activeInfo = getActiveElementInfo();
+
+        setDebugState((prev) => ({
+          ...prev,
+          lastEvent: eventType,
+          lastField: fieldId,
+          clickCount: prev.clickCount + (eventType === "click" ? 1 : 0),
+          focusCount: prev.focusCount + (eventType === "focus" ? 1 : 0),
+          changeCount: prev.changeCount + (eventType === "change" ? 1 : 0),
+          blurCount: prev.blurCount + (eventType === "blur" ? 1 : 0),
+          activeField: activeInfo.activeField,
+          activeElement: activeInfo.activeElement,
+          rendersAtLastEvent: renderCountRef.current,
+        }));
+      }, 0);
+    },
+    [debugEnabled, getActiveElementInfo]
   );
 
   // Scroll to selected field
@@ -84,6 +159,7 @@ export function FormFillerRenderer({
             values={finalValues}
             onChange={formFiller.setValue}
             errors={formFiller.errors}
+            onDebugEvent={recordDebugEvent}
             setSelected={(fieldId) => {
               if (onFieldSelect) {
                 onFieldSelect(fieldId);
@@ -99,6 +175,15 @@ export function FormFillerRenderer({
           />
         </div>
       </div>
+      {debugEnabled && (
+        <FormFillerDebugOverlay
+          blockCount={deduplicatedBlocks.length}
+          manualFieldCount={manualFieldCount}
+          renderCount={renderCountRef.current}
+          selectedFieldId={form.selectedPreviewId}
+          debugState={debugState}
+        />
+      )}
       {!hideActions && (
         <div className="hidden border-t border-r border-gray-300 bg-gray-100 p-2 sm:block">
           <FormActionButtons />
@@ -114,6 +199,7 @@ export const BlocksRenderer = <T extends any[]>({
   values,
   onChange,
   errors,
+  onDebugEvent,
   setSelected,
   onBlurValidate,
   fieldRefs,
@@ -124,6 +210,7 @@ export const BlocksRenderer = <T extends any[]>({
   values: Record<string, string>;
   onChange: (key: string, value: any) => void;
   errors: Record<string, string>;
+  onDebugEvent?: (eventType: DebugEventType, fieldId: string) => void;
   setSelected: (selected: string) => void;
   onBlurValidate?: (fieldKey: string, field: any, nextValue?: unknown) => void;
   fieldRefs: Record<string, HTMLDivElement | null>;
@@ -147,16 +234,29 @@ export const BlocksRenderer = <T extends any[]>({
               ref={(el) => {
                 if (el && field) fieldRefs[field.field] = el;
               }}
-              onClick={() => setSelected(block.field_schema?.field as string)}
+              data-form-field-id={field.field}
+              onClick={() => {
+                onDebugEvent?.("click", field.field);
+                setSelected(field.field);
+              }}
               className={`flex-1 cursor-pointer px-1 py-2 transition-all ${isSelected ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2" : ""}`}
-              onFocus={() => setSelected(block.field_schema?.field as string)}
+              onFocus={() => {
+                onDebugEvent?.("focus", field.field);
+                setSelected(field.field);
+              }}
             >
               <FieldRenderer
                 field={field}
                 value={values[field.field]}
-                onChange={(v) => onChange(field.field, v)}
+                onChange={(v) => {
+                  onDebugEvent?.("change", field.field);
+                  onChange(field.field, v);
+                }}
                 onAuxValueChange={onChange}
-                onBlur={(nextValue) => onBlurValidate?.(field.field, field, nextValue)}
+                onBlur={(nextValue) => {
+                  onDebugEvent?.("blur", field.field);
+                  onBlurValidate?.(field.field, field, nextValue);
+                }}
                 error={errors[field.field]}
                 allValues={values}
               />
@@ -176,4 +276,51 @@ export const BlocksRenderer = <T extends any[]>({
       </div>
     );
   });
+};
+
+const FormFillerDebugOverlay = ({
+  blockCount,
+  manualFieldCount,
+  renderCount,
+  selectedFieldId,
+  debugState,
+}: {
+  blockCount: number;
+  manualFieldCount: number;
+  renderCount: number;
+  selectedFieldId?: string | null;
+  debugState: {
+    lastEvent: string;
+    lastField: string;
+    clickCount: number;
+    focusCount: number;
+    changeCount: number;
+    blurCount: number;
+    activeField: string;
+    activeElement: string;
+    rendersAtLastEvent: number;
+  };
+}) => {
+  const rendersSinceEvent = renderCount - debugState.rendersAtLastEvent;
+
+  return (
+    <div className="fixed bottom-3 left-3 z-[99999] max-w-[calc(100vw-1.5rem)] rounded-[0.33em] bg-slate-950/90 px-3 py-2 font-mono text-[10px] leading-4 text-white shadow-xl">
+      <div>Form debug</div>
+      <div>
+        renders: {renderCount} (+{rendersSinceEvent})
+      </div>
+      <div>
+        fields: {manualFieldCount} / blocks: {blockCount}
+      </div>
+      <div>
+        events c/f/ch/b: {debugState.clickCount}/{debugState.focusCount}/
+        {debugState.changeCount}/{debugState.blurCount}
+      </div>
+      <div>last: {debugState.lastEvent}</div>
+      <div className="truncate">field: {debugState.lastField || "-"}</div>
+      <div className="truncate">active: {debugState.activeField || "-"}</div>
+      <div>element: {debugState.activeElement || "-"}</div>
+      <div className="truncate">selected: {selectedFieldId || "-"}</div>
+    </div>
+  );
 };

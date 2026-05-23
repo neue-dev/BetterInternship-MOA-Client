@@ -2,12 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, FileText, Hash, PaperclipIcon, ShieldAlert, User } from "lucide-react";
 import { MetaRow } from "./MetaRow";
 import { formatWhen } from "@/lib/format";
-import { IFormSignee } from "@betterinternship/core/forms";
 import { Badge } from "../ui/badge";
 
 interface DocResponse {
   url: string;
-  signatories?: { name: string; title: string }[];
+  signatories?: { name: string; title?: string; email?: string; signedDate?: string | number }[];
   date_made?: string;
   form_label?: string;
   uploaded_at?: string;
@@ -15,7 +14,7 @@ interface DocResponse {
   verification_code?: string;
 }
 
-function PeopleList({ list }: { list?: IFormSignee[] }) {
+function PeopleList({ list }: { list?: DocResponse["signatories"] }) {
   if (!list || list.length === 0) return <>--</>;
   return (
     <div className="space-y-3">
@@ -24,8 +23,9 @@ function PeopleList({ list }: { list?: IFormSignee[] }) {
           <span className="font-semibold">{p.name}</span>
           <div className="flex flex-col">
             {p.title && <div className="text-xs text-gray-500">{p.title}</div>}
+            {p.email && <code className="font-mono text-xs text-gray-500">{p.email}</code>}
             {p.signedDate && (
-              <code className="text-xs text-gray-500">{formatWhen(p.signedDate)}</code>
+              <code className="text-xs text-gray-500">{formatWhen(p.signedDate as string)}</code>
             )}
           </div>
         </div>
@@ -79,7 +79,7 @@ export function VerificationDetailsCard({ document }: { document: DocResponse })
             <MetaRow
               icon={<User className="h-4 w-4" />}
               label="Signatories"
-              value={<PeopleList list={document.signatories as []} />}
+              value={<PeopleList list={document.signatories} />}
             />
           ) : (
             <MetaRow

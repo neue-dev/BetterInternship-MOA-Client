@@ -2,7 +2,7 @@
 
 import { IFormBlock } from "@betterinternship/core/forms";
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 type RadioGroupInfo = {
   groupId: string;
@@ -18,9 +18,20 @@ type Props = {
   pdfToDisplay: (pdfX: number, pdfY: number) => { displayX: number; displayY: number } | null;
   scale: number;
   onAddOption: (groupId: string) => void;
+  onGroupDragMove: (groupId: string, displayDeltaX: number, displayDeltaY: number) => void;
+  onGroupDragEnd: (groupId: string, displayDeltaX: number, displayDeltaY: number) => void;
+  activeDrag: { groupId: string; x: number; y: number } | null;
 };
 
-export function RadioGroupOverlay({ blocks, pdfToDisplay, scale: _scale, onAddOption }: Props) {
+export function RadioGroupOverlay({
+  blocks,
+  pdfToDisplay,
+  scale,
+  onAddOption,
+  onGroupDragMove,
+  onGroupDragEnd,
+  activeDrag,
+}: Props) {
   const groups = useMemo<RadioGroupInfo[]>(() => {
     const map = new Map<string, IFormBlock[]>();
     for (const block of blocks) {
@@ -29,7 +40,6 @@ export function RadioGroupOverlay({ blocks, pdfToDisplay, scale: _scale, onAddOp
       if (!map.has(groupId)) map.set(groupId, []);
       map.get(groupId)!.push(block);
     }
-
     return Array.from(map.entries()).map(([groupId, groupBlocks]) => {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const b of groupBlocks) {
@@ -43,6 +53,34 @@ export function RadioGroupOverlay({ blocks, pdfToDisplay, scale: _scale, onAddOp
     });
   }, [blocks]);
 
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  const handleBorderMouseDown = (e: React.MouseEvent, groupId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    dragOffsetRef.current = { x: 0, y: 0 };
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      dragOffsetRef.current = { x: dx, y: dy };
+      onGroupDragMove(groupId, dx, dy);
+    };
+
+    const handleUp = () => {
+      onGroupDragEnd(groupId, dragOffsetRef.current.x, dragOffsetRef.current.y);
+      dragOffsetRef.current = { x: 0, y: 0 };
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleUp);
+    };
+
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
+  };
+
   return (
     <>
       {groups.map((group) => {
@@ -53,23 +91,54 @@ export function RadioGroupOverlay({ blocks, pdfToDisplay, scale: _scale, onAddOp
 
         const width = bottomRight.displayX - topLeft.displayX;
         const height = bottomRight.displayY - topLeft.displayY;
+        const isDragging = activeDrag?.groupId === group.groupId;
+        const offsetX = isDragging ? activeDrag!.x : 0;
+        const offsetY = isDragging ? activeDrag!.y : 0;
+
+        // Strip width matches the padding area in display pixels
+        const stripPx = Math.max(8, Math.round(pad * scale));
+        const grabCursor = isDragging ? "grabbing" : "grab";
+
+        const stripStyle = (side: "top" | "right" | "bottom" | "left"): React.CSSProperties => {
+          const base: React.CSSProperties = {
+            position: "absolute",
+            pointerEvents: "auto",
+            cursor: grabCursor,
+          };
+          if (side === "top")    return { ...base, top: 0, left: 0, right: 0, height: stripPx };
+          if (side === "bottom") return { ...base, bottom: 0, left: 0, right: 0, height: stripPx };
+          if (side === "left")   return { ...base, top: stripPx, left: 0, bottom: stripPx, width: stripPx };
+                                 return { ...base, top: stripPx, right: 0, bottom: stripPx, width: stripPx };
+        };
 
         return (
           <div
             key={group.groupId}
-            className="pointer-events-none absolute z-10"
+            className="absolute z-10"
             style={{
               left: `${topLeft.displayX}px`,
               top: `${topLeft.displayY}px`,
               width: `${width}px`,
               height: `${height}px`,
+              transform: `translate(${offsetX}px, ${offsetY}px)`,
               border: "2px dashed rgba(99, 102, 241, 0.5)",
               borderRadius: "4px",
+              pointerEvents: "none", // interior passes through to field boxes
             }}
           >
+            {/* Four border strips — only these capture mouse events */}
+            {(["top", "right", "bottom", "left"] as const).map((side) => (
+              <div
+                key={side}
+                style={stripStyle(side)}
+                onMouseDown={(e) => handleBorderMouseDown(e, group.groupId)}
+              />
+            ))}
+
             <button
               type="button"
               className="pointer-events-auto absolute -bottom-3 -right-3 z-30 inline-flex h-6 w-6 items-center justify-center rounded-full border border-indigo-300 bg-white text-indigo-600 shadow-sm hover:bg-indigo-50"
+              style={{ cursor: "default" }}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();

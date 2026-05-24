@@ -2,7 +2,7 @@
  * @ Author: BetterInternship [Jana]
  * @ Create Time: 2025-12-16 16:03:54
  * @ Modified by: Your name
- * @ Modified time: 2025-12-26 01:41:33
+ * @ Modified time: 2026-05-24 17:54:05
  * @ Description: PDF editor component - pure rendering via contexts
  */
 
@@ -117,8 +117,8 @@ const resolveDroppedFieldKey = (field: DraggedFieldPayload, selectedPartyId?: st
   return field.preset ? `${base}:${field.preset}` : base;
 };
 
-const getCompositePresets = (registryRows: unknown[]) => {
-  const presets = resolveSystemPresetTemplates(registryRows as any[]);
+const getCompositePresets = (registryRows: FieldRegistryEntry[]) => {
+  const presets = resolveSystemPresetTemplates(registryRows);
   return {
     signaturePreset: presets.find((preset) => preset.name === "signature"),
     shortTextPreset: presets.find((preset) => preset.name === "short_text"),
@@ -369,10 +369,7 @@ export function PdfViewer() {
   const [selectedMissingSuggestionId, setSelectedMissingSuggestionId] = useState<string | null>(
     null
   );
-  const resolvedSystemPresets = useMemo(
-    () => resolveSystemPresetTemplates(registry as any[]),
-    [registry]
-  );
+  const resolvedSystemPresets = useMemo(() => resolveSystemPresetTemplates(registry), [registry]);
   const registerPageRef = useCallback((page: number, node: HTMLDivElement | null) => {
     pageRefs.current.set(page, node);
   }, []);
@@ -510,7 +507,7 @@ export function PdfViewer() {
         suggestion: target,
         signingPartyId: nextPartyId,
         presets: resolvedSystemPresets,
-        registryFields: fieldRegistryDetails as any[],
+        registryFields: fieldRegistryDetails,
       });
       setPendingMissingFieldDraft(draftBlock);
       setSelectedBlockId(draftBlock._id);
@@ -620,7 +617,7 @@ export function PdfViewer() {
           const displayY = e.clientY - rect.top;
 
           if (draggedField.composite_template === SIGNATURE_PRINTED_NAME_TEMPLATE.key) {
-            const { signaturePreset, shortTextPreset } = getCompositePresets(registry as unknown[]);
+            const { signaturePreset, shortTextPreset } = getCompositePresets(registry);
             const dimensions = resolveSignaturePrintedNameDimensions({
               signaturePreset,
               shortTextPreset,
@@ -693,7 +690,7 @@ export function PdfViewer() {
               ...(baseSchema?.validator_ir
                 ? { validator_ir: baseSchema.validator_ir }
                 : draggedField.validator_ir
-                  ? { validator_ir: draggedField.validator_ir as any }
+                  ? { validator_ir: draggedField.validator_ir }
                   : {}),
               ...(baseSchema?.size
                 ? { size: baseSchema.size }
@@ -1022,6 +1019,7 @@ const PdfPageCanvas = memo(
   }: PdfPageCanvasProps) => {
     const { handleBlockCreate, handleBlocksCreate, handleDeleteBlock, handleDuplicateBlock } =
       useFormEditorTab();
+    const { updateBlocks } = useFormEditor();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const viewportRef = useRef<PageViewport | null>(null);
@@ -1224,7 +1222,7 @@ const PdfPageCanvas = memo(
         if (!location) return;
 
         if (draggedField.composite_template === SIGNATURE_PRINTED_NAME_TEMPLATE.key) {
-          const { signaturePreset, shortTextPreset } = getCompositePresets(_registry as unknown[]);
+          const { signaturePreset, shortTextPreset } = getCompositePresets(_registry);
           const dimensions = resolveSignaturePrintedNameDimensions({
             signaturePreset,
             shortTextPreset,
@@ -1298,7 +1296,7 @@ const PdfPageCanvas = memo(
             ...(baseSchema?.validator_ir
               ? { validator_ir: baseSchema.validator_ir }
               : draggedField.validator_ir
-                ? { validator_ir: draggedField.validator_ir as any }
+                ? { validator_ir: draggedField.validator_ir }
                 : {}),
             ...(baseSchema?.size
               ? { size: baseSchema.size }
@@ -1447,7 +1445,16 @@ const PdfPageCanvas = memo(
     const handleFieldRecipientChange = (fieldId: string, partyId: string) => {
       const block = blocks.find((b) => b._id === fieldId);
       if (!block) return;
-      onBlockUpdate({ ...block, signing_party_id: partyId });
+      const radioGroupId = (block.field_schema as any)?.radio_group_id as string | undefined;
+      if (radioGroupId) {
+        const updatedBlocks = blocks.map((b) => {
+          if (b.block_type !== "form_field" || (b.field_schema as any)?.radio_group_id !== radioGroupId) return b;
+          return { ...b, signing_party_id: partyId };
+        });
+        updateBlocks(updatedBlocks);
+      } else {
+        onBlockUpdate({ ...block, signing_party_id: partyId });
+      }
     };
 
     const findSameFieldIds = (fieldId: string): string[] => {
@@ -1494,7 +1501,7 @@ const PdfPageCanvas = memo(
 
     const handleAddRadioOption = (groupId: string) => {
       const groupBlocks = blocks.filter(
-        (b) => b.block_type === "form_field" && (b.field_schema as any)?.radio_group_id === groupId
+        (b) => b.block_type === "form_field" && b.field_schema?.radio_group_id === groupId
       );
       if (!groupBlocks.length) return;
 
@@ -1528,7 +1535,7 @@ const PdfPageCanvas = memo(
           source: schema.source,
           prefiller: schema.prefiller,
           validator: schema.validator,
-          validator_ir: (schema as any).validator_ir,
+          validator_ir: schema.validator_ir,
           size: schema.size,
           wrap: schema.wrap,
           font: schema.font,
@@ -1538,6 +1545,35 @@ const PdfPageCanvas = memo(
       };
 
       handleBlockCreate(newBlock);
+    };
+
+    const [activeGroupDrag, setActiveGroupDrag] = useState<{
+      groupId: string;
+      x: number;
+      y: number;
+    } | null>(null);
+
+    const handleGroupDragMove = (groupId: string, displayDeltaX: number, displayDeltaY: number) => {
+      setActiveGroupDrag({ groupId, x: displayDeltaX, y: displayDeltaY });
+    };
+
+    const handleGroupDragEnd = (groupId: string, displayDeltaX: number, displayDeltaY: number) => {
+      setActiveGroupDrag(null);
+      const { pdfDeltaX, pdfDeltaY } = displayDeltaToPdfDelta(displayDeltaX, displayDeltaY);
+      const nextBlocks = blocks.map((b) => {
+        if (b.block_type !== "form_field") return b;
+        if (b.field_schema?.radio_group_id !== groupId) return b;
+        const schema = b.field_schema!;
+        return {
+          ...b,
+          field_schema: {
+            ...schema,
+            x: Math.max(0, schema.x + pdfDeltaX),
+            y: Math.max(0, schema.y + pdfDeltaY),
+          },
+        };
+      });
+      updateBlocks(nextBlocks);
     };
 
     return (
@@ -1573,6 +1609,19 @@ const PdfPageCanvas = memo(
               Rendering…
             </div>
           )}
+
+          {/* Radio group bounding boxes — rendered BEFORE field boxes so field boxes (same z-10, later in DOM) paint on top and receive interior events */}
+          <RadioGroupOverlay
+            blocks={blocks.filter(
+              (b) => b.block_type === "form_field" && b.field_schema?.page === pageNumber
+            )}
+            pdfToDisplay={pdfToDisplay}
+            scale={scale}
+            onAddOption={handleAddRadioOption}
+            onGroupDragMove={handleGroupDragMove}
+            onGroupDragEnd={handleGroupDragEnd}
+            activeDrag={activeGroupDrag}
+          />
 
           {/* Render form fields */}
           <div className="pointer-events-none absolute inset-0 z-10" key={containerResizeVersion}>
@@ -1619,6 +1668,11 @@ const PdfPageCanvas = memo(
               const sameFieldIds = findSameFieldIds(fieldId);
               const sameFieldIndex = Math.max(0, sameFieldIds.indexOf(fieldId)) + 1;
 
+              const fieldGroupId = schema?.radio_group_id as string | undefined;
+              const isGroupDragging = !!fieldGroupId && activeGroupDrag?.groupId === fieldGroupId;
+              const groupDragX = isGroupDragging ? activeGroupDrag!.x : 0;
+              const groupDragY = isGroupDragging ? activeGroupDrag!.y : 0;
+
               return (
                 <div
                   key={fieldId}
@@ -1630,6 +1684,10 @@ const PdfPageCanvas = memo(
                     top: `${pos.displayY}px`,
                     width: `${schema.w * scale}px`,
                     height: `${schema.h * scale}px`,
+                    transform: isGroupDragging
+                      ? `translate(${groupDragX}px, ${groupDragY}px)`
+                      : undefined,
+                    pointerEvents: isGroupDragging ? "none" : undefined,
                   }}
                 >
                   <FieldBox
@@ -1652,7 +1710,33 @@ const PdfPageCanvas = memo(
                     onDelete={() => handleDeleteBlock(fieldId)}
                     onDuplicate={() => {
                       const block = blocks.find((b) => b._id === fieldId);
-                      if (block) handleDuplicateBlock(block);
+                      if (!block) return;
+                      const radioGroupId = block.field_schema?.radio_group_id;
+                      if (radioGroupId) {
+                        const groupBlocks = blocks.filter(
+                          (b) =>
+                            b.block_type === "form_field" &&
+                            b.field_schema?.radio_group_id === radioGroupId
+                        );
+                        const newGroupId = `rg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                        const OFFSET = 8;
+                        const now = Date.now();
+                        const newBlocks: IFormBlock[] = groupBlocks.map((gb, i) => ({
+                          ...gb,
+                          _id: `block_${now}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+                          field_schema: gb.field_schema
+                            ? {
+                                ...gb.field_schema,
+                                field: `radio_${now}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+                                y: (gb.field_schema.y ?? 0) + OFFSET,
+                                radio_group_id: newGroupId,
+                              }
+                            : gb.field_schema,
+                        }));
+                        handleBlocksCreate(newBlocks);
+                      } else {
+                        handleDuplicateBlock(block);
+                      }
                     }}
                     sameFieldIndex={sameFieldIndex}
                     sameFieldCount={sameFieldIds.length}
@@ -1660,23 +1744,13 @@ const PdfPageCanvas = memo(
                     onNextSameField={() => handleSelectNextSameField(fieldId)}
                     showBaselineGuide={showBaselineGuides}
                     baselineGuideOffsetPx={baselineOffsetPx}
-                    showInlineDelete={!!(schema as any).radio_group_id}
+                    showInlineDelete={!!schema.radio_group_id}
                     onInlineDelete={() => handleDeleteBlock(fieldId)}
                   />
                 </div>
               );
             })}
           </div>
-
-          {/* Radio group bounding boxes */}
-          <RadioGroupOverlay
-            blocks={blocks.filter(
-              (b) => b.block_type === "form_field" && b.field_schema?.page === pageNumber
-            )}
-            pdfToDisplay={pdfToDisplay}
-            scale={scale}
-            onAddOption={handleAddRadioOption}
-          />
 
           {/* Crosshair overlay on hover */}
           {localHover && (

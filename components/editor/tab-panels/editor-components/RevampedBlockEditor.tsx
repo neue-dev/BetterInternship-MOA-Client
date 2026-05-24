@@ -97,7 +97,7 @@ function RecipientBadgeDropdown({
 type FieldOption = DefaultValueFieldOption;
 
 export function RevampedBlockEditor() {
-  const { formMetadata } = useFormEditor();
+  const { formMetadata, updateBlocks } = useFormEditor();
   const { pageCount } = usePdfViewer();
   const { registry } = useFieldTemplateContext();
   const {
@@ -273,6 +273,19 @@ export function RevampedBlockEditor() {
     if (isPendingDraftSelected) {
       setPendingMissingFieldDraft(updated);
       return;
+    }
+
+    // Propagate label changes to all blocks in the same radio group
+    if (key === "label") {
+      const radioGroupId = (editedBlock.field_schema as any)?.radio_group_id as string | undefined;
+      if (radioGroupId) {
+        const updatedBlocks = (formMetadata.schema.blocks || []).map((b) => {
+          if (b.block_type !== "form_field" || (b.field_schema as any)?.radio_group_id !== radioGroupId) return b;
+          return { ...b, field_schema: { ...b.field_schema!, label: value } };
+        });
+        updateBlocks(updatedBlocks);
+        return;
+      }
     }
 
     // Use context handler to update and sync for persisted fields
@@ -708,7 +721,16 @@ export function RevampedBlockEditor() {
                 setPendingMissingFieldDraft(updatedBlock);
                 return;
               }
-              handleBlockUpdate(updatedBlock);
+              const radioGroupId = (editedBlock.field_schema as any)?.radio_group_id as string | undefined;
+              if (radioGroupId) {
+                const updatedBlocks = (formMetadata?.schema.blocks || []).map((b) => {
+                  if (b.block_type !== "form_field" || (b.field_schema as any)?.radio_group_id !== radioGroupId) return b;
+                  return { ...b, signing_party_id: value };
+                });
+                updateBlocks(updatedBlocks);
+              } else {
+                handleBlockUpdate(updatedBlock);
+              }
             }}
           />
         </Card>

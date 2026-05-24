@@ -38,6 +38,8 @@ function normalizeSchema<T extends SchemaLike>(schema: T | undefined): T | undef
     size,
     wrap,
     font: schema.font,
+    radio_group_id: schema.radio_group_id,
+    radio_option_label: schema.radio_option_label,
   };
 
   delete normalized.horizontal_alignment;

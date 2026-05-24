@@ -4,6 +4,7 @@ import {
   Calendar,
   ChevronsUpDown,
   Circle,
+  CircleDot,
   Clock3,
   Hash,
   Link,
@@ -25,7 +26,8 @@ export type PresetFieldIconKey =
   | "time"
   | "url"
   | "phone"
-  | "email";
+  | "email"
+  | "radio";
 
 // UI-only icon token map. Presets pass `iconKey` from package metadata.
 const PRESET_FIELD_ICON_MAP: Record<PresetFieldIconKey, LucideIcon> = {
@@ -40,6 +42,7 @@ const PRESET_FIELD_ICON_MAP: Record<PresetFieldIconKey, LucideIcon> = {
   url: Link,
   phone: Phone,
   email: Mail,
+  radio: CircleDot,
 };
 
 const PRESET_NAME_TO_ICON_KEY: Record<string, PresetFieldIconKey> = {
@@ -55,6 +58,7 @@ const PRESET_NAME_TO_ICON_KEY: Record<string, PresetFieldIconKey> = {
   url: "url",
   phone_number: "phone",
   email: "email",
+  radio: "radio",
 };
 
 const isPresetFieldIconKey = (value: string): value is PresetFieldIconKey =>

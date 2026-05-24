@@ -16,6 +16,7 @@ import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist/type
 import type { PageViewport } from "pdfjs-dist/types/src/display/display_utils";
 import { ZoomIn, ZoomOut, FileUp, SlidersHorizontal } from "lucide-react";
 import { FieldBox, type FormField } from "./FieldBox";
+import { RadioGroupOverlay } from "./RadioGroupOverlay";
 import { FieldRegistryEntry } from "@/app/api";
 import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
@@ -712,6 +713,16 @@ export function PdfViewer() {
             },
           };
 
+          // Inject radio group metadata when dropping a radio option preset
+          if (draggedField.validator_ir?.baseType === "radio" && newBlock.field_schema) {
+            const radioGroupId = `rg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            newBlock.field_schema = {
+              ...newBlock.field_schema,
+              radio_group_id: radioGroupId,
+              radio_option_label: "Option 1",
+            };
+          }
+
           console.log("Created block field_schema:", newBlock.field_schema);
           handleBlockCreate(newBlock);
         } catch (err) {
@@ -1307,6 +1318,16 @@ const PdfPageCanvas = memo(
           },
         };
 
+        // Inject radio group metadata when dropping a radio option preset
+        if (draggedField.validator_ir?.baseType === "radio" && newBlock.field_schema) {
+          const radioGroupId = `rg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          newBlock.field_schema = {
+            ...newBlock.field_schema,
+            radio_group_id: radioGroupId,
+            radio_option_label: "Option 1",
+          };
+        }
+
         console.log("Canvas: Created block field_schema:", newBlock.field_schema);
         handleBlockCreate(newBlock);
       } catch (err) {
@@ -1471,6 +1492,54 @@ const PdfPageCanvas = memo(
       selectSameFieldAtIndex(ids, prevIndex);
     };
 
+    const handleAddRadioOption = (groupId: string) => {
+      const groupBlocks = blocks.filter(
+        (b) => b.block_type === "form_field" && (b.field_schema as any)?.radio_group_id === groupId
+      );
+      if (!groupBlocks.length) return;
+
+      const rightmost = groupBlocks.reduce((best, b) => {
+        const s = b.field_schema!;
+        const bestS = best.field_schema!;
+        return s.x + s.w > bestS.x + bestS.w ? b : best;
+      });
+      const schema = rightmost.field_schema!;
+      const optionNumber = groupBlocks.length + 1;
+      const newFieldKey = `radio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      const newBlock: IFormBlock = {
+        _id: `block-radio-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        block_type: "form_field",
+        signing_party_id: rightmost.signing_party_id,
+        order: blocks.length,
+        field_schema: {
+          field: newFieldKey,
+          type: "text",
+          page: schema.page,
+          x: schema.x + schema.w + 4,
+          y: schema.y,
+          w: schema.w,
+          h: schema.h,
+          align_h: schema.align_h ?? "center",
+          align_v: schema.align_v ?? "middle",
+          label: `Option ${optionNumber}`,
+          tooltip_label: "",
+          shared: schema.shared,
+          source: schema.source,
+          prefiller: schema.prefiller,
+          validator: schema.validator,
+          validator_ir: (schema as any).validator_ir,
+          size: schema.size,
+          wrap: schema.wrap,
+          font: schema.font,
+          radio_group_id: groupId,
+          radio_option_label: `Option ${optionNumber}`,
+        },
+      };
+
+      handleBlockCreate(newBlock);
+    };
+
     return (
       <div
         ref={containerRef}
@@ -1591,11 +1660,23 @@ const PdfPageCanvas = memo(
                     onNextSameField={() => handleSelectNextSameField(fieldId)}
                     showBaselineGuide={showBaselineGuides}
                     baselineGuideOffsetPx={baselineOffsetPx}
+                    showInlineDelete={!!(schema as any).radio_group_id}
+                    onInlineDelete={() => handleDeleteBlock(fieldId)}
                   />
                 </div>
               );
             })}
           </div>
+
+          {/* Radio group bounding boxes */}
+          <RadioGroupOverlay
+            blocks={blocks.filter(
+              (b) => b.block_type === "form_field" && b.field_schema?.page === pageNumber
+            )}
+            pdfToDisplay={pdfToDisplay}
+            scale={scale}
+            onAddOption={handleAddRadioOption}
+          />
 
           {/* Crosshair overlay on hover */}
           {localHover && (

@@ -51,6 +51,8 @@ export type FieldBoxProps = {
   onNextSameField?: () => void;
   showBaselineGuide?: boolean;
   baselineGuideOffsetPx?: number;
+  showInlineDelete?: boolean;
+  onInlineDelete?: () => void;
 };
 
 export const FieldBox = ({
@@ -71,6 +73,8 @@ export const FieldBox = ({
   onNextSameField,
   showBaselineGuide = false,
   baselineGuideOffsetPx,
+  showInlineDelete = false,
+  onInlineDelete,
 }: FieldBoxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -243,6 +247,21 @@ export const FieldBox = ({
       >
         {field.label}
       </div>
+
+      {showInlineDelete && (
+        <button
+          type="button"
+          className="absolute -top-1.5 -left-1.5 z-30 inline-flex h-4 w-4 items-center justify-center rounded-full border border-red-300 bg-white text-red-500 text-[10px] font-bold leading-none hover:bg-red-50"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onInlineDelete?.();
+          }}
+          title="Remove radio option"
+        >
+          −
+        </button>
+      )}
 
       {shouldShowBaseline && (
         <div

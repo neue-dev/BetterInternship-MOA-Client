@@ -37,6 +37,7 @@ import {
   isDefaultPresetFieldKey,
 } from "@/lib/default-field-preset-utils";
 import { resolveSystemPresetTemplates } from "@/lib/system-preset-resolver";
+import { RadioGroupFieldEditor } from "./RadioGroupFieldEditor";
 
 function RecipientBadgeDropdown({
   value,
@@ -733,6 +734,21 @@ export function RevampedBlockEditor() {
             </div>
           </Card>
         ) : null}
+
+        {(schema as any)?.radio_group_id && (
+          <RadioGroupFieldEditor
+            currentBlockId={editedBlock._id}
+            allBlocks={formMetadata?.schema.blocks ?? []}
+            onUpdateOptionLabel={(blockId, label) => {
+              const target = formMetadata?.schema.blocks?.find((b) => b._id === blockId);
+              if (!target?.field_schema) return;
+              handleBlockUpdate({
+                ...target,
+                field_schema: { ...target.field_schema, radio_option_label: label },
+              });
+            }}
+          />
+        )}
 
         <Card className="gap-2.5 p-2.5">
           <h4 className="text-muted-foreground text-xs font-semibold uppercase">Layout & Text</h4>

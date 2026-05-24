@@ -117,7 +117,8 @@ export const FormPreviewRenderer = ({
     const currentField = fieldMap.get(fieldKey);
     if (!currentField || currentField.source !== "manual") return;
 
-    const nextFieldValue = nextValue === undefined ? displayValues[fieldKey] : String(nextValue ?? "");
+    const nextFieldValue =
+      nextValue === undefined ? displayValues[fieldKey] : String(nextValue ?? "");
     const valuesForParams: Record<string, string> =
       nextValue === undefined
         ? displayValues
@@ -159,10 +160,10 @@ export const FormPreviewRenderer = ({
   return (
     <div className="relative flex h-full flex-col rounded-[0.33em] border border-gray-300">
       <div ref={scrollContainerRef} className="relative flex flex-1 flex-col overflow-auto">
-        <div className="px-7 py-5">
+        <div className="px-6 pt-8">
           <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>
         </div>
-        <div className="mt-7 flex-1 space-y-2 border-r border-gray-300 px-7">
+        <div className="flex-1 space-y-2 px-6">
           <BlocksRenderer
             formKey={formName}
             blocks={sortedBlocks}

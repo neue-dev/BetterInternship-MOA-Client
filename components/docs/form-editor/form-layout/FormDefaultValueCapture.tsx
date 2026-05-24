@@ -128,11 +128,11 @@ const FormDefaultValueCaptureContent = ({
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col gap-5 overflow-hidden">
+    <div className="relative flex h-full w-full flex-col gap-4 overflow-hidden">
       {/* Main content with split layout - Form on left, PDF on right */}
-      <div className="flex flex-1 gap-5 overflow-hidden">
+      <div className="flex flex-1 flex-col-reverse gap-4 overflow-hidden md:flex-row">
         {/* Left side - Form */}
-        <div className="relative flex-1 overflow-y-auto bg-white">
+        <div className="relative h-1/2 flex-1 overflow-y-auto bg-white md:h-full">
           {filteredBlocks.length > 0 ? (
             <FormPreviewRenderer
               formName={formName}
@@ -152,7 +152,7 @@ const FormDefaultValueCaptureContent = ({
         </div>
 
         {/* Right side - PDF Preview */}
-        <div className="relative flex-1 overflow-hidden bg-slate-100">
+        <div className="relative h-1/2 flex-1 overflow-hidden bg-slate-100 md:h-full">
           {documentUrl && hasRenderablePreviewField ? (
             <FormPreviewPdfDisplay
               documentUrl={documentUrl}
@@ -186,7 +186,7 @@ const FormDefaultValueCaptureContent = ({
 
       {/* Save Button */}
       {onSave && (
-        <div className="flex items-center justify-end border-t border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-4">
           <Button onClick={handleSave} disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
             {isSaving ? "Saving..." : "Save Default Values"}

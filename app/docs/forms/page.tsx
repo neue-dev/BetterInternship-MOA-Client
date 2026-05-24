@@ -180,7 +180,7 @@ export default function DocsFormsPage() {
     if (!openFormName) return;
 
     openModal(`form-default-values:${openFormName}`, renderModalContent(), {
-      title: `My Default Values`,
+      title: `My default values`,
       panelClassName: "sm:min-w-[95vw] sm:max-w-[95vw] sm:w-[95vw] sm:h-[90vh] sm:flex sm:flex-col",
       contentClassName: "flex-1 overflow-hidden p-4",
       showHeaderDivider: true,

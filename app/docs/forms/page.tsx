@@ -62,23 +62,28 @@ export default function DocsFormsPage() {
 
       const formItems = await Promise.all(
         formNames.map(async (name) => {
-          const settings = await formSettings.getFormSettings(name);
-          const formData = await getFormFields(name);
+          try {
+            const settings = await formSettings.getFormSettings(name);
+            const formData = await getFormFields(name);
 
-          const firstPartyId = Object.keys(settings || {})[0];
-          const partySettings = firstPartyId ? settings[firstPartyId] : {};
+            const firstPartyId = Object.keys(settings || {})[0];
+            const partySettings = firstPartyId ? settings[firstPartyId] : {};
 
-          return {
-            name,
-            label: formData.formMetadata?.label || name,
-            enabledAutosign: !!partySettings?.autosign,
-            party: firstPartyId ?? "",
-            date: partySettings?.autosign_last_update ?? "",
-          };
+            return {
+              name,
+              label: formData.formMetadata?.label || name,
+              enabledAutosign: !!partySettings?.autosign,
+              party: firstPartyId ?? "",
+              date: partySettings?.autosign_last_update ?? "",
+            };
+          } catch (error) {
+            console.warn(`[Form Automation] Skipping unavailable form ${name}:`, error);
+            return null;
+          }
         })
       );
 
-      return formItems;
+      return formItems.filter((item): item is FormItem => Boolean(item));
     },
     staleTime: 60_000,
     enabled: isLoggedIn,

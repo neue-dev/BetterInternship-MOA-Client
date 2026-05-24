@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Eye } from "lucide-react";
+import { Edit, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type FormItem = {
   name: string;
@@ -26,6 +27,8 @@ export default function MyFormRow({
   loading?: boolean;
   index?: number;
 }) {
+  const isMobile = useIsMobile();
+
   return (
     <div
       role="row"
@@ -49,11 +52,17 @@ export default function MyFormRow({
       </div>
       <div role="cell" className="col-span-2"></div>
 
-      {/* Form values (eye) */}
+      {/* Form values */}
       <div role="cell" className="col-span-2 flex items-center justify-center">
-        <Button variant="outline" onClick={onOpenAutoSignForm}>
-          My Default Values <Eye className="mt-0.5 h-3 w-3 text-slate-700" />
-        </Button>
+        {isMobile ? (
+          <Button variant="outline" onClick={onOpenAutoSignForm}>
+            <Edit />
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={onOpenAutoSignForm}>
+            Edit <Edit />
+          </Button>
+        )}
       </div>
 
       {/* Auto-sign toggle */}

@@ -5,6 +5,7 @@ import { type IFormBlock, type IFormMetadata, FormMetadata } from "@betterintern
 import { FieldRenderer } from "@/components/docs/forms/FieldRenderer";
 import { HeaderRenderer, ParagraphRenderer } from "@/components/docs/forms/BlockrRenderer";
 import { getBlockField, isBlockField } from "@/components/docs/forms/utils";
+import { RadioGroupFiller } from "@/components/docs/forms/RadioGroupFiller";
 
 interface FormPreviewRendererProps {
   formName: string;
@@ -182,6 +183,10 @@ export const FormPreviewRenderer = ({
   );
 };
 
+type RenderUnit =
+  | { kind: "single"; block: IFormBlock; index: number }
+  | { kind: "radio-group"; groupId: string; groupBlocks: IFormBlock[] };
+
 const BlocksRenderer = ({
   formKey,
   blocks,
@@ -209,7 +214,50 @@ const BlocksRenderer = ({
 }) => {
   if (!blocks.length) return null;
 
-  return blocks.map((block, i) => {
+  // Pre-build a map of radio_group_id -> all blocks in that group
+  const radioGroupMap = new Map<string, IFormBlock[]>();
+  for (const block of blocks) {
+    const groupId = block.field_schema?.radio_group_id as string | undefined;
+    if (groupId) {
+      if (!radioGroupMap.has(groupId)) radioGroupMap.set(groupId, []);
+      radioGroupMap.get(groupId)!.push(block);
+    }
+  }
+
+  // Collapse radio group siblings into a single render unit (first occurrence wins)
+  const seenGroupIds = new Set<string>();
+  const units: RenderUnit[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const groupId = block.field_schema?.radio_group_id as string | undefined;
+    if (groupId) {
+      if (!seenGroupIds.has(groupId)) {
+        seenGroupIds.add(groupId);
+        units.push({ kind: "radio-group", groupId, groupBlocks: radioGroupMap.get(groupId)! });
+      }
+    } else {
+      units.push({ kind: "single", block, index: i });
+    }
+  }
+
+  return units.map((unit, i) => {
+    if (unit.kind === "radio-group") {
+      return (
+        <div className="space-between flex flex-row" key={`radio-group:${unit.groupId}`}>
+          <RadioGroupFiller
+            blocks={unit.groupBlocks}
+            values={values}
+            onChange={onChange}
+            errors={errors}
+            setSelected={(fieldId) => onFieldClick?.(fieldId)}
+            selectedFieldId={selectedFieldId}
+            fieldRefs={fieldRefs}
+          />
+        </div>
+      );
+    }
+
+    const { block, index } = unit;
     const isForm = isBlockField(block);
     const blockField = isForm ? getBlockField(block) : null;
 
@@ -219,7 +267,7 @@ const BlocksRenderer = ({
     return (
       <>
         {isForm && blockField?.source === "manual" && metadataField && (
-          <div className="space-between flex flex-row" key={`${formKey}:${i}`}>
+          <div className="space-between flex flex-row" key={`${formKey}:${index}`}>
             <div
               ref={(el) => {
                 if (el && blockField) fieldRefs[blockField.field] = el;

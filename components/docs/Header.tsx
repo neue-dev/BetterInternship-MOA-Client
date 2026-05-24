@@ -276,7 +276,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/dashboard"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -290,7 +290,7 @@ export default function DocsTopbarUser() {
               <Button
                 variant="ghost"
                 className={cn(
-                  "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                  "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                   docsPathname === "/students"
                     ? "text-primary"
                     : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -304,7 +304,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/forms"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -317,7 +317,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"

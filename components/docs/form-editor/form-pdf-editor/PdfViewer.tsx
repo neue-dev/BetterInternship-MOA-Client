@@ -2,7 +2,7 @@
  * @ Author: BetterInternship [Jana]
  * @ Create Time: 2025-12-16 16:03:54
  * @ Modified by: Your name
- * @ Modified time: 2026-05-24 17:54:05
+ * @ Modified time: 2026-05-24 18:58:30
  * @ Description: PDF editor component - pure rendering via contexts
  */
 
@@ -1445,10 +1445,11 @@ const PdfPageCanvas = memo(
     const handleFieldRecipientChange = (fieldId: string, partyId: string) => {
       const block = blocks.find((b) => b._id === fieldId);
       if (!block) return;
-      const radioGroupId = (block.field_schema as any)?.radio_group_id as string | undefined;
+      const radioGroupId = block.field_schema?.radio_group_id as string | undefined;
       if (radioGroupId) {
         const updatedBlocks = blocks.map((b) => {
-          if (b.block_type !== "form_field" || (b.field_schema as any)?.radio_group_id !== radioGroupId) return b;
+          if (b.block_type !== "form_field" || b.field_schema?.radio_group_id !== radioGroupId)
+            return b;
           return { ...b, signing_party_id: partyId };
         });
         updateBlocks(updatedBlocks);
@@ -1574,6 +1575,11 @@ const PdfPageCanvas = memo(
         };
       });
       updateBlocks(nextBlocks);
+
+      const firstGroupBlock = blocks
+        .filter((b) => b.block_type === "form_field" && b.field_schema?.radio_group_id === groupId)
+        .sort((a, b) => (a.field_schema?.x ?? 0) - (b.field_schema?.x ?? 0))[0];
+      if (firstGroupBlock) onFieldSelect(firstGroupBlock._id);
     };
 
     return (
@@ -1620,6 +1626,14 @@ const PdfPageCanvas = memo(
             onAddOption={handleAddRadioOption}
             onGroupDragMove={handleGroupDragMove}
             onGroupDragEnd={handleGroupDragEnd}
+            onGroupClick={(groupId) => {
+              const firstBlock = blocks
+                .filter(
+                  (b) => b.block_type === "form_field" && b.field_schema?.radio_group_id === groupId
+                )
+                .sort((a, b) => (a.field_schema?.x ?? 0) - (b.field_schema?.x ?? 0))[0];
+              if (firstBlock) onFieldSelect(firstBlock._id);
+            }}
             activeDrag={activeGroupDrag}
           />
 

@@ -20,6 +20,7 @@ type Props = {
   onAddOption: (groupId: string) => void;
   onGroupDragMove: (groupId: string, displayDeltaX: number, displayDeltaY: number) => void;
   onGroupDragEnd: (groupId: string, displayDeltaX: number, displayDeltaY: number) => void;
+  onGroupClick?: (groupId: string) => void;
   activeDrag: { groupId: string; x: number; y: number } | null;
 };
 
@@ -30,18 +31,22 @@ export function RadioGroupOverlay({
   onAddOption,
   onGroupDragMove,
   onGroupDragEnd,
+  onGroupClick,
   activeDrag,
 }: Props) {
   const groups = useMemo<RadioGroupInfo[]>(() => {
     const map = new Map<string, IFormBlock[]>();
     for (const block of blocks) {
-      const groupId = (block.field_schema as any)?.radio_group_id as string | undefined;
+      const groupId = block.field_schema?.radio_group_id as string | undefined;
       if (!groupId) continue;
       if (!map.has(groupId)) map.set(groupId, []);
       map.get(groupId)!.push(block);
     }
     return Array.from(map.entries()).map(([groupId, groupBlocks]) => {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
       for (const b of groupBlocks) {
         const s = b.field_schema!;
         minX = Math.min(minX, s.x);
@@ -105,10 +110,11 @@ export function RadioGroupOverlay({
             pointerEvents: "auto",
             cursor: grabCursor,
           };
-          if (side === "top")    return { ...base, top: 0, left: 0, right: 0, height: stripPx };
+          if (side === "top") return { ...base, top: 0, left: 0, right: 0, height: stripPx };
           if (side === "bottom") return { ...base, bottom: 0, left: 0, right: 0, height: stripPx };
-          if (side === "left")   return { ...base, top: stripPx, left: 0, bottom: stripPx, width: stripPx };
-                                 return { ...base, top: stripPx, right: 0, bottom: stripPx, width: stripPx };
+          if (side === "left")
+            return { ...base, top: stripPx, left: 0, bottom: stripPx, width: stripPx };
+          return { ...base, top: stripPx, right: 0, bottom: stripPx, width: stripPx };
         };
 
         return (
@@ -123,7 +129,11 @@ export function RadioGroupOverlay({
               transform: `translate(${offsetX}px, ${offsetY}px)`,
               border: "2px dashed rgba(99, 102, 241, 0.5)",
               borderRadius: "4px",
-              pointerEvents: "none", // interior passes through to field boxes
+              pointerEvents: "auto",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onGroupClick?.(group.groupId);
             }}
           >
             {/* Four border strips — only these capture mouse events */}
@@ -132,12 +142,16 @@ export function RadioGroupOverlay({
                 key={side}
                 style={stripStyle(side)}
                 onMouseDown={(e) => handleBorderMouseDown(e, group.groupId)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGroupClick?.(group.groupId);
+                }}
               />
             ))}
 
             <button
               type="button"
-              className="pointer-events-auto absolute -bottom-3 -right-3 z-30 inline-flex h-6 w-6 items-center justify-center rounded-full border border-indigo-300 bg-white text-indigo-600 shadow-sm hover:bg-indigo-50"
+              className="pointer-events-auto absolute -right-3 -bottom-3 z-30 inline-flex h-6 w-6 items-center justify-center rounded-full border border-indigo-300 bg-white text-indigo-600 shadow-sm hover:bg-indigo-50"
               style={{ cursor: "default" }}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {

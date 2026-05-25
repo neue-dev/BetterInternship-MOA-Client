@@ -253,6 +253,7 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
 
     const units: FormViewUnit[] = [];
     const fieldUnits = new Map<string, FormViewUnit>();
+    const radioGroupUnits = new Map<string, FormViewUnit>();
 
     blocks.forEach((block) => {
       if ((block.signing_party_id || "") !== activePartyId) return;
@@ -274,6 +275,26 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
       const schema = block.field_schema || block.phantom_field_schema;
       const fieldName = schema?.field;
       if (!fieldName) return;
+
+      const radioGroupId = block.field_schema?.radio_group_id;
+      if (radioGroupId) {
+        const existing = radioGroupUnits.get(radioGroupId);
+        if (existing) {
+          existing.blockIds.push(block._id);
+          return;
+        }
+        const unit: FormViewUnit = {
+          id: `radio-group-${radioGroupId}`,
+          kind: "field",
+          label: schema?.label ?? fieldName,
+          partyId: activePartyId,
+          blockIds: [block._id],
+          primaryBlockId: block._id,
+        };
+        radioGroupUnits.set(radioGroupId, unit);
+        units.push(unit);
+        return;
+      }
 
       const groupId = `${fieldName}-${activePartyId}-${block.block_type}`;
       const existing = fieldUnits.get(groupId);

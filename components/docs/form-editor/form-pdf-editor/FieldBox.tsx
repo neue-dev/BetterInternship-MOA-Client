@@ -33,6 +33,35 @@ export type FormField = {
 
 type ResizeHandle = "n" | "e" | "s" | "w" | "nw" | "ne" | "sw" | "se";
 
+const RESIZE_HANDLE_CLASSES: Record<ResizeHandle, string> = {
+  n:  "absolute -top-1 left-1/2 -translate-x-1/2 cursor-ns-resize",
+  e:  "absolute top-1/2 -right-1 -translate-y-1/2 cursor-ew-resize",
+  s:  "absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-ns-resize",
+  w:  "absolute top-1/2 -left-1 -translate-y-1/2 cursor-ew-resize",
+  nw: "absolute -top-1 -left-1 cursor-nwse-resize",
+  ne: "absolute -top-1 -right-1 cursor-nesw-resize",
+  sw: "absolute -bottom-1 -left-1 cursor-nesw-resize",
+  se: "absolute -right-1 -bottom-1 cursor-nwse-resize",
+};
+
+function ResizeHandleDot({
+  handle,
+  colorHex,
+  onMouseDown,
+}: {
+  handle: ResizeHandle;
+  colorHex: string;
+  onMouseDown: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div
+      className={cn("hidden h-1.5 w-1.5 rounded-full opacity-60 group-hover:block", RESIZE_HANDLE_CLASSES[handle])}
+      onMouseDown={onMouseDown}
+      style={{ backgroundColor: colorHex, pointerEvents: "auto" }}
+    />
+  );
+}
+
 export type FieldBoxProps = {
   field: FormField;
   isSelected?: boolean;
@@ -51,6 +80,8 @@ export type FieldBoxProps = {
   onNextSameField?: () => void;
   showBaselineGuide?: boolean;
   baselineGuideOffsetPx?: number;
+  showInlineDelete?: boolean;
+  onInlineDelete?: () => void;
 };
 
 export const FieldBox = ({
@@ -71,6 +102,8 @@ export const FieldBox = ({
   onNextSameField,
   showBaselineGuide = false,
   baselineGuideOffsetPx,
+  showInlineDelete = false,
+  onInlineDelete,
 }: FieldBoxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -244,6 +277,21 @@ export const FieldBox = ({
         {field.label}
       </div>
 
+      {showInlineDelete && (
+        <button
+          type="button"
+          className="absolute -top-1.5 -left-1.5 z-30 inline-flex h-4 w-4 items-center justify-center rounded-full border border-red-300 bg-white text-red-500 text-[10px] font-bold leading-none hover:bg-red-50"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onInlineDelete?.();
+          }}
+          title="Remove radio option"
+        >
+          −
+        </button>
+      )}
+
       {shouldShowBaseline && (
         <div
           className="pointer-events-none absolute right-0 left-0"
@@ -357,46 +405,14 @@ export const FieldBox = ({
 
       {isSelected && (
         <>
-          <div
-            className="absolute -top-2 left-1/2 hidden h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "n")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute top-1/2 -right-2 hidden h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "e")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute -bottom-2 left-1/2 hidden h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "s")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute top-1/2 -left-2 hidden h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "w")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute -top-2 -left-2 hidden h-3 w-3 cursor-nwse-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "nw")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute -top-2 -right-2 hidden h-3 w-3 cursor-nesw-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "ne")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute -bottom-2 -left-2 hidden h-3 w-3 cursor-nesw-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "sw")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
-          <div
-            className="absolute -right-2 -bottom-2 hidden h-3 w-3 cursor-nwse-resize rounded-full group-hover:block"
-            onMouseDown={(e) => handleResizeStart(e, "se")}
-            style={{ backgroundColor: partyColor.hex, pointerEvents: "auto" }}
-          />
+          {(["n", "e", "s", "w", "nw", "ne", "sw", "se"] as ResizeHandle[]).map((handle) => (
+            <ResizeHandleDot
+              key={handle}
+              handle={handle}
+              colorHex={partyColor.hex}
+              onMouseDown={(e) => handleResizeStart(e, handle)}
+            />
+          ))}
         </>
       )}
     </div>

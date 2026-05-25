@@ -138,19 +138,21 @@ const FormDefaultValueCaptureContent = ({
   const isMobile = useIsMobile();
 
   return (
-    <>
+    <div className="relative flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
       {isMobile && (
         <MobileStepTabs
           tabs={mobileFieldsTabs}
           activeTab={mobileFieldsTab}
-          onTabChange={() => {}}
+          onTabChange={(tabId) => {
+            setMobileFieldsTab(tabId as "template" | "preview");
+          }}
         />
       )}
-      <div className="relative flex h-full w-full flex-col gap-4 overflow-hidden p-4">
-        {/* Main content with split layout - Form on left, PDF on right */}
-        <div className="flex flex-1 flex-col-reverse gap-4 overflow-hidden md:flex-row">
-          {/* Left side - Form */}
-          <div className="relative h-1/2 flex-1 overflow-y-auto bg-white md:h-full">
+
+      <div className="flex flex-1 flex-col gap-4 overflow-hidden px-4 md:flex-row">
+        {/* Left side - Form */}
+        {(!isMobile || mobileFieldsTab === "template") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-y-auto bg-white">
             {filteredBlocks.length > 0 ? (
               <FormPreviewRenderer
                 formName={formName}
@@ -168,9 +170,11 @@ const FormDefaultValueCaptureContent = ({
               </div>
             )}
           </div>
+        )}
 
-          {/* Right side - PDF Preview */}
-          <div className="relative h-1/2 flex-1 overflow-hidden bg-slate-100 md:h-full">
+        {/* Right side - PDF Preview */}
+        {(!isMobile || mobileFieldsTab === "preview") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-slate-100">
             {documentUrl && hasRenderablePreviewField ? (
               <FormPreviewPdfDisplay
                 documentUrl={documentUrl}
@@ -192,27 +196,24 @@ const FormDefaultValueCaptureContent = ({
                       </p>
                     </>
                   ) : (
-                    <>
-                      <p className="text-sm text-slate-500">No form fields in this section</p>
-                    </>
+                    <p className="text-sm text-slate-500">No form fields in this section</p>
                   )}
                 </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Save Button */}
-        {onSave && (
-          <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-4">
-            <Button onClick={handleSave} disabled={isSaving} size="sm">
-              {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-              {isSaving ? "Saving..." : "Save Default Values"}
-            </Button>
-          </div>
         )}
       </div>
-    </>
+
+      {onSave && (
+        <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-2">
+          <Button onClick={handleSave} disabled={isSaving} size="sm">
+            {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+            {isSaving ? "Saving..." : "Save Default Values"}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

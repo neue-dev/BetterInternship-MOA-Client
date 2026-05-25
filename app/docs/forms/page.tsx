@@ -163,7 +163,7 @@ export default function DocsFormsPage() {
     };
 
     return (
-      <div className="h-screen w-full">
+      <div className="flex h-full min-h-0 w-full">
         <FormDefaultValueCapture
           formName={openFormName!}
           documentUrl={formData.documentUrl || ""}
@@ -182,7 +182,8 @@ export default function DocsFormsPage() {
     openModal(`form-default-values:${openFormName}`, renderModalContent(), {
       title: `My default values`,
       panelClassName: "sm:min-w-[95vw] sm:max-w-[95vw] sm:w-[95vw] sm:h-[90vh] sm:flex sm:flex-col",
-      contentClassName: "flex-1 overflow-hidden",
+      contentClassName:
+        "flex min-h-0 flex-col overflow-hidden px-4 pb-4 h-[calc(var(--vh,1vh)*100-4rem)] sm:h-[calc(90vh-4rem)]",
       showHeaderDivider: true,
       onClose: () => {
         setOpenFormName(null);

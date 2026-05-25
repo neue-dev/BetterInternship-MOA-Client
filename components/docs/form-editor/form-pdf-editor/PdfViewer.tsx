@@ -60,16 +60,10 @@ import { createBlockFromSuggestionWithPreset } from "@/lib/missing-fields/preset
 import { classifyBlankRegionsAgainstBlocks } from "@/lib/missing-fields/compare";
 import { toExistingFieldRects } from "@/lib/missing-fields/types";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
-
-export type PointerLocation = {
-  page: number;
-  pdfX: number;
-  pdfY: number;
-  displayX: number;
-  displayY: number;
-  viewportWidth: number;
-  viewportHeight: number;
-};
+import {
+  usePdfCoordinateTransform,
+  type PointerLocation,
+} from "./use-pdf-coordinate-transform";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const createUniqueFieldKey = (base: string) =>
@@ -1112,78 +1106,12 @@ const PdfPageCanvas = memo(
       };
     }, [pdf, pageNumber, scale]);
 
-    const extractLocation = (
-      event: React.MouseEvent<HTMLCanvasElement, MouseEvent> | React.DragEvent<HTMLCanvasElement>
-    ): PointerLocation | null => {
-      const canvas = canvasRef.current;
-      const viewport = viewportRef.current;
-      if (!canvas || !viewport) return null;
-
-      const rect = canvas.getBoundingClientRect();
-      const containerRect = canvas.parentElement?.getBoundingClientRect();
-      if (!containerRect) return null;
-
-      // Coordinates relative to canvas
-      const cssX = event.clientX - rect.left;
-
-      const cssY = event.clientY - rect.top;
-
-      // Display coordinates relative to container
-      const displayX = event.clientX - containerRect.left;
-      const displayY = event.clientY - containerRect.top;
-
-      // Convert CSS pixels to viewport space (viewport is already scaled by scale factor)
-      const viewportX = (cssX / rect.width) * viewport.width;
-      const viewportY = (cssY / rect.height) * viewport.height;
-
-      const [pdfX, pdfYBottom] = viewport.convertToPdfPoint(viewportX, viewportY) as [
-        number,
-        number,
-      ];
-
-      // Convert from PDF bottom-left origin to top-left origin
-      const actualPdfHeight = viewport.height / scale;
-      const pdfY = actualPdfHeight - pdfYBottom;
-
-      return {
-        page: pageNumber,
-        pdfX,
-        pdfY,
-        displayX,
-        displayY,
-        viewportWidth: viewport.width,
-        viewportHeight: viewport.height,
-      };
-    };
-
-    // Inverse of extractLocation: convert PDF coords to display position
-    const pdfToDisplay = (pdfX: number, pdfY: number) => {
-      const canvas = canvasRef.current;
-      const viewport = viewportRef.current;
-      if (!canvas || !viewport) return null;
-
-      const rect = canvas.getBoundingClientRect();
-      const containerRect = canvas.parentElement?.getBoundingClientRect();
-      if (!containerRect) return null;
-
-      // Work with the actual CSS pixel dimensions from getBoundingClientRect
-      const actualPdfHeight = viewport.height / scale;
-      const pdfYBottom = actualPdfHeight - pdfY;
-
-      const viewportPoint = viewport.convertToViewportPoint(pdfX, pdfYBottom);
-      if (!viewportPoint) return null;
-      const [viewportX, viewportY] = viewportPoint as [number, number];
-
-      // Convert viewport coordinates to CSS pixels on screen
-      // rect.width and rect.height are already in CSS pixels (including any zoom effects)
-      const cssX = (viewportX / viewport.width) * rect.width;
-      const cssY = (viewportY / viewport.height) * rect.height;
-
-      return {
-        displayX: rect.left - containerRect.left + cssX,
-        displayY: rect.top - containerRect.top + cssY,
-      };
-    };
+    const { extractLocation, pdfToDisplay, displayDeltaToPdfDelta } = usePdfCoordinateTransform(
+      canvasRef,
+      viewportRef,
+      scale,
+      pageNumber
+    );
 
     const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
       const location = extractLocation(event);
@@ -1331,25 +1259,6 @@ const PdfPageCanvas = memo(
       } catch (err) {
         console.error("Error dropping field:", err);
       }
-    };
-
-    // Convert display pixel deltas to PDF coordinate deltas
-    const displayDeltaToPdfDelta = (displayDeltaX: number, displayDeltaY: number) => {
-      const canvas = canvasRef.current;
-      const viewport = viewportRef.current;
-      if (!canvas || !viewport) return { pdfDeltaX: 0, pdfDeltaY: 0 };
-
-      const rect = canvas.getBoundingClientRect();
-
-      // Convert CSS pixel deltas to viewport space deltas
-      const viewportDeltaX = (displayDeltaX / rect.width) * viewport.width;
-      const viewportDeltaY = (displayDeltaY / rect.height) * viewport.height;
-
-      // Convert viewport deltas to PDF space
-      const pdfDeltaX = viewportDeltaX / scale;
-      const pdfDeltaY = viewportDeltaY / scale;
-
-      return { pdfDeltaX, pdfDeltaY };
     };
 
     const handleFieldDrag = (fieldId: string, displayDeltaX: number, displayDeltaY: number) => {

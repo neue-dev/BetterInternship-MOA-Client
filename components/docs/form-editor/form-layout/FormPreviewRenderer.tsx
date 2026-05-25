@@ -2,9 +2,15 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import z from "zod";
-import { type IFormBlock, type IFormMetadata, FormMetadata, type ClientBlock } from "@betterinternship/core/forms";
+import {
+  type IFormBlock,
+  type IFormMetadata,
+  FormMetadata,
+  type ClientBlock,
+} from "@betterinternship/core/forms";
 import { BlocksRenderer } from "@/components/docs/forms/FormFillerRenderer";
 import { isBlockField, getBlockField } from "@/components/docs/forms/utils";
+import { cn } from "@/lib/utils";
 
 interface FormPreviewRendererProps {
   formName: string;
@@ -16,6 +22,7 @@ interface FormPreviewRendererProps {
   selectedFieldId?: string | null;
   onFieldClick?: (fieldId: string) => void;
   autoScrollToSelectedField?: boolean;
+  squareFrame?: boolean;
 }
 
 /**
@@ -40,6 +47,7 @@ export const FormPreviewRenderer = ({
   selectedFieldId,
   onFieldClick,
   autoScrollToSelectedField = true,
+  squareFrame = false,
 }: FormPreviewRendererProps) => {
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -131,7 +139,12 @@ export const FormPreviewRenderer = ({
   }
 
   return (
-    <div className="relative flex h-full flex-col rounded-[0.33em] border border-gray-300">
+    <div
+      className={cn(
+        "relative flex h-full flex-col border border-gray-300",
+        squareFrame ? "rounded-none" : "rounded-[0.33em]"
+      )}
+    >
       <div ref={scrollContainerRef} className="relative flex flex-1 flex-col overflow-auto">
         <div className="px-6 pt-8">
           <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>

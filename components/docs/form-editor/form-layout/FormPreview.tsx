@@ -164,27 +164,52 @@ const FormPreviewContent = ({
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-auto border-r bg-white">
-          {filteredBlocks.length > 0 ? (
-            <FormPreviewRenderer
-              formName={formMetadata.name}
-              formLabel={formMetadata.label}
-              blocks={filteredBlocks}
-              values={values}
-              onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
-              metadata={formMetadata}
-              selectedFieldId={selectedFieldId}
-              autoScrollToSelectedField={selectedFieldSource === "pdf"}
-              onFieldClick={(fieldId) => {
-                setSelectedFieldSource("form");
-                setSelectedFieldId(fieldId);
-              }}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-muted-foreground text-sm">No fields for this party</p>
-            </div>
-          )}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {filteredBlocks.length > 0 ? (
+              <FormPreviewRenderer
+                formName={formMetadata.name}
+                formLabel={formMetadata.label}
+                blocks={filteredBlocks}
+                values={values}
+                onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
+                metadata={formMetadata}
+                selectedFieldId={selectedFieldId}
+                autoScrollToSelectedField={selectedFieldSource === "pdf"}
+                squareFrame
+                onFieldClick={(fieldId) => {
+                  setSelectedFieldSource("form");
+                  setSelectedFieldId(fieldId);
+                }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-muted-foreground text-sm">No fields for this party</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-background flex flex-shrink-0 items-center justify-end gap-2 border-t p-3">
+            {generationResult && (
+              <a
+                href={generationResult}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-green-600 hover:underline"
+              >
+                Download
+              </a>
+            )}
+            <Button
+              onClick={handleGenerateTestForm}
+              disabled={isGenerating}
+              size="sm"
+              variant="default"
+            >
+              {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              {isGenerating ? "Generating..." : "Generate Test PDF"}
+            </Button>
+          </div>
         </div>
 
         {/* PDF Preview */}
@@ -221,6 +246,7 @@ const FormPreviewContent = ({
                 defaultFieldVisibility="mine"
                 prefillMode="dummy"
                 prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
+                squareFrame
               />
             ) : (
               <div className="flex h-full items-center justify-center">
@@ -231,29 +257,6 @@ const FormPreviewContent = ({
             )}
           </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="bg-background flex items-center justify-end gap-2 border-t p-3">
-        {generationResult && (
-          <a
-            href={generationResult}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-green-600 hover:underline"
-          >
-            Download
-          </a>
-        )}
-        <Button
-          onClick={handleGenerateTestForm}
-          disabled={isGenerating}
-          size="sm"
-          variant="default"
-        >
-          {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-          {isGenerating ? "Generating..." : "Generate Test PDF"}
-        </Button>
       </div>
     </div>
   );

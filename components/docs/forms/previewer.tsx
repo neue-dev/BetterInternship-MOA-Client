@@ -34,6 +34,7 @@ import {
   resolvePreviewFont,
 } from "@/lib/form-previewer-rendering";
 import { getSignatureImageFieldKey, parseSignatureImageValue } from "@betterinternship/core/forms";
+import { cn } from "@/lib/utils";
 
 type DefaultFieldVisibility = "all" | "mine";
 type FieldStatus = "empty" | "filled" | "signed";
@@ -82,6 +83,7 @@ interface FormPreviewPdfDisplayProps {
   fieldErrors?: Record<string, string>;
   prefillMode?: PreviewPrefillMode;
   prefillUser?: Record<string, unknown> | null;
+  squareFrame?: boolean;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -112,6 +114,7 @@ export const FormPreviewPdfDisplay = ({
   fieldErrors = {},
   prefillMode = "live",
   prefillUser = null,
+  squareFrame = false,
 }: FormPreviewPdfDisplayProps) => {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -285,7 +288,12 @@ export const FormPreviewPdfDisplay = ({
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-[0.33em] border border-slate-300">
+    <div
+      className={cn(
+        "flex h-full w-full flex-col overflow-hidden border border-slate-300",
+        squareFrame ? "rounded-none" : "rounded-[0.33em]"
+      )}
+    >
       {showToolbar && (
         <PreviewToolbar
           headerLeft={headerLeft}
@@ -582,8 +590,7 @@ const PdfPageOverlay = ({
               isMine: false,
               isKnownOwner: false,
             } satisfies OwnerMeta);
-          const canRevealValue =
-            !showOwnership || ownerMeta?.isMine || fieldVisibility === "all";
+          const canRevealValue = !showOwnership || ownerMeta?.isMine || fieldVisibility === "all";
           const rawValue = canRevealValue ? getPreviewRawValue(values, fieldName) : "";
           const signatureImage =
             field.type === "signature"

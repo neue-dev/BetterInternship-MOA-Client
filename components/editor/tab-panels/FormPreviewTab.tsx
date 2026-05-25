@@ -5,7 +5,7 @@ import { FormEditorTabProvider, useFormEditorTab } from "@/app/contexts/form-edi
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { FormPreview } from "@/components/docs/form-editor/form-layout/FormPreview";
 
-function FormPreviewTabContent() {
+function FormPreviewTabContent({ animatePanels = false }: { animatePanels?: boolean }) {
   const { formMetadata } = useFormEditor();
   const { selectedPartyId, setSelectedPartyId } = useFormEditorTab();
 
@@ -25,16 +25,21 @@ function FormPreviewTabContent() {
         onSelectParty={setSelectedPartyId}
       />
       <div className="min-h-0 flex-1 overflow-hidden">
-        <FormPreview metadata={formMetadata} mode="preview" showRecipientTabBar={false} />
+        <FormPreview
+          metadata={formMetadata}
+          mode="preview"
+          showRecipientTabBar={false}
+          animatePanels={animatePanels}
+        />
       </div>
     </div>
   );
 }
 
-export function FormPreviewTab() {
+export function FormPreviewTab({ animatePanels = false }: { animatePanels?: boolean }) {
   return (
     <FormEditorTabProvider>
-      <FormPreviewTabContent />
+      <FormPreviewTabContent animatePanels={animatePanels} />
     </FormEditorTabProvider>
   );
 }

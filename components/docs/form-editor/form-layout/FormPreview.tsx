@@ -20,11 +20,59 @@ import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 import { FormViewCanvas } from "@/components/editor/tab-panels/editor-components/FormViewCanvas";
+import { motion } from "framer-motion";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
   mode?: "preview" | "sort";
   showRecipientTabBar?: boolean;
+  animatePanels?: boolean;
+}
+
+type AnimatedPreviewPanelProps = {
+  animatePanels?: boolean;
+  children: React.ReactNode;
+  className: string;
+  order: number;
+};
+
+const PREVIEW_PANEL_STAGGER_SECONDS = 0.07;
+const PREVIEW_PANEL_TRANSITION_SECONDS = 0.2;
+
+function AnimatedPreviewPanel({
+  animatePanels = false,
+  children,
+  className,
+  order,
+}: AnimatedPreviewPanelProps) {
+  if (!animatePanels) return <div className={className}>{children}</div>;
+
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        transition: {
+          delay: order * PREVIEW_PANEL_STAGGER_SECONDS,
+          duration: PREVIEW_PANEL_TRANSITION_SECONDS,
+          ease: "easeOut",
+        },
+      }}
+      exit={{
+        opacity: 0,
+        y: 18,
+        transition: {
+          delay: order * PREVIEW_PANEL_STAGGER_SECONDS,
+          duration: PREVIEW_PANEL_TRANSITION_SECONDS,
+          ease: "easeIn",
+        },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 /**
@@ -93,12 +141,14 @@ const FormPreviewContent = ({
   signingParties,
   documentUrl,
   showRecipientTabBar = true,
+  animatePanels = false,
 }: {
   formMetadata: IFormMetadata;
   blocks: IFormBlock[];
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
   showRecipientTabBar?: boolean;
+  animatePanels?: boolean;
 }) => {
   const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
   const selectedPartyId = ctxPartyId || signingParties[0]._id;
@@ -159,12 +209,20 @@ const FormPreviewContent = ({
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Block List */}
-        <div className="bg-card w-64 flex-shrink-0 overflow-hidden border-r">
+        <AnimatedPreviewPanel
+          animatePanels={animatePanels}
+          className="bg-card w-64 flex-shrink-0 overflow-hidden border-r"
+          order={0}
+        >
           <FormViewCanvas />
-        </div>
+        </AnimatedPreviewPanel>
 
         {/* Form */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white">
+        <AnimatedPreviewPanel
+          animatePanels={animatePanels}
+          className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white"
+          order={1}
+        >
           <div className="min-h-0 flex-1 overflow-hidden">
             {filteredBlocks.length > 0 ? (
               <FormPreviewRenderer
@@ -210,10 +268,14 @@ const FormPreviewContent = ({
               {isGenerating ? "Generating..." : "Generate Test PDF"}
             </Button>
           </div>
-        </div>
+        </AnimatedPreviewPanel>
 
         {/* PDF Preview */}
-        <div className="bg-secondary/30 flex flex-1 flex-col overflow-hidden">
+        <AnimatedPreviewPanel
+          animatePanels={animatePanels}
+          className="bg-secondary/30 flex flex-1 flex-col overflow-hidden"
+          order={2}
+        >
           {showRecipientTabBar && (
             <RecipientTabBar
               parties={signingParties}
@@ -256,7 +318,7 @@ const FormPreviewContent = ({
               </div>
             )}
           </div>
-        </div>
+        </AnimatedPreviewPanel>
       </div>
     </div>
   );
@@ -266,6 +328,7 @@ export const FormPreview = ({
   metadata,
   mode = "preview",
   showRecipientTabBar = true,
+  animatePanels = false,
 }: FormPreviewProps) => {
   const { formMetadata, documentUrl, documentFile } = useFormEditor();
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
@@ -317,6 +380,7 @@ export const FormPreview = ({
       signingParties={actualSigningParties}
       documentUrl={actualDocumentUrl}
       showRecipientTabBar={showRecipientTabBar}
+      animatePanels={animatePanels}
     />
   );
 };

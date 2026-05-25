@@ -7,19 +7,31 @@ import { FormMetadataTab } from "@/components/editor/tab-panels/FormMetadataTab"
 import { SigningPartiesTab } from "@/components/editor/tab-panels/SigningPartiesTab";
 import { SubscribersTab } from "@/components/editor/tab-panels/SubscribersTab";
 import { FormSettingsTab } from "@/components/editor/tab-panels/FormSettingsTab";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Central tab switchboard for the editor route.
 export function EditorContent() {
   const { activeTab } = useFormEditor();
 
   return (
-    <div className="h-full w-full">
-      {activeTab === "editor" && <FormEditorTab />}
-      {activeTab === "preview" && <FormPreviewTab />}
-      {activeTab === "metadata" && <FormMetadataTab />}
-      {activeTab === "parties" && <SigningPartiesTab />}
-      {activeTab === "subscribers" && <SubscribersTab />}
-      {activeTab === "settings" && <FormSettingsTab />}
+    <div className="relative h-full w-full overflow-hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeTab}
+          className="absolute inset-0"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 1 }}
+          transition={{ duration: 0.36 }}
+        >
+          {activeTab === "editor" && <FormEditorTab animatePanels />}
+          {activeTab === "preview" && <FormPreviewTab animatePanels />}
+          {activeTab === "metadata" && <FormMetadataTab />}
+          {activeTab === "parties" && <SigningPartiesTab />}
+          {activeTab === "subscribers" && <SubscribersTab />}
+          {activeTab === "settings" && <FormSettingsTab />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

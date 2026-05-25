@@ -8,7 +8,7 @@ import {
   FormMetadata,
   type ClientBlock,
 } from "@betterinternship/core/forms";
-import { BlocksRenderer } from "@/components/docs/forms/FormFillerRenderer";
+import { BlocksRenderer, type BlocksRendererEditing } from "@/components/docs/forms/FormFillerRenderer";
 import { isBlockField, getBlockField } from "@/components/docs/forms/utils";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,8 @@ interface FormPreviewRendererProps {
   onFieldClick?: (fieldId: string) => void;
   autoScrollToSelectedField?: boolean;
   squareFrame?: boolean;
+  editing?: BlocksRendererEditing;
+  hideTitle?: boolean;
 }
 
 /**
@@ -48,6 +50,8 @@ export const FormPreviewRenderer = ({
   onFieldClick,
   autoScrollToSelectedField = true,
   squareFrame = false,
+  editing,
+  hideTitle = false,
 }: FormPreviewRendererProps) => {
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -134,7 +138,7 @@ export const FormPreviewRenderer = ({
     }
   };
 
-  if (!sortedBlocks.length) {
+  if (!sortedBlocks.length && !editing) {
     return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
   }
 
@@ -146,10 +150,12 @@ export const FormPreviewRenderer = ({
       )}
     >
       <div ref={scrollContainerRef} className="relative flex flex-1 flex-col overflow-auto">
-        <div className="px-6 pt-8">
-          <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>
-        </div>
-        <div className="flex-1 space-y-2 px-6">
+        {!hideTitle && (
+          <div className="px-6 pt-8">
+            <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>
+          </div>
+        )}
+        <div className={cn("flex-1 space-y-2", editing ? "py-4 pr-6 pl-12" : "px-6")}>
           <BlocksRenderer
             formKey={formName}
             blocks={sortedBlocks}
@@ -160,6 +166,7 @@ export const FormPreviewRenderer = ({
             onBlurValidate={handleBlurValidate}
             fieldRefs={fieldRefs.current}
             selectedFieldId={selectedFieldId}
+            editing={editing}
           />
         </div>
       </div>

@@ -11,6 +11,25 @@ import { getBlockField, isBlockField } from "./utils";
 import { useFormFiller } from "./form-filler.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 
+/**
+ * Opt-in editor affordances for BlocksRenderer. Default-off so the live signer
+ * filler is unaffected. The form preview editor supplies these to surface a
+ * Notion/Tally-style hover drag handle, inline adders, and inline text editing.
+ */
+export interface BlocksRendererEditing {
+  // Maps a rendered block to its FormViewUnit id, or null when the row is not
+  // an editable unit (e.g. non-manual/invisible fields) and should get no UI.
+  resolveUnitId: (block: ClientBlock<any>) => string | null;
+  // Editable replacement for read-only header/paragraph text. Returns null to
+  // fall back to the static renderer.
+  renderTextBlock?: (block: ClientBlock<any>) => React.ReactNode | null;
+  // Fixed adder rendered above the first row (and as the empty-state adder).
+  renderTopAdder?: () => React.ReactNode;
+  // Wraps an editable row with all editor chrome (drag handle, controls,
+  // adders, drop indicators) and returns the keyed list element.
+  wrapRow: (rowKey: string, unitId: string, content: React.ReactNode) => React.ReactNode;
+}
+
 interface FormFillerRendererProps {
   hideActions?: boolean;
   onFieldSelect?: (fieldId: string) => void;
@@ -119,6 +138,7 @@ export const BlocksRenderer = <T extends any[]>({
   onBlurValidate,
   fieldRefs,
   selectedFieldId,
+  editing,
 }: {
   formKey: string;
   blocks: ClientBlock<T>[];
@@ -129,8 +149,11 @@ export const BlocksRenderer = <T extends any[]>({
   onBlurValidate?: (fieldKey: string, field: any, nextValue?: unknown) => void;
   fieldRefs: Record<string, HTMLDivElement | null>;
   selectedFieldId?: string | null;
+  editing?: BlocksRendererEditing;
 }) => {
-  if (!blocks.length) return null;
+  if (!blocks.length) {
+    return editing?.renderTopAdder ? <>{editing.renderTopAdder()}</> : null;
+  }
   const sortedBlocks = blocks.toSorted((a, b) => a.order - b.order);
 
   // Pre-compute radio groups so we can collapse them into a single dropdown
@@ -143,7 +166,19 @@ export const BlocksRenderer = <T extends any[]>({
   }
   const renderedRadioGroups = new Set<string>();
 
-  return sortedBlocks.map((block, i) => {
+  // Delegates editable rows to the editing adapter's wrapRow (drag handle,
+  // controls, adders, drop indicators). When no adapter is present, or the row
+  // is not an editable unit, renders exactly the original markup (live filler
+  // is unaffected).
+  const renderRow = (key: string, block: ClientBlock<T>, content: React.ReactNode) => {
+    const unitId = editing?.resolveUnitId(block) ?? null;
+    if (!editing || !unitId) {
+      return <div key={key}>{content}</div>;
+    }
+    return editing.wrapRow(key, unitId, content);
+  };
+
+  const rows = sortedBlocks.map((block, i) => {
     const isForm = isBlockField(block);
     const field = isForm ? getBlockField(block) : null;
     const blockKey = `${formKey}:${field?.field || block.block_type}:${i}`;
@@ -153,59 +188,83 @@ export const BlocksRenderer = <T extends any[]>({
     if (radioGroupId) {
       if (renderedRadioGroups.has(radioGroupId)) return null;
       renderedRadioGroups.add(radioGroupId);
-      return (
-        <div key={`radio-group-${radioGroupId}`}>
-          <RadioGroupFiller
-            blocks={radioGroupMap.get(radioGroupId)!}
-            values={values}
-            onChange={onChange}
-            errors={errors}
-            setSelected={setSelected}
-            selectedFieldId={selectedFieldId}
-            fieldRefs={fieldRefs}
-          />
-        </div>
+      return renderRow(
+        `radio-group-${radioGroupId}`,
+        block,
+        <RadioGroupFiller
+          blocks={radioGroupMap.get(radioGroupId)!}
+          values={values}
+          onChange={onChange}
+          errors={errors}
+          setSelected={setSelected}
+          selectedFieldId={selectedFieldId}
+          fieldRefs={fieldRefs}
+        />
       );
     }
 
     // Only check selection for form fields
     const isSelected = isForm && field && selectedFieldId === field.field;
 
-    return (
-      <div key={blockKey}>
-        {isForm && field?.source === "manual" && (
-          <div className="space-between flex flex-row">
-            <div
-              ref={(el) => {
-                if (el && field) fieldRefs[field.field] = el;
-              }}
-              onClick={() => setSelected(block.field_schema?.field as string)}
-              className={`flex-1 cursor-pointer px-1 py-2 transition-all ${isSelected ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2" : ""}`}
-              onFocus={() => setSelected(block.field_schema?.field as string)}
-            >
-              <FieldRenderer
-                field={field}
-                value={values[field.field]}
-                onChange={(v) => onChange(field.field, v)}
-                onAuxValueChange={onChange}
-                onBlur={(nextValue) => onBlurValidate?.(field.field, field, nextValue)}
-                error={errors[field.field]}
-                allValues={values}
-              />
-            </div>
+    if (isForm && field?.source === "manual") {
+      return renderRow(
+        blockKey,
+        block,
+        <div className="space-between flex flex-row">
+          <div
+            ref={(el) => {
+              if (el && field) fieldRefs[field.field] = el;
+            }}
+            onClick={() => setSelected(block.field_schema?.field as string)}
+            className={`flex-1 cursor-pointer px-1 py-2 transition-all ${isSelected ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2" : ""}`}
+            onFocus={() => setSelected(block.field_schema?.field as string)}
+          >
+            <FieldRenderer
+              field={field}
+              value={values[field.field]}
+              onChange={(v) => onChange(field.field, v)}
+              onAuxValueChange={onChange}
+              onBlur={(nextValue) => onBlurValidate?.(field.field, field, nextValue)}
+              error={errors[field.field]}
+              allValues={values}
+            />
           </div>
-        )}
-        {block.block_type === "header" && block.text_content && (
-          <div className="flex flex-row">
-            <HeaderRenderer content={block.text_content} />
-          </div>
-        )}
-        {block.block_type === "paragraph" && block.text_content && (
-          <div className="flex flex-row">
-            <ParagraphRenderer content={block.text_content} />
-          </div>
-        )}
-      </div>
-    );
+        </div>
+      );
+    }
+
+    if (block.block_type === "header" && block.text_content) {
+      const editable = editing?.renderTextBlock?.(block);
+      return renderRow(
+        blockKey,
+        block,
+        <div className="flex flex-row">
+          {editable ?? <HeaderRenderer content={block.text_content} />}
+        </div>
+      );
+    }
+
+    if (block.block_type === "paragraph" && block.text_content) {
+      const editable = editing?.renderTextBlock?.(block);
+      return renderRow(
+        blockKey,
+        block,
+        <div className="flex flex-row">
+          {editable ?? <ParagraphRenderer content={block.text_content} />}
+        </div>
+      );
+    }
+
+    return <div key={blockKey} />;
   });
+
+  if (editing) {
+    return (
+      <>
+        {editing.renderTopAdder?.()}
+        {rows}
+      </>
+    );
+  }
+  return rows;
 };

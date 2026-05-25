@@ -189,6 +189,11 @@ interface FormEditorTabContextType {
   handleSelectFormViewUnit: (unitId: string) => void;
   handleReorderFormViewUnits: (nextUnitIds: string[]) => void;
   handleAddFormTextBlock: (type: "header" | "paragraph") => void;
+  handleAddFormTextBlockAt: (
+    type: "header" | "paragraph",
+    anchorUnitId: string,
+    position: "before" | "after"
+  ) => void;
   confirmPendingMissingFieldDraft: () => void;
   cancelPendingMissingFieldDraft: () => void;
 }
@@ -834,6 +839,51 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
     [activePartyId, blocks, updateBlocks]
   );
 
+  const handleAddFormTextBlockAt = useCallback(
+    (type: "header" | "paragraph", anchorUnitId: string, position: "before" | "after") => {
+      const partyId = activePartyId;
+      if (!partyId) return;
+
+      const newBlock: IFormBlock = {
+        _id: `${type}-${Date.now()}`,
+        block_type: type,
+        signing_party_id: partyId,
+        order: 0, // renumbered below
+        text_content: type === "header" ? "New Header" : "New Paragraph",
+      } as IFormBlock;
+
+      // Resolve the global block-array index to insert at, relative to the
+      // anchor unit (which may span multiple blocks, e.g. a field across pages).
+      let insertIndex = blocks.length;
+      const anchor = formViewUnits.find((u) => u.id === anchorUnitId);
+      if (anchor) {
+        const anchorBlockIds = new Set(anchor.blockIds);
+        const indices = blocks
+          .map((b, idx) => (anchorBlockIds.has(b._id) ? idx : -1))
+          .filter((idx) => idx !== -1);
+        if (indices.length) {
+          insertIndex =
+            position === "before" ? indices[0] : indices[indices.length - 1] + 1;
+        }
+      }
+
+      const nextBlocks = [...blocks];
+      nextBlocks.splice(insertIndex, 0, newBlock);
+      const blocksWithOrder = nextBlocks.map((block, index) => ({ ...block, order: index }));
+
+      updateBlocks(blocksWithOrder);
+      setSelectedBlockId(null);
+      setSelectedFieldId(null);
+      setSelectedBlockGroup({
+        id: newBlock._id,
+        fieldName: type,
+        partyId,
+        blockIds: [newBlock._id],
+      });
+    },
+    [activePartyId, blocks, formViewUnits, updateBlocks]
+  );
+
   const value: FormEditorTabContextType = {
     selectedPartyId,
     setSelectedPartyId,
@@ -870,6 +920,7 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
     handleSelectFormViewUnit,
     handleReorderFormViewUnits,
     handleAddFormTextBlock,
+    handleAddFormTextBlockAt,
     confirmPendingMissingFieldDraft,
     cancelPendingMissingFieldDraft,
   };

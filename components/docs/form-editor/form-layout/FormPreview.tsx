@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FormMetadata,
   type IFormBlock,
@@ -19,7 +19,7 @@ import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
-import { FormViewCanvas } from "@/components/editor/tab-panels/editor-components/FormViewCanvas";
+import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { motion } from "framer-motion";
 
 interface FormPreviewProps {
@@ -133,6 +133,88 @@ const FormSortView = ({
 };
 
 /**
+ * Center form panel. Owns the transient block-editing drag state (via
+ * useFormPreviewEditing) so that dragging blocks around re-renders only this
+ * panel — not the sibling PDF previewer, which is expensive to re-render.
+ */
+const FormPreviewFormPanel = ({
+  animatePanels,
+  formMetadata,
+  filteredBlocks,
+  values,
+  onChange,
+  selectedFieldId,
+  autoScrollToSelectedField,
+  onFieldClick,
+  generationResult,
+  isGenerating,
+  onGenerate,
+}: {
+  animatePanels?: boolean;
+  formMetadata: IFormMetadata;
+  filteredBlocks: IFormBlock[];
+  values: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  selectedFieldId: string | null;
+  autoScrollToSelectedField: boolean;
+  onFieldClick: (fieldId: string) => void;
+  generationResult: string | null;
+  isGenerating: boolean;
+  onGenerate: () => void;
+}) => {
+  const editing = useFormPreviewEditing();
+
+  return (
+    <AnimatedPreviewPanel
+      animatePanels={animatePanels}
+      className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white"
+      order={0}
+    >
+      {/* Top bar — height-matched to the PDF previewer's RecipientTabBar */}
+      <div className="flex h-9 flex-shrink-0 items-center border-b-4 border-slate-200 bg-white px-4">
+        <span className="truncate text-sm font-semibold text-slate-700">
+          {formMetadata.label || formMetadata.name}
+        </span>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <FormPreviewRenderer
+          formName={formMetadata.name}
+          formLabel={formMetadata.label}
+          blocks={filteredBlocks}
+          values={values}
+          onChange={onChange}
+          metadata={formMetadata}
+          selectedFieldId={selectedFieldId}
+          autoScrollToSelectedField={autoScrollToSelectedField}
+          squareFrame
+          editing={editing}
+          hideTitle
+          onFieldClick={onFieldClick}
+        />
+      </div>
+
+      <div className="bg-background flex flex-shrink-0 items-center justify-end gap-2 border-t p-3">
+        {generationResult && (
+          <a
+            href={generationResult}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-green-600 hover:underline"
+          >
+            Download
+          </a>
+        )}
+        <Button onClick={onGenerate} disabled={isGenerating} size="sm" variant="default">
+          {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+          {isGenerating ? "Generating..." : "Generate Test PDF"}
+        </Button>
+      </div>
+    </AnimatedPreviewPanel>
+  );
+};
+
+/**
  * Preview Content - Main form and PDF preview
  */
 const FormPreviewContent = ({
@@ -188,7 +270,7 @@ const FormPreviewContent = ({
     }
   }, [formMetadata, selectedPartyId]);
 
-  const handleGenerateTestForm = async () => {
+  const handleGenerateTestForm = useCallback(async () => {
     setIsGenerating(true);
     try {
       const result = await formsControllerGenerateTestForm({
@@ -202,79 +284,43 @@ const FormPreviewContent = ({
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [formMetadata.name, values]);
+
+  // Stable callbacks so the form panel (which owns transient drag state) does
+  // not force the sibling PDF previewer to re-render on every drag move.
+  const handleFormValueChange = useCallback(
+    (key: string, value: string) => setValues((prev) => ({ ...prev, [key]: value })),
+    []
+  );
+  const handleFormFieldClick = useCallback((fieldId: string) => {
+    setSelectedFieldSource("form");
+    setSelectedFieldId(fieldId);
+  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Block List */}
-        <AnimatedPreviewPanel
-          animatePanels={animatePanels}
-          className="bg-card w-64 flex-shrink-0 overflow-hidden border-r"
-          order={0}
-        >
-          <FormViewCanvas />
-        </AnimatedPreviewPanel>
-
         {/* Form */}
-        <AnimatedPreviewPanel
+        <FormPreviewFormPanel
           animatePanels={animatePanels}
-          className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white"
-          order={1}
-        >
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {filteredBlocks.length > 0 ? (
-              <FormPreviewRenderer
-                formName={formMetadata.name}
-                formLabel={formMetadata.label}
-                blocks={filteredBlocks}
-                values={values}
-                onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
-                metadata={formMetadata}
-                selectedFieldId={selectedFieldId}
-                autoScrollToSelectedField={selectedFieldSource === "pdf"}
-                squareFrame
-                onFieldClick={(fieldId) => {
-                  setSelectedFieldSource("form");
-                  setSelectedFieldId(fieldId);
-                }}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-muted-foreground text-sm">No fields for this party</p>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-background flex flex-shrink-0 items-center justify-end gap-2 border-t p-3">
-            {generationResult && (
-              <a
-                href={generationResult}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-green-600 hover:underline"
-              >
-                Download
-              </a>
-            )}
-            <Button
-              onClick={handleGenerateTestForm}
-              disabled={isGenerating}
-              size="sm"
-              variant="default"
-            >
-              {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-              {isGenerating ? "Generating..." : "Generate Test PDF"}
-            </Button>
-          </div>
-        </AnimatedPreviewPanel>
+          formMetadata={formMetadata}
+          filteredBlocks={filteredBlocks}
+          values={values}
+          onChange={handleFormValueChange}
+          selectedFieldId={selectedFieldId}
+          autoScrollToSelectedField={selectedFieldSource === "pdf"}
+          onFieldClick={handleFormFieldClick}
+          generationResult={generationResult}
+          isGenerating={isGenerating}
+          onGenerate={handleGenerateTestForm}
+        />
 
         {/* PDF Preview */}
         <AnimatedPreviewPanel
           animatePanels={animatePanels}
           className="bg-secondary/30 flex flex-1 flex-col overflow-hidden"
-          order={2}
+          order={1}
         >
           {showRecipientTabBar && (
             <RecipientTabBar

@@ -13,11 +13,13 @@ import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
+import { FormViewCanvas } from "@/components/editor/tab-panels/editor-components/FormViewCanvas";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -95,7 +97,8 @@ const FormPreviewContent = ({
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
 }) => {
-  const [selectedPartyId, setSelectedPartyId] = useState(signingParties[0]._id);
+  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
+  const selectedPartyId = ctxPartyId || signingParties[0]._id;
   const [values, setValues] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<string | null>(null);
@@ -151,9 +154,14 @@ const FormPreviewContent = ({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Main Content Area */}
-      <div className="flex flex-1 gap-4 overflow-hidden p-4">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Block List */}
+        <div className="bg-card w-64 flex-shrink-0 overflow-hidden border-r">
+          <FormViewCanvas />
+        </div>
+
         {/* Form */}
-        <div className="flex-1 overflow-auto rounded-lg border bg-white">
+        <div className="flex-1 overflow-auto border-r bg-white">
           {filteredBlocks.length > 0 ? (
             <FormPreviewRenderer
               formName={formMetadata.name}
@@ -177,7 +185,7 @@ const FormPreviewContent = ({
         </div>
 
         {/* PDF Preview */}
-        <div className="bg-secondary/30 flex flex-1 flex-col overflow-hidden rounded-lg border">
+        <div className="bg-secondary/30 flex flex-1 flex-col overflow-hidden">
           <RecipientTabBar
             parties={signingParties}
             selectedPartyId={selectedPartyId}

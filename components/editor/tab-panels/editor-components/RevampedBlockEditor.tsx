@@ -105,7 +105,6 @@ export function RevampedBlockEditor() {
     selectedBlockGroup,
     handleBlockUpdate,
     handleParentUpdate,
-    editorViewMode,
     pendingMissingFieldDraft,
     setPendingMissingFieldDraft,
     confirmPendingMissingFieldDraft,
@@ -374,16 +373,6 @@ export function RevampedBlockEditor() {
     return (
       <div className="flex h-full items-center justify-center p-4">
         <p className="text-muted-foreground text-sm">Select a field to edit</p>
-      </div>
-    );
-  }
-
-  if (editorViewMode === "form" && editedBlock && !parentGroup) {
-    return (
-      <div className="flex h-full items-center justify-center p-4">
-        <p className="text-muted-foreground text-sm">
-          Select a row from Form View to edit settings
-        </p>
       </div>
     );
   }

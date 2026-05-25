@@ -20,7 +20,6 @@ export interface BlockGroup {
   blockIds: string[]; // ordered list of block IDs in this group
 }
 
-export type EditorViewMode = "pdf" | "form";
 
 export interface FormViewUnit {
   id: string;
@@ -165,8 +164,6 @@ interface FormEditorTabContextType {
   setSearchQuery: (query: string) => void;
   preferredPlacementPage: number;
   setPreferredPlacementPage: (page: number) => void;
-  editorViewMode: EditorViewMode;
-  setEditorViewMode: (mode: EditorViewMode) => void;
   formViewUnits: FormViewUnit[];
 
   // Handlers
@@ -214,7 +211,6 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [preferredPlacementPage, setPreferredPlacementPage] = useState(1);
-  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("pdf");
 
   // Expose blocks as array derived from blocksMap, or directly from formMetadata
   const blocks = useMemo(() => {
@@ -857,8 +853,6 @@ export function FormEditorTabProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     preferredPlacementPage,
     setPreferredPlacementPage,
-    editorViewMode,
-    setEditorViewMode,
     formViewUnits,
     handleBlockSelect,
     handleParentGroupSelect,

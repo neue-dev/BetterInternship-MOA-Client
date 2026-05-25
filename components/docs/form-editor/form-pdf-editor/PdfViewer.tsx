@@ -10,7 +10,6 @@ import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
 import { usePdfViewer } from "@/app/contexts/pdf-viewer.context";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -21,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IFormBlock, IFormField } from "@betterinternship/core/forms";
-import { FormViewBlocksPanel } from "@/components/editor/tab-panels/editor-components/FormViewBlocksPanel";
 import { sanitizeFieldSchemaDefaults } from "@/lib/field-schema-defaults";
 import { resolveSystemPresetTemplates } from "@/lib/system-preset-resolver";
 import { SIGNATURE_PRINTED_NAME_TEMPLATE } from "@/lib/composite-field-templates";
@@ -218,8 +216,6 @@ export function PdfViewer() {
     handleBlocksCreate,
     handleBlockUpdate,
     setPreferredPlacementPage,
-    editorViewMode,
-    setEditorViewMode,
     setSelectedBlockId,
     setSelectedBlockGroup,
     pendingMissingFieldDraft,
@@ -696,70 +692,52 @@ export function PdfViewer() {
       <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={editorViewMode === "form" ? "default" : "outline"}
-              onClick={() => setEditorViewMode(editorViewMode === "form" ? "pdf" : "form")}
-              className="min-w-34 gap-2"
-            >
-              <span>Form View</span>
-              <Switch
-                checked={editorViewMode === "form"}
-                aria-label="Form View visual indicator"
-                disabled
-                className="pointer-events-none border border-slate-400 data-[state=checked]:border-white"
-              />
-            </Button>
-
-            {editorViewMode === "pdf" ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    title="Open PDF tools"
-                    aria-label="Open PDF tools"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52">
-                  <DropdownMenuLabel>PDF Tools</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      if (showMissingFieldSuggestions) {
-                        clearMissingFieldSuggestions();
-                        return;
-                      }
-                      void runMissingFieldScan();
-                    }}
-                    disabled={!pdfDoc || isMissingFieldScanRunning}
-                  >
-                    {isMissingFieldScanRunning
-                      ? "Scanning..."
-                      : showMissingFieldSuggestions
-                        ? "Clear Missing Fields"
-                        : "Find Missing Fields"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => void alignNearbyFieldsToBaselines()}
-                    disabled={!pdfDoc || isMissingFieldScanRunning || isBaselineAlignmentRunning}
-                  >
-                    {isBaselineAlignmentRunning ? "Aligning..." : "Align Fields to Baselines"}
-                  </DropdownMenuItem>
-                  <DropdownMenuCheckboxItem
-                    checked={showBaselineGuides}
-                    onCheckedChange={(checked) => setShowBaselineGuides(Boolean(checked))}
-                  >
-                    Show baselines
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  title="Open PDF tools"
+                  aria-label="Open PDF tools"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuLabel>PDF Tools</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (showMissingFieldSuggestions) {
+                      clearMissingFieldSuggestions();
+                      return;
+                    }
+                    void runMissingFieldScan();
+                  }}
+                  disabled={!pdfDoc || isMissingFieldScanRunning}
+                >
+                  {isMissingFieldScanRunning
+                    ? "Scanning..."
+                    : showMissingFieldSuggestions
+                      ? "Clear Missing Fields"
+                      : "Find Missing Fields"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void alignNearbyFieldsToBaselines()}
+                  disabled={!pdfDoc || isMissingFieldScanRunning || isBaselineAlignmentRunning}
+                >
+                  {isBaselineAlignmentRunning ? "Aligning..." : "Align Fields to Baselines"}
+                </DropdownMenuItem>
+                <DropdownMenuCheckboxItem
+                  checked={showBaselineGuides}
+                  onCheckedChange={(checked) => setShowBaselineGuides(Boolean(checked))}
+                >
+                  Show baselines
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-center gap-2">
@@ -794,34 +772,27 @@ export function PdfViewer() {
               </span>
             </div>
 
-            {editorViewMode === "pdf" ? (
-              <>
-                <label
-                  className="flex cursor-pointer items-center rounded p-1.5 text-sm transition-colors hover:bg-slate-100"
-                  title="Upload PDF"
-                  aria-label="Upload PDF"
-                >
-                  <FileUp className="h-4 w-4" />
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </>
-            ) : null}
+            <label
+              className="flex cursor-pointer items-center rounded p-1.5 text-sm transition-colors hover:bg-slate-100"
+              title="Upload PDF"
+              aria-label="Upload PDF"
+            >
+              <FileUp className="h-4 w-4" />
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
           </div>
         </div>
       </div>
 
-      {/* PDF Canvas / Form View */}
+      {/* PDF Canvas */}
       <div className="relative flex-1 overflow-hidden bg-white">
-        {editorViewMode === "form" ? (
-          <FormViewBlocksPanel signingParties={formMetadata?.signing_parties || []} />
-        ) : (
-          <div className="flex h-full min-w-0">
-            <div ref={pdfContainerRef} className="relative min-w-0 flex-1 overflow-hidden">
+        <div className="flex h-full min-w-0">
+          <div ref={pdfContainerRef} className="relative min-w-0 flex-1 overflow-hidden">
               {isLoadingDoc && (
                 <div className="bg-background/70 absolute inset-0 z-10 flex items-center justify-center">
                   <Loader>Loading PDFâ€¦</Loader>
@@ -911,9 +882,8 @@ export function PdfViewer() {
                   </div>
                 </div>
               )}
-            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,11 @@
 "use client";
 
 import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { FormEditorTabProvider, useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
+import { FormEditorTabProvider } from "@/app/contexts/form-editor-tab.context";
 import { PdfViewerProvider } from "@/app/contexts/pdf-viewer.context";
 import { PdfViewer } from "@/components/docs/form-editor/form-pdf-editor/PdfViewer";
 import { BlocksPanel } from "./editor-components/BlocksPanel";
 import { RevampedBlockEditor } from "./editor-components/RevampedBlockEditor";
-import { FormViewCanvas } from "./editor-components/FormViewCanvas";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -16,7 +15,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
  */
 function FormEditorTabContent() {
   const { formMetadata } = useFormEditor();
-  const { editorViewMode } = useFormEditorTab();
   const isMobile = useIsMobile();
 
   if (!formMetadata) {
@@ -31,7 +29,7 @@ function FormEditorTabContent() {
     return (
       <div className="bg-background flex h-full w-full">
         <div className="bg-card flex flex-shrink-0 basis-72 flex-col overflow-hidden border-r lg:basis-[320px] xl:basis-[360px]">
-          {editorViewMode === "pdf" ? <BlocksPanel /> : <FormViewCanvas />}
+          <BlocksPanel />
         </div>
         <div className="min-w-0 flex-1 overflow-hidden border-r">
           <PdfViewer />
@@ -47,7 +45,7 @@ function FormEditorTabContent() {
       className="bg-background h-full w-full"
     >
       <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="bg-card overflow-hidden">
-        {editorViewMode === "pdf" ? <BlocksPanel /> : <FormViewCanvas />}
+        <BlocksPanel />
       </ResizablePanel>
 
       <ResizableHandle  />

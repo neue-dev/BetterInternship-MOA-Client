@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormEditor } from "@/app/contexts/form-editor.context";
-
+import { FormEditorTabProvider } from "@/app/contexts/form-editor-tab.context";
 import { FormPreview } from "@/components/docs/form-editor/form-layout/FormPreview";
 
 export function FormPreviewTab() {
@@ -16,8 +16,10 @@ export function FormPreviewTab() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-auto">
-      <FormPreview metadata={formMetadata} mode="preview" />
-    </div>
+    <FormEditorTabProvider>
+      <div className="flex h-full w-full flex-col overflow-auto">
+        <FormPreview metadata={formMetadata} mode="preview" />
+      </div>
+    </FormEditorTabProvider>
   );
 }

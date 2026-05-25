@@ -69,7 +69,7 @@ export default function MoaStatus({ requests, loading }: Props) {
     <section className="space-y-4">
       {loading ? (
         <div className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
-          Loading…
+          Loading...
         </div>
       ) : (
         <CustomCard className={`border ${tone}`}>

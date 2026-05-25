@@ -190,7 +190,7 @@ export function EntityStatusSelf({ schoolId }: { schoolId?: string }) {
       action={
         status === "not-approved" ? (
           <Button onClick={handleReconsider} disabled={isPending} className="w-full sm:w-auto">
-            {isPending ? "Requesting…" : "Request reconsideration"}
+            {isPending ? "Requesting..." : "Request reconsideration"}
           </Button>
         ) : null
       }

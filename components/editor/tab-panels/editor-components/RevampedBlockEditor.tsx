@@ -9,7 +9,6 @@ import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
 import { FormInput, FormTextarea, FormDropdown } from "@/components/docs/forms/EditForm";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   BiAlignLeft,
   BiAlignMiddle,
@@ -18,7 +17,6 @@ import {
   BiVerticalCenter,
   BiVerticalTop,
 } from "react-icons/bi";
-import { SlidersHorizontal } from "lucide-react";
 import { DefaultValueSection } from "@/components/docs/form-editor/default-value.bundle";
 import type { DefaultValueFieldOption } from "@/components/docs/form-editor/default-value.bundle";
 import { ValidationSection } from "@/components/docs/form-editor/validation.bundle";
@@ -234,10 +232,10 @@ export function RevampedBlockEditor() {
   const matchedChildPreset = findPresetByFieldKey(childFieldKey, presetTemplates);
 
   return (
-    <div className="space-y-3 p-3">
+    <div className="divide-y divide-slate-100">
       {/* Pending draft confirm/cancel */}
       {isPendingDraftSelected && (
-        <Card className="gap-2.5 p-2.5">
+        <div className="space-y-2.5 p-3">
           <h4 className="text-muted-foreground text-xs font-semibold uppercase">
             Suggested field
           </h4>
@@ -257,27 +255,29 @@ export function RevampedBlockEditor() {
               Confirm
             </Button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Radio group editor */}
       {(schema as any)?.radio_group_id && (
-        <RadioGroupFieldEditor
-          currentBlockId={editedBlock._id}
-          allBlocks={formMetadata?.schema.blocks ?? []}
-          onUpdateOptionLabel={(blockId, label) => {
-            const target = formMetadata?.schema.blocks?.find((b) => b._id === blockId);
-            if (!target?.field_schema) return;
-            handleBlockUpdate({
-              ...target,
-              field_schema: { ...target.field_schema, radio_option_label: label },
-            });
-          }}
-        />
+        <div className="p-3">
+          <RadioGroupFieldEditor
+            currentBlockId={editedBlock._id}
+            allBlocks={formMetadata?.schema.blocks ?? []}
+            onUpdateOptionLabel={(blockId, label) => {
+              const target = formMetadata?.schema.blocks?.find((b) => b._id === blockId);
+              if (!target?.field_schema) return;
+              handleBlockUpdate({
+                ...target,
+                field_schema: { ...target.field_schema, radio_option_label: label },
+              });
+            }}
+          />
+        </div>
       )}
 
-      {/* Layout: font size and text wrap */}
-      <Card className="gap-2.5 p-2.5">
+      {/* Layout & Text (font size, wrap, H alignment, V alignment) */}
+      <div className="space-y-2.5 p-3">
         <h4 className="text-muted-foreground text-xs font-semibold uppercase">Layout & Text</h4>
         <FormInput
           label="Font size"
@@ -312,20 +312,13 @@ export function RevampedBlockEditor() {
             </Button>
           </div>
         </div>
-      </Card>
-
-      {/* Text Alignment */}
-      <Card className="gap-2.5 p-2.5">
-        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Text Alignment</h4>
         <div className="space-y-1">
-          <p className="text-xs text-slate-600">Horizontal</p>
+          <p className="text-xs text-slate-600">Horizontal alignment</p>
           <div className="flex gap-1">
             <Button
               size="sm"
               variant={
-                (schema?.align_h || schema?.horizontal_alignment) === "left"
-                  ? "default"
-                  : "outline"
+                (schema?.align_h || schema?.horizontal_alignment) === "left" ? "default" : "outline"
               }
               onClick={() => handleFieldChange("align_h", "left")}
               title="Align Left"
@@ -362,7 +355,7 @@ export function RevampedBlockEditor() {
           </div>
         </div>
         <div className="space-y-1">
-          <p className="text-xs text-slate-600">Vertical</p>
+          <p className="text-xs text-slate-600">Vertical alignment</p>
           <div className="flex gap-1">
             <Button
               size="sm"
@@ -403,39 +396,17 @@ export function RevampedBlockEditor() {
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Field settings */}
-      <Card className="gap-2.5 p-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
-          <Button
-            type="button"
-            size="icon"
-            variant={showAdvancedSettings ? "default" : "ghost"}
-            className="h-7 w-7"
-            title={showAdvancedSettings ? "Hide advanced settings" : "Show advanced settings"}
-            onClick={() => setShowAdvancedSettings((prev) => !prev)}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+      <div className="space-y-2.5 p-3">
+        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
         <FormInput
           label="Field Label"
           value={schema?.label || ""}
           setter={(value) => handleFieldChange("label", value)}
           required={false}
         />
-        {showAdvancedSettings && (
-          <FormTextarea
-            label="Tooltip Label"
-            value={schema?.tooltip_label || ""}
-            setter={(value) => handleFieldChange("tooltip_label", value)}
-            placeholder="Optional helper text shown beside the field"
-            required={false}
-            className="min-h-20"
-          />
-        )}
         {isDefaultChildField && (
           <FormDropdown
             label="Field Type"
@@ -453,9 +424,7 @@ export function RevampedBlockEditor() {
         {isChildDerived ? (
           <>
             <div className="flex items-center justify-between rounded-[0.33em] border border-slate-200 px-2.5 py-2">
-              <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-slate-700">Derived value</p>
-              </div>
+              <p className="text-xs font-semibold text-slate-700">Derived value</p>
               <Switch
                 checked={isChildDerived}
                 onCheckedChange={(checked) =>
@@ -473,37 +442,8 @@ export function RevampedBlockEditor() {
           </>
         ) : (
           <>
-            {showChildValidation && (
-              <ValidationSection
-                validator={(schema?.validator || "") as string}
-                schemaType={schema?.type}
-                validatorIr={(schema?.validator_ir || null) as any}
-                fieldOptions={childFieldOptions}
-                currentFieldId={childFieldKey}
-                onChange={(next) => {
-                  handleFieldPatch({
-                    validator: next.validator,
-                    validator_ir: next.validator_ir,
-                  });
-                }}
-              />
-            )}
-            {showChildPlaceholder && (
-              <div className="mt-4">
-                <DefaultValueSection
-                  title="Placeholder"
-                  source={childSource}
-                  value={(schema?.prefiller || "") as string}
-                  fieldOptions={childFieldOptions}
-                  simpleMode="manual-only"
-                  onChange={(value) => handleFieldChange("prefiller", value)}
-                />
-              </div>
-            )}
             <div className="flex items-center justify-between rounded-[0.33em] border border-slate-200 px-2.5 py-2">
-              <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-slate-700">Derived value</p>
-              </div>
+              <p className="text-xs font-semibold text-slate-700">Derived value</p>
               <Switch
                 checked={isChildDerived}
                 onCheckedChange={(checked) =>
@@ -511,9 +451,53 @@ export function RevampedBlockEditor() {
                 }
               />
             </div>
+            {showAdvancedSettings && (
+              <>
+                {showChildValidation && (
+                  <ValidationSection
+                    validator={(schema?.validator || "") as string}
+                    schemaType={schema?.type}
+                    validatorIr={(schema?.validator_ir || null) as any}
+                    fieldOptions={childFieldOptions}
+                    currentFieldId={childFieldKey}
+                    onChange={(next) => {
+                      handleFieldPatch({
+                        validator: next.validator,
+                        validator_ir: next.validator_ir,
+                      });
+                    }}
+                  />
+                )}
+                {showChildPlaceholder && (
+                  <DefaultValueSection
+                    title="Placeholder"
+                    source={childSource}
+                    value={(schema?.prefiller || "") as string}
+                    fieldOptions={childFieldOptions}
+                    simpleMode="manual-only"
+                    onChange={(value) => handleFieldChange("prefiller", value)}
+                  />
+                )}
+                <FormTextarea
+                  label="Tooltip Label"
+                  value={schema?.tooltip_label || ""}
+                  setter={(value) => handleFieldChange("tooltip_label", value)}
+                  placeholder="Optional helper text shown beside the field"
+                  required={false}
+                  className="min-h-20"
+                />
+              </>
+            )}
           </>
         )}
-      </Card>
+        <button
+          type="button"
+          className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+          onClick={() => setShowAdvancedSettings((prev) => !prev)}
+        >
+          {showAdvancedSettings ? "Hide advanced settings" : "Advanced settings"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
+import { filterBlocksByParty } from "./form-layout-utils";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -104,7 +105,7 @@ const FormPreviewContent = ({
   const [showAllPdfFields, setShowAllPdfFields] = useState(false);
 
   const filteredBlocks = useMemo(
-    () => blocks.filter((b) => b.signing_party_id === selectedPartyId || !b.signing_party_id),
+    () => filterBlocksByParty(blocks, selectedPartyId),
     [blocks, selectedPartyId]
   );
   const previewValues = useMemo(

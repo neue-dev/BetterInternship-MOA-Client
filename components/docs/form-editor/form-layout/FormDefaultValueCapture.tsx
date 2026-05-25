@@ -13,6 +13,7 @@ import { FormFillerContextProvider, useFormFiller } from "@/components/docs/form
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { filterBlocksByParty } from "./form-layout-utils";
 
 interface FormDefaultValueCaptureProps {
   formName: string;
@@ -94,10 +95,7 @@ const FormDefaultValueCaptureContent = ({
     }
   }, [selectedPartyId, metadata]);
 
-  // Filter blocks for the selected party
-  const filteredBlocks = blocks.filter(
-    (block) => block.signing_party_id === selectedPartyId || !block.signing_party_id
-  );
+  const filteredBlocks = filterBlocksByParty(blocks, selectedPartyId);
 
   const hasRenderablePreviewField = filteredBlocks.some(
     (block) => !!block.field_schema?.field || !!block.phantom_field_schema?.field

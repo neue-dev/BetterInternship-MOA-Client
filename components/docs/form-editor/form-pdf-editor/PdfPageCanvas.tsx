@@ -781,6 +781,10 @@ export const PdfPageCanvas = memo(
                     baselineGuideOffsetPx={baselineOffsetPx}
                     showInlineDelete={!!schema.radio_group_id}
                     onInlineDelete={() => handleDeleteBlock(fieldId)}
+                    onDeselect={() => {
+                      setSelectedFieldId(null);
+                      setSelectedBlockId(null);
+                    }}
                   />
                 </div>
               );

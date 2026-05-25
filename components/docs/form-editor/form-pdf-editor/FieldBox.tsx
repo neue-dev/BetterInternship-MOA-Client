@@ -86,6 +86,7 @@ export type FieldBoxProps = {
   showInlineDelete?: boolean;
   onInlineDelete?: () => void;
   settingsContent?: React.ReactNode;
+  onDeselect?: () => void;
 };
 
 export const FieldBox = ({
@@ -109,6 +110,7 @@ export const FieldBox = ({
   showInlineDelete = false,
   onInlineDelete,
   settingsContent,
+  onDeselect,
 }: FieldBoxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -247,6 +249,17 @@ export const FieldBox = ({
       window.removeEventListener("scroll", adjustToolbarPosition, true);
     };
   }, [showQuickActions, field.id, field.x, field.y, field.w, field.h]);
+
+  useEffect(() => {
+    if (!isSelected || !onDeselect) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (elementRef.current?.contains(e.target as Node)) return;
+      if (toolbarRef.current?.contains(e.target as Node)) return;
+      onDeselect();
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [isSelected, onDeselect]);
 
   return (
     <div

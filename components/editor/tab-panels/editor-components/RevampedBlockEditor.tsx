@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 
 import { IFormBlock } from "@betterinternship/core/forms";
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
 import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
@@ -232,7 +233,7 @@ export function RevampedBlockEditor() {
   const matchedChildPreset = findPresetByFieldKey(childFieldKey, presetTemplates);
 
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-slate-200">
       {/* Pending draft confirm/cancel */}
       {isPendingDraftSelected && (
         <div className="space-y-2.5 p-3">
@@ -277,123 +278,79 @@ export function RevampedBlockEditor() {
       )}
 
       {/* Layout & Text (font size, wrap, H alignment, V alignment) */}
-      <div className="space-y-2.5 p-3">
+      <div className="space-y-2 p-3">
         <h4 className="text-muted-foreground text-xs font-semibold uppercase">Layout & Text</h4>
-        <FormInput
-          label="Font size"
-          required={false}
-          type="number"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={getIntegerInputValue("size", schema?.size, 12)}
-          setter={(value) => handleIntegerInputChange("size", value)}
-          onBlur={() => handleIntegerInputBlur("size")}
-        />
-        <div className="space-y-1">
-          <p className="text-xs text-slate-600">Text wrap</p>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={(schema?.wrap ?? true) ? "default" : "outline"}
-              onClick={() => handleFieldChange("wrap", true)}
-              title="Wrap"
-              className="h-8 flex-1"
-            >
-              Wrap
-            </Button>
-            <Button
-              size="sm"
-              variant={(schema?.wrap ?? true) ? "outline" : "default"}
-              onClick={() => handleFieldChange("wrap", false)}
-              title="No wrap"
-              className="h-8 flex-1"
-            >
-              No wrap
-            </Button>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Font size</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="h-8 w-14 rounded-[0.33em] border border-slate-300 px-2 text-xs [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+            value={getIntegerInputValue("size", schema?.size, 12)}
+            onChange={(e) => handleIntegerInputChange("size", e.target.value)}
+            onBlur={() => handleIntegerInputBlur("size")}
+          />
+        </div>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Text wrap</span>
+          <Switch
+            checked={schema?.wrap ?? true}
+            onCheckedChange={(checked) => handleFieldChange("wrap", checked)}
+          />
+        </div>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Horizontal align</span>
+          <div className="inline-flex divide-x divide-slate-300 overflow-hidden rounded-[0.33em] border border-slate-300">
+            {(
+              [
+                { value: "left", icon: <BiAlignLeft className="h-3.5 w-3.5" />, title: "Align Left" },
+                { value: "center", icon: <BiAlignMiddle className="h-3.5 w-3.5" />, title: "Align Center" },
+                { value: "right", icon: <BiAlignRight className="h-3.5 w-3.5" />, title: "Align Right" },
+              ] as const
+            ).map(({ value, icon, title }) => (
+              <button
+                key={value}
+                type="button"
+                title={title}
+                onClick={() => handleFieldChange("align_h", value)}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center transition-colors",
+                  (schema?.align_h || schema?.horizontal_alignment) === value
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs text-slate-600">Horizontal alignment</p>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_h || schema?.horizontal_alignment) === "left" ? "default" : "outline"
-              }
-              onClick={() => handleFieldChange("align_h", "left")}
-              title="Align Left"
-              className="h-8 flex-1"
-            >
-              <BiAlignLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_h || schema?.horizontal_alignment) === "center"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleFieldChange("align_h", "center")}
-              title="Align Center"
-              className="h-8 flex-1"
-            >
-              <BiAlignMiddle className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_h || schema?.horizontal_alignment) === "right"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleFieldChange("align_h", "right")}
-              title="Align Right"
-              className="h-8 flex-1"
-            >
-              <BiAlignRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-slate-600">Vertical alignment</p>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_v || schema?.vertical_alignment) === "top" ? "default" : "outline"
-              }
-              onClick={() => handleFieldChange("align_v", "top")}
-              title="Align Top"
-              className="h-8 flex-1"
-            >
-              <BiVerticalTop className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_v || schema?.vertical_alignment) === "middle"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleFieldChange("align_v", "middle")}
-              title="Align Middle"
-              className="h-8 flex-1"
-            >
-              <BiVerticalCenter className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={
-                (schema?.align_v || schema?.vertical_alignment) === "bottom"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleFieldChange("align_v", "bottom")}
-              title="Align Bottom"
-              className="h-8 flex-1"
-            >
-              <BiVerticalBottom className="h-4 w-4" />
-            </Button>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Vertical align</span>
+          <div className="inline-flex divide-x divide-slate-300 overflow-hidden rounded-[0.33em] border border-slate-300">
+            {(
+              [
+                { value: "top", icon: <BiVerticalTop className="h-3.5 w-3.5" />, title: "Align Top" },
+                { value: "middle", icon: <BiVerticalCenter className="h-3.5 w-3.5" />, title: "Align Middle" },
+                { value: "bottom", icon: <BiVerticalBottom className="h-3.5 w-3.5" />, title: "Align Bottom" },
+              ] as const
+            ).map(({ value, icon, title }) => (
+              <button
+                key={value}
+                type="button"
+                title={title}
+                onClick={() => handleFieldChange("align_v", value)}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center transition-colors",
+                  (schema?.align_v || schema?.vertical_alignment) === value
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
         </div>
       </div>

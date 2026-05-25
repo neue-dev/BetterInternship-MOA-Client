@@ -19,6 +19,9 @@ export function RecipientTabBar({ parties, selectedPartyId, onSelectParty }: Rec
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const activePartyIndex = parties.findIndex((party) => party._id === selectedPartyId);
+  const activePartyColor =
+    activePartyIndex >= 0 ? getPartyColorByIndex(activePartyIndex).hex : "#e2e8f0";
 
   const syncScrollState = () => {
     const el = scrollRef.current;
@@ -50,14 +53,17 @@ export function RecipientTabBar({ parties, selectedPartyId, onSelectParty }: Rec
   if (!parties.length) return null;
 
   return (
-    <div className="relative flex h-9 flex-shrink-0 items-stretch overflow-hidden border-b border-slate-200 bg-white">
+    <div
+      className="relative flex h-9 flex-shrink-0 items-stretch overflow-hidden border-b-4 bg-white"
+      style={{ borderBottomColor: activePartyColor }}
+    >
       {canScrollLeft && (
         <>
-          <div className="pointer-events-none absolute left-0 top-0 z-20 h-full w-12 bg-gradient-to-r from-white to-transparent" />
+          <div className="pointer-events-none absolute top-0 left-0 z-20 h-full w-12 bg-gradient-to-r from-white to-transparent" />
           <button
             type="button"
             onClick={() => scroll("left")}
-            className="absolute left-0 top-0 z-30 flex h-full w-7 items-center justify-center text-slate-400 hover:text-slate-700"
+            className="absolute top-0 left-0 z-30 flex h-full w-7 items-center justify-center text-slate-400 hover:text-slate-700"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -123,11 +129,11 @@ export function RecipientTabBar({ parties, selectedPartyId, onSelectParty }: Rec
 
       {canScrollRight && (
         <>
-          <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-12 bg-gradient-to-l from-white to-transparent" />
+          <div className="pointer-events-none absolute top-0 right-0 z-20 h-full w-12 bg-gradient-to-l from-white to-transparent" />
           <button
             type="button"
             onClick={() => scroll("right")}
-            className="absolute right-0 top-0 z-30 flex h-full w-7 items-center justify-center text-slate-400 hover:text-slate-700"
+            className="absolute top-0 right-0 z-30 flex h-full w-7 items-center justify-center text-slate-400 hover:text-slate-700"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>

@@ -205,7 +205,11 @@ const resolveBaselineAlignmentCandidate = (
  * Uses PdfViewerContext for PDF state and FormEditorContext for form data
  * Pure presentation component - all logic is in contexts
  */
-export function PdfViewer() {
+type PdfViewerProps = {
+  showRecipientTabBar?: boolean;
+};
+
+export function PdfViewer({ showRecipientTabBar = true }: PdfViewerProps) {
   const {
     blocks,
     selectedFieldId,
@@ -683,11 +687,13 @@ export function PdfViewer() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-50">
-      <RecipientTabBar
-        parties={formMetadata?.signing_parties || []}
-        selectedPartyId={selectedPartyId}
-        onSelectParty={setSelectedPartyId}
-      />
+      {showRecipientTabBar && (
+        <RecipientTabBar
+          parties={formMetadata?.signing_parties || []}
+          selectedPartyId={selectedPartyId}
+          onSelectParty={setSelectedPartyId}
+        />
+      )}
       {/* Header */}
       <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
         <div className="flex items-center justify-between gap-3">
@@ -793,99 +799,96 @@ export function PdfViewer() {
       <div className="relative flex-1 overflow-hidden bg-white">
         <div className="flex h-full min-w-0">
           <div ref={pdfContainerRef} className="relative min-w-0 flex-1 overflow-hidden">
-              {isLoadingDoc && (
-                <div className="bg-background/70 absolute inset-0 z-10 flex items-center justify-center">
-                  <Loader>Loading PDFâ€¦</Loader>
+            {isLoadingDoc && (
+              <div className="bg-background/70 absolute inset-0 z-10 flex items-center justify-center">
+                <Loader>Loading PDFâ€¦</Loader>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-destructive flex h-full items-center justify-center text-sm">
+                {error}
+              </div>
+            )}
+
+            {!error && !pdfDoc && !isLoadingDoc && (
+              <div className="flex h-full flex-col items-center justify-center gap-8">
+                <div className="text-center">
+                  <p className="text-base font-medium text-slate-900">Drop your PDF here</p>
+                  <p className="mt-1 text-sm text-slate-500">or click the button below to browse</p>
                 </div>
-              )}
 
-              {error && (
-                <div className="text-destructive flex h-full items-center justify-center text-sm">
-                  {error}
-                </div>
-              )}
-
-              {!error && !pdfDoc && !isLoadingDoc && (
-                <div className="flex h-full flex-col items-center justify-center gap-8">
-                  <div className="text-center">
-                    <p className="text-base font-medium text-slate-900">Drop your PDF here</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      or click the button below to browse
-                    </p>
-                  </div>
-
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={cn(
-                      "flex h-80 w-120 cursor-pointer flex-col items-center justify-center rounded-[0.33em] border-2 border-dashed transition-colors",
-                      isDragging
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
-                    )}
-                  >
-                    <FileUp className="h-16 w-16 text-slate-400" />
-                  </div>
-
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                    <Button asChild>
-                      <span>
-                        <FileUp className="h-5 w-5" />
-                        Upload PDF
-                      </span>
-                    </Button>
-                  </label>
-                </div>
-              )}
-
-              {pdfDoc && (
                 <div
-                  className="h-full overflow-auto p-4"
-                  aria-live="polite"
-                  onScroll={handlePdfScroll}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
+                  className={cn(
+                    "flex h-80 w-120 cursor-pointer flex-col items-center justify-center rounded-[0.33em] border-2 border-dashed transition-colors",
+                    isDragging
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                  )}
                 >
-                  <div className="flex w-full flex-col items-center gap-4">
-                    {pagesArray.map((page) => (
-                      <PdfPageCanvas
-                        key={page}
-                        pdf={pdfDoc}
-                        pageNumber={page}
-                        scale={scale}
-                        isSelected={page === visiblePage}
-                        _isVisible={page === visiblePage}
-                        onVisible={setVisiblePage}
-                        registerPageRef={registerPageRef}
-                        blocks={blocks}
-                        selectedFieldId={selectedFieldId}
-                        onFieldSelect={handleFieldSelectFromPdf}
-                        onBlockUpdate={handleBlockUpdate}
-                        selectedPartyId={selectedPartyId}
-                        _registry={registry}
-                        formMetadata={formMetadata}
-                        showBaselineGuides={showBaselineGuides}
-                        showMissingFieldSuggestions={showMissingFieldSuggestions}
-                        suggestions={visibleMissingSuggestions}
-                        selectedSuggestionId={selectedMissingSuggestionId}
-                        onSuggestionSelect={selectSuggestionDraft}
-                      />
-                    ))}
-                  </div>
+                  <FileUp className="h-16 w-16 text-slate-400" />
                 </div>
-              )}
+
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <Button asChild>
+                    <span>
+                      <FileUp className="h-5 w-5" />
+                      Upload PDF
+                    </span>
+                  </Button>
+                </label>
+              </div>
+            )}
+
+            {pdfDoc && (
+              <div
+                className="h-full overflow-auto p-4"
+                aria-live="polite"
+                onScroll={handlePdfScroll}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="flex w-full flex-col items-center gap-4">
+                  {pagesArray.map((page) => (
+                    <PdfPageCanvas
+                      key={page}
+                      pdf={pdfDoc}
+                      pageNumber={page}
+                      scale={scale}
+                      isSelected={page === visiblePage}
+                      _isVisible={page === visiblePage}
+                      onVisible={setVisiblePage}
+                      registerPageRef={registerPageRef}
+                      blocks={blocks}
+                      selectedFieldId={selectedFieldId}
+                      onFieldSelect={handleFieldSelectFromPdf}
+                      onBlockUpdate={handleBlockUpdate}
+                      selectedPartyId={selectedPartyId}
+                      _registry={registry}
+                      formMetadata={formMetadata}
+                      showBaselineGuides={showBaselineGuides}
+                      showMissingFieldSuggestions={showMissingFieldSuggestions}
+                      suggestions={visibleMissingSuggestions}
+                      selectedSuggestionId={selectedMissingSuggestionId}
+                      onSuggestionSelect={selectSuggestionDraft}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

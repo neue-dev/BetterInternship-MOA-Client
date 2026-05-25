@@ -24,6 +24,7 @@ import { FormViewCanvas } from "@/components/editor/tab-panels/editor-components
 interface FormPreviewProps {
   metadata?: IFormMetadata;
   mode?: "preview" | "sort";
+  showRecipientTabBar?: boolean;
 }
 
 /**
@@ -91,11 +92,13 @@ const FormPreviewContent = ({
   blocks,
   signingParties,
   documentUrl,
+  showRecipientTabBar = true,
 }: {
   formMetadata: IFormMetadata;
   blocks: IFormBlock[];
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
+  showRecipientTabBar?: boolean;
 }) => {
   const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
   const selectedPartyId = ctxPartyId || signingParties[0]._id;
@@ -186,11 +189,13 @@ const FormPreviewContent = ({
 
         {/* PDF Preview */}
         <div className="bg-secondary/30 flex flex-1 flex-col overflow-hidden">
-          <RecipientTabBar
-            parties={signingParties}
-            selectedPartyId={selectedPartyId}
-            onSelectParty={setSelectedPartyId}
-          />
+          {showRecipientTabBar && (
+            <RecipientTabBar
+              parties={signingParties}
+              selectedPartyId={selectedPartyId}
+              onSelectParty={setSelectedPartyId}
+            />
+          )}
           <div className="flex-1 overflow-hidden">
             {documentUrl ? (
               <FormPreviewPdfDisplay
@@ -254,7 +259,11 @@ const FormPreviewContent = ({
   );
 };
 
-export const FormPreview = ({ metadata, mode = "preview" }: FormPreviewProps) => {
+export const FormPreview = ({
+  metadata,
+  mode = "preview",
+  showRecipientTabBar = true,
+}: FormPreviewProps) => {
   const { formMetadata, documentUrl, documentFile } = useFormEditor();
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
 
@@ -304,6 +313,7 @@ export const FormPreview = ({ metadata, mode = "preview" }: FormPreviewProps) =>
       blocks={actualBlocks}
       signingParties={actualSigningParties}
       documentUrl={actualDocumentUrl}
+      showRecipientTabBar={showRecipientTabBar}
     />
   );
 };

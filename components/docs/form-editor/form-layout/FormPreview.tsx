@@ -13,9 +13,8 @@ import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { getPartyColorByOrder } from "@/lib/party-colors";
-import { cn } from "@/lib/utils";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
+import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
@@ -151,70 +150,40 @@ const FormPreviewContent = ({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Main Content Area with Party Tabs Sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Party Tabs */}
-        <div className="bg-card flex w-64 flex-col overflow-hidden border-r">
-          <div className="border-b p-3">
-            <p className="text-xs font-medium text-slate-600">Recipients</p>
-          </div>
-          <div className="flex-1 space-y-1.5 overflow-y-auto p-2.5">
-            {signingParties.map((party) => {
-              const partyColor = getPartyColorByOrder(party.order);
-              const isSelected = selectedPartyId === party._id;
-
-              return (
-                <button
-                  key={party._id}
-                  onClick={() => setSelectedPartyId(party._id)}
-                  className={cn(
-                    "flex w-full items-center rounded-[0.33em] border px-2.5 py-2 text-left text-sm transition-all",
-                    isSelected
-                      ? "border-primary/35 bg-primary/5 shadow-sm"
-                      : "border-transparent hover:border-slate-200 hover:bg-slate-50"
-                  )}
-                  title={party.signatory_title}
-                >
-                  <span
-                    className="max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                    style={{ backgroundColor: partyColor.hex }}
-                  >
-                    {party.signatory_title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+      {/* Main Content Area */}
+      <div className="flex flex-1 gap-4 overflow-hidden p-4">
+        {/* Form */}
+        <div className="flex-1 overflow-auto rounded-lg border bg-white">
+          {filteredBlocks.length > 0 ? (
+            <FormPreviewRenderer
+              formName={formMetadata.name}
+              formLabel={formMetadata.label}
+              blocks={filteredBlocks}
+              values={values}
+              onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
+              metadata={formMetadata}
+              selectedFieldId={selectedFieldId}
+              autoScrollToSelectedField={selectedFieldSource === "pdf"}
+              onFieldClick={(fieldId) => {
+                setSelectedFieldSource("form");
+                setSelectedFieldId(fieldId);
+              }}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-muted-foreground text-sm">No fields for this party</p>
+            </div>
+          )}
         </div>
 
-        {/* Right Content - Form and PDF Preview */}
-        <div className="flex flex-1 gap-4 overflow-hidden p-4">
-          {/* Form */}
-          <div className="flex-1 overflow-auto rounded-lg border bg-white">
-            {filteredBlocks.length > 0 ? (
-              <FormPreviewRenderer
-                formName={formMetadata.name}
-                formLabel={formMetadata.label}
-                blocks={filteredBlocks}
-                values={values}
-                onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
-                metadata={formMetadata}
-                selectedFieldId={selectedFieldId}
-                autoScrollToSelectedField={selectedFieldSource === "pdf"}
-                onFieldClick={(fieldId) => {
-                  setSelectedFieldSource("form");
-                  setSelectedFieldId(fieldId);
-                }}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-muted-foreground text-sm">No fields for this party</p>
-              </div>
-            )}
-          </div>
-
-          {/* PDF Preview */}
-          <div className="bg-secondary/30 flex-1 overflow-hidden rounded-lg border">
+        {/* PDF Preview */}
+        <div className="bg-secondary/30 flex flex-1 flex-col overflow-hidden rounded-lg border">
+          <RecipientTabBar
+            parties={signingParties}
+            selectedPartyId={selectedPartyId}
+            onSelectParty={setSelectedPartyId}
+          />
+          <div className="flex-1 overflow-hidden">
             {documentUrl ? (
               <FormPreviewPdfDisplay
                 documentUrl={documentUrl}

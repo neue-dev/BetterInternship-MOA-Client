@@ -7,7 +7,6 @@ import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
 import { usePdfViewer } from "@/app/contexts/pdf-viewer.context";
 import { isPresetRegistryField } from "@/lib/field-library";
-import { getPartyColorByIndex } from "@/lib/party-colors";
 import { getPresetFieldIcon, type PresetFieldIconKey } from "@/lib/preset-field-icons";
 import type { ValidatorIRv0 } from "@/lib/validator-ir";
 import { sanitizeFieldSchemaDefaults, type FieldSchemaDefaults } from "@/lib/field-schema-defaults";
@@ -23,12 +22,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Search as SearchIcon, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type PaletteSource = "default" | "custom";
 
@@ -92,7 +85,6 @@ export function BlocksPanel() {
   const {
     blocks,
     selectedPartyId,
-    setSelectedPartyId,
     handleBlockCreate,
     handleBlocksCreate,
     searchQuery,
@@ -102,10 +94,6 @@ export function BlocksPanel() {
   const [fieldTab, setFieldTab] = useState<"default" | "custom">("default");
   const allowClickToAdd = false;
   const signingParties = formMetadata?.signing_parties || [];
-
-  const selectedParty =
-    signingParties.find((party) => party._id === selectedPartyId) || signingParties[0];
-  const selectedPartyColor = getPartyColorByIndex(Math.max(0, (selectedParty?.order || 1) - 1));
 
   const defaultFields = useMemo<PaletteField[]>(() => {
     const presets = resolveSystemPresetTemplates(registry as any[]);
@@ -448,50 +436,7 @@ export function BlocksPanel() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="space-y-3 border-b p-3">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-600">Recipient</p>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between rounded-[0.33em] border border-slate-300 bg-white px-2.5 py-2 text-sm"
-              >
-                <span
-                  className="max-w-[calc(100%-1.5rem)] truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                  style={{ backgroundColor: selectedPartyColor.hex }}
-                >
-                  {selectedParty?.signatory_title || "Select recipient"}
-                </span>
-                <ChevronDown className="h-4 w-4 text-slate-500" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              sideOffset={6}
-              className="w-[var(--radix-dropdown-menu-trigger-width)] rounded-[0.33em]"
-            >
-              {signingParties.map((party) => {
-                const color = getPartyColorByIndex(Math.max(0, party.order - 1));
-                return (
-                  <DropdownMenuItem
-                    key={party._id}
-                    onClick={() => setSelectedPartyId(party._id)}
-                    className="py-1.5"
-                  >
-                    <span
-                      className="max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                      style={{ backgroundColor: color.hex }}
-                    >
-                      {party.signatory_title}
-                    </span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
+      <div className="border-b p-3">
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute top-2 left-2 z-50 h-5 w-5 text-slate-500" />
           <Input

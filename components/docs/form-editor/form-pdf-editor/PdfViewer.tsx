@@ -50,6 +50,7 @@ import {
   resolveDroppedFieldKey,
   getCompositePresets,
 } from "./PdfPageCanvas";
+import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const normalizeVerticalAlign = (value: unknown): "top" | "middle" | "bottom" => {
@@ -211,6 +212,7 @@ export function PdfViewer() {
     blocks,
     selectedFieldId,
     selectedPartyId,
+    setSelectedPartyId,
     handleFieldSelectFromPdf,
     handleBlockCreate,
     handleBlocksCreate,
@@ -685,6 +687,11 @@ export function PdfViewer() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-50">
+      <RecipientTabBar
+        parties={formMetadata?.signing_parties || []}
+        selectedPartyId={selectedPartyId}
+        onSelectParty={setSelectedPartyId}
+      />
       {/* Header */}
       <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
         <div className="flex items-center justify-between gap-3">

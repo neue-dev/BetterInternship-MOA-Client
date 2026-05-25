@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getPartyColorByIndex, getPartyColorByOrder } from "@/lib/party-colors";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
@@ -120,6 +120,8 @@ export const FieldBox = ({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const elementRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const settingsScrollRef = useRef<HTMLDivElement>(null);
+  const [settingsScrollbarWidth, setSettingsScrollbarWidth] = useState(0);
   const resizeState = useRef<{
     startX: number;
     startY: number;
@@ -217,6 +219,7 @@ export const FieldBox = ({
   };
 
   const showQuickActions = !!isSelected && !isDragging;
+  const toolbarWidth = TOOLBAR_WIDTH + settingsScrollbarWidth;
   const shouldShowBaseline =
     showBaselineGuide &&
     (field.type === "text" || field.type === "signature") &&
@@ -235,7 +238,7 @@ export const FieldBox = ({
       const fieldRect = fieldEl.getBoundingClientRect();
       const viewportPadding = 8;
       const wouldOverflowRight =
-        fieldRect.right + TOOLBAR_WIDTH + 8 > window.innerWidth - viewportPadding;
+        fieldRect.right + toolbarWidth + 8 > window.innerWidth - viewportPadding;
       setToolbarFlipLeft(wouldOverflowRight);
     };
 
@@ -248,7 +251,43 @@ export const FieldBox = ({
       window.removeEventListener("resize", adjustToolbarPosition);
       window.removeEventListener("scroll", adjustToolbarPosition, true);
     };
-  }, [showQuickActions, field.id, field.x, field.y, field.w, field.h]);
+  }, [showQuickActions, toolbarWidth, field.id, field.x, field.y, field.w, field.h]);
+
+  useLayoutEffect(() => {
+    if (!showQuickActions || !settingsContent) {
+      setSettingsScrollbarWidth(0);
+      return;
+    }
+
+    const scroller = settingsScrollRef.current;
+    if (!scroller) return;
+
+    const updateScrollbarWidth = () => {
+      const isScrollable = scroller.scrollHeight > scroller.clientHeight + 1;
+      const nextWidth = isScrollable
+        ? Math.max(0, scroller.offsetWidth - scroller.clientWidth)
+        : 0;
+      setSettingsScrollbarWidth((currentWidth) =>
+        currentWidth === nextWidth ? currentWidth : nextWidth
+      );
+    };
+
+    updateScrollbarWidth();
+
+    const resizeObserver = new ResizeObserver(updateScrollbarWidth);
+    resizeObserver.observe(scroller);
+    Array.from(scroller.children).forEach((child) => resizeObserver.observe(child));
+
+    const mutationObserver = new MutationObserver(updateScrollbarWidth);
+    mutationObserver.observe(scroller, { childList: true, subtree: true });
+    window.addEventListener("resize", updateScrollbarWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener("resize", updateScrollbarWidth);
+    };
+  }, [showQuickActions, settingsContent]);
 
   useEffect(() => {
     if (!isSelected || !onDeselect) return;
@@ -321,7 +360,7 @@ export const FieldBox = ({
           ref={toolbarRef}
           className="absolute top-0 z-[60] flex flex-col overflow-hidden rounded-[0.5em] border border-slate-200/90 bg-white shadow-lg ring-1 ring-black/5"
           style={{
-            width: TOOLBAR_WIDTH,
+            width: toolbarWidth,
             left: toolbarFlipLeft ? "auto" : "calc(100% + 8px)",
             right: toolbarFlipLeft ? "calc(100% + 8px)" : "auto",
             maxHeight: "min(580px, calc(100vh - 24px))",
@@ -421,7 +460,10 @@ export const FieldBox = ({
 
           {/* Settings content */}
           {settingsContent && (
-            <div className="flex-1 overflow-y-auto">
+            <div
+              ref={settingsScrollRef}
+              className="scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent min-h-0 flex-1 cursor-auto overflow-y-auto"
+            >
               {settingsContent}
             </div>
           )}

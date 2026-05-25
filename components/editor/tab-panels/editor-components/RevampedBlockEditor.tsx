@@ -418,7 +418,7 @@ export function RevampedBlockEditor() {
       <>
         <button
           type="button"
-          className="flex w-full items-center justify-between bg-red-900/5 p-3"
+          className="flex w-full cursor-pointer items-center justify-between bg-red-900/5 p-3 transition-colors hover:bg-red-50/70"
           onClick={() => setShowAdvancedSettings((prev) => !prev)}
         >
           <h4 className="text-xs font-semibold text-red-700/80 uppercase">Advanced settings</h4>

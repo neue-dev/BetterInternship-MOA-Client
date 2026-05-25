@@ -13,7 +13,7 @@ import { FormFillerContextProvider, useFormFiller } from "@/components/docs/form
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
-import { filterBlocksByParty } from "./form-layout-utils";
+import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 
 interface FormDefaultValueCaptureProps {
   formName: string;
@@ -73,16 +73,7 @@ const FormDefaultValueCaptureContent = ({
     }
 
     // Then, add values from prefiller (prefiller takes precedence)
-    fields.forEach((field) => {
-      if (field.prefiller && field.source !== "prefill") {
-        try {
-          const value = field.prefiller({ signatory: {} });
-          initialValues[field.field] = typeof value === "string" ? value.trim() : String(value);
-        } catch (error) {
-          // Silently skip if prefiller fails
-        }
-      }
-    });
+    Object.assign(initialValues, extractPrefillValues(fields, { trim: true }));
 
     // Finally, add autofill values (autofill takes highest precedence)
     if (autofillValues) {

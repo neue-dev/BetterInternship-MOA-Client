@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
-import { filterBlocksByParty } from "./form-layout-utils";
+import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -124,25 +124,9 @@ const FormPreviewContent = ({
     try {
       const metadataClient = new FormMetadata(formMetadata);
       const partyFields = metadataClient.getFieldsForClientService(selectedPartyId);
-
       setValues((prev) => {
-        const next = { ...prev };
-
-        for (const field of partyFields) {
-          if (next[field.field] !== undefined && next[field.field] !== "") continue;
-          if (typeof field.prefiller !== "function") continue;
-
-          try {
-            const prefilled = field.prefiller({ signatory: {} });
-            if (prefilled !== undefined && prefilled !== null) {
-              next[field.field] = typeof prefilled === "string" ? prefilled : String(prefilled);
-            }
-          } catch {
-            // Ignore invalid prefiller execution in preview hydration.
-          }
-        }
-
-        return next;
+        const prefilled = extractPrefillValues(partyFields, { existing: prev, skipExisting: true });
+        return Object.keys(prefilled).length > 0 ? { ...prev, ...prefilled } : prev;
       });
     } catch (error) {
       console.error("Failed to hydrate preview default values:", error);

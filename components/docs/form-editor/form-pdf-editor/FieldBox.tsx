@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getPartyColorByIndex } from "@/lib/party-colors";
+import { getPartyColorByIndex, getPartyColorByOrder } from "@/lib/party-colors";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -118,9 +118,7 @@ export const FieldBox = ({
     handle: ResizeHandle;
   } | null>(null);
 
-  const partyOrder = field.signing_party_order || 1;
-  const colorIndex = partyOrder - 1;
-  const partyColor = getPartyColorByIndex(colorIndex);
+  const partyColor = getPartyColorByOrder(field.signing_party_order || 1);
   const selectedPartyColor = useMemo(() => {
     const selected = signingPartyOptions.find((party) => party.id === field.signing_party_id);
     if (!selected) return partyColor.hex;

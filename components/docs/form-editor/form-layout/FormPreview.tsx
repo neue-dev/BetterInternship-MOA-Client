@@ -13,7 +13,7 @@ import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { getPartyColorByIndex } from "@/lib/party-colors";
+import { getPartyColorByOrder } from "@/lib/party-colors";
 import { cn } from "@/lib/utils";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
@@ -160,7 +160,7 @@ const FormPreviewContent = ({
           </div>
           <div className="flex-1 space-y-1.5 overflow-y-auto p-2.5">
             {signingParties.map((party) => {
-              const partyColor = getPartyColorByIndex(Math.max(0, party.order - 1));
+              const partyColor = getPartyColorByOrder(party.order);
               const isSelected = selectedPartyId === party._id;
 
               return (

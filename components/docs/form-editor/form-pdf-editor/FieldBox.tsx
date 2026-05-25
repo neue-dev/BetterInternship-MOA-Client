@@ -44,6 +44,9 @@ const RESIZE_HANDLE_CLASSES: Record<ResizeHandle, string> = {
   se: "absolute -right-1 -bottom-1 cursor-nwse-resize",
 };
 
+const DRAG_THRESHOLD = 5;
+const TOOLBAR_WIDTH = 288;
+
 function ResizeHandleDot({
   handle,
   colorHex,
@@ -82,6 +85,7 @@ export type FieldBoxProps = {
   baselineGuideOffsetPx?: number;
   showInlineDelete?: boolean;
   onInlineDelete?: () => void;
+  settingsContent?: React.ReactNode;
 };
 
 export const FieldBox = ({
@@ -104,10 +108,12 @@ export const FieldBox = ({
   baselineGuideOffsetPx,
   showInlineDelete = false,
   onInlineDelete,
+  settingsContent,
 }: FieldBoxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [toolbarShiftX, setToolbarShiftX] = useState(0);
+  const [toolbarFlipLeft, setToolbarFlipLeft] = useState(false);
+  const hasDraggedRef = useRef(false);
   const dragState = useRef<{ startX: number; startY: number } | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const elementRef = useRef<HTMLDivElement>(null);
@@ -135,9 +141,9 @@ export const FieldBox = ({
     e.stopPropagation();
     e.preventDefault();
 
+    hasDraggedRef.current = false;
     dragState.current = { startX: e.clientX, startY: e.clientY };
     dragOffsetRef.current = { x: 0, y: 0 };
-    setIsDragging(true);
 
     const handleMove = (moveEvent: MouseEvent) => {
       if (!dragState.current || !elementRef.current) return;
@@ -145,15 +151,23 @@ export const FieldBox = ({
       const deltaX = moveEvent.clientX - dragState.current.startX;
       const deltaY = moveEvent.clientY - dragState.current.startY;
 
-      dragOffsetRef.current = { x: deltaX, y: deltaY };
-      elementRef.current.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      if (!hasDraggedRef.current && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
+        hasDraggedRef.current = true;
+        setIsDragging(true);
+      }
+
+      if (hasDraggedRef.current) {
+        dragOffsetRef.current = { x: deltaX, y: deltaY };
+        elementRef.current.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      }
     };
 
     const handleUp = () => {
-      if (onDrag && dragState.current) {
+      if (onDrag && hasDraggedRef.current) {
         onDrag(dragOffsetRef.current.x, dragOffsetRef.current.y);
       }
       dragState.current = null;
+      hasDraggedRef.current = false;
       setIsDragging(false);
 
       if (elementRef.current) {
@@ -200,7 +214,7 @@ export const FieldBox = ({
     document.addEventListener("mouseup", handleUp);
   };
 
-  const showQuickActions = !!isSelected;
+  const showQuickActions = !!isSelected && !isDragging;
   const shouldShowBaseline =
     showBaselineGuide &&
     (field.type === "text" || field.type === "signature") &&
@@ -209,29 +223,18 @@ export const FieldBox = ({
 
   useEffect(() => {
     if (!showQuickActions) {
-      setToolbarShiftX(0);
+      setToolbarFlipLeft(false);
       return;
     }
 
     const adjustToolbarPosition = () => {
-      const toolbarEl = toolbarRef.current;
-      if (!toolbarEl) return;
-
-      const rect = toolbarEl.getBoundingClientRect();
-      const viewportPadding = 12;
-
-      let shift = 0;
-      const overflowRight = rect.right - (window.innerWidth - viewportPadding);
-      if (overflowRight > 0) {
-        shift -= overflowRight;
-      }
-
-      const overflowLeft = viewportPadding - rect.left;
-      if (overflowLeft > 0) {
-        shift += overflowLeft;
-      }
-
-      setToolbarShiftX(Math.round(shift));
+      const fieldEl = elementRef.current;
+      if (!fieldEl) return;
+      const fieldRect = fieldEl.getBoundingClientRect();
+      const viewportPadding = 8;
+      const wouldOverflowRight =
+        fieldRect.right + TOOLBAR_WIDTH + 8 > window.innerWidth - viewportPadding;
+      setToolbarFlipLeft(wouldOverflowRight);
     };
 
     const frame = window.requestAnimationFrame(adjustToolbarPosition);
@@ -243,7 +246,7 @@ export const FieldBox = ({
       window.removeEventListener("resize", adjustToolbarPosition);
       window.removeEventListener("scroll", adjustToolbarPosition, true);
     };
-  }, [showQuickActions, field.id, field.w, field.h]);
+  }, [showQuickActions, field.id, field.x, field.y, field.w, field.h]);
 
   return (
     <div
@@ -303,101 +306,112 @@ export const FieldBox = ({
       {showQuickActions && (
         <div
           ref={toolbarRef}
-          className="absolute -top-14 left-0 z-50 flex h-11 items-center gap-2 rounded-[0.33em] border border-slate-200/90 bg-white/95 px-2.5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm"
-          onMouseDown={(e) => {
-            e.stopPropagation();
+          className="absolute top-0 z-[60] flex flex-col overflow-hidden rounded-[0.5em] border border-slate-200/90 bg-white shadow-lg ring-1 ring-black/5"
+          style={{
+            width: TOOLBAR_WIDTH,
+            left: toolbarFlipLeft ? "auto" : "calc(100% + 8px)",
+            right: toolbarFlipLeft ? "calc(100% + 8px)" : "auto",
+            maxHeight: "min(580px, calc(100vh - 24px))",
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          style={{ transform: `translateX(${toolbarShiftX}px)` }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
-          {signingPartyOptions.length > 0 && (
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-8 max-w-44 items-center justify-between gap-1.5 rounded-[0.33em] border border-slate-200 bg-slate-50 px-2 text-xs transition-colors hover:bg-slate-100"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <span
-                    className="max-w-[10rem] truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                    style={{ backgroundColor: selectedPartyColor }}
+          {/* Quick actions row */}
+          <div className="flex h-11 flex-shrink-0 items-center gap-1.5 border-b px-2">
+            {signingPartyOptions.length > 0 && (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-8 min-w-0 flex-1 items-center justify-between gap-1 rounded-[0.33em] border border-slate-200 bg-slate-50 px-2 text-xs transition-colors hover:bg-slate-100"
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
-                    {signingPartyOptions.find((party) => party.id === field.signing_party_id)
-                      ?.name || "Select recipient"}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                sideOffset={6}
-                className="w-[var(--radix-dropdown-menu-trigger-width)]"
-              >
-                {signingPartyOptions.map((party, index) => {
-                  const color = getPartyColorByIndex(Math.max(0, index));
-                  return (
-                    <DropdownMenuItem
-                      key={party.id}
-                      onClick={() => onSigningPartyChange?.(party.id)}
-                      className="py-1.5"
+                    <span
+                      className="min-w-0 flex-1 truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
+                      style={{ backgroundColor: selectedPartyColor }}
                     >
-                      <span
-                        className="max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                        style={{ backgroundColor: color.hex }}
+                      {signingPartyOptions.find((party) => party.id === field.signing_party_id)
+                        ?.name || "Select recipient"}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  sideOffset={6}
+                  className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
+                  {signingPartyOptions.map((party, index) => {
+                    const color = getPartyColorByIndex(Math.max(0, index));
+                    return (
+                      <DropdownMenuItem
+                        key={party.id}
+                        onClick={() => onSigningPartyChange?.(party.id)}
+                        className="py-1.5"
                       >
-                        {party.name}
-                      </span>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[0.33em] border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => onDuplicate?.()}
-            title="Duplicate"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[0.33em] border border-red-200/70 bg-red-50/60 text-red-600 transition-colors hover:bg-red-50"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => onDelete?.()}
-            title="Delete"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          <div className="inline-flex h-8 items-center overflow-hidden rounded-[0.33em] border border-slate-200 bg-slate-50">
+                        <span
+                          className="max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
+                          style={{ backgroundColor: color.hex }}
+                        >
+                          {party.name}
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <button
               type="button"
-              className="hover:text-primary focus-visible:ring-primary/40 inline-flex h-8 w-8 items-center justify-center text-slate-600 transition-colors hover:bg-slate-200/80 focus-visible:ring-2 focus-visible:outline-none active:bg-slate-300/70 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[0.33em] border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100"
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onPrevSameField?.()}
-              title="Previous same field"
-              disabled={sameFieldCount <= 1}
+              onClick={() => onDuplicate?.()}
+              title="Duplicate"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <Copy className="h-3.5 w-3.5" />
             </button>
-            <div className="mb-0.5 inline-flex h-8 items-center justify-center text-sm font-semibold text-slate-700 px-1">
-              {sameFieldIndex}/{sameFieldCount}
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[0.33em] border border-red-200/70 bg-red-50/60 text-red-600 transition-colors hover:bg-red-50"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => onDelete?.()}
+              title="Delete"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            <div className="inline-flex h-8 flex-shrink-0 items-center overflow-hidden rounded-[0.33em] border border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                className="hover:text-primary focus-visible:ring-primary/40 inline-flex h-8 w-7 items-center justify-center text-slate-600 transition-colors hover:bg-slate-200/80 focus-visible:ring-2 focus-visible:outline-none active:bg-slate-300/70 disabled:cursor-not-allowed disabled:opacity-40"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onPrevSameField?.()}
+                title="Previous same field"
+                disabled={sameFieldCount <= 1}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </button>
+              <div className="mb-0.5 inline-flex h-8 items-center justify-center px-1 text-sm font-semibold text-slate-700">
+                {sameFieldIndex}/{sameFieldCount}
+              </div>
+              <button
+                type="button"
+                className="hover:text-primary focus-visible:ring-primary/40 inline-flex h-8 w-7 items-center justify-center text-slate-600 transition-colors hover:bg-slate-200/80 focus-visible:ring-2 focus-visible:outline-none active:bg-slate-300/70 disabled:cursor-not-allowed disabled:opacity-40"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onNextSameField?.()}
+                title="Next same field"
+                disabled={sameFieldCount <= 1}
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <button
-              type="button"
-              className="hover:text-primary focus-visible:ring-primary/40 inline-flex h-8 w-8 items-center justify-center text-slate-600 transition-colors hover:bg-slate-200/80 focus-visible:ring-2 focus-visible:outline-none active:bg-slate-300/70 disabled:cursor-not-allowed disabled:opacity-40"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => onNextSameField?.()}
-              title="Next same field"
-              disabled={sameFieldCount <= 1}
-            >
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
           </div>
+
+          {/* Settings content */}
+          {settingsContent && (
+            <div className="flex-1 overflow-y-auto">
+              {settingsContent}
+            </div>
+          )}
         </div>
       )}
 

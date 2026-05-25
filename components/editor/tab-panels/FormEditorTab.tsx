@@ -5,7 +5,6 @@ import { FormEditorTabProvider } from "@/app/contexts/form-editor-tab.context";
 import { PdfViewerProvider } from "@/app/contexts/pdf-viewer.context";
 import { PdfViewer } from "@/components/docs/form-editor/form-pdf-editor/PdfViewer";
 import { BlocksPanel } from "./editor-components/BlocksPanel";
-import { RevampedBlockEditor } from "./editor-components/RevampedBlockEditor";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -44,20 +43,14 @@ function FormEditorTabContent() {
       autoSaveId="form-editor:pdf-layout"
       className="bg-background h-full w-full"
     >
-      <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="bg-card overflow-hidden">
+      <ResizablePanel defaultSize={25} minSize={18} maxSize={40} className="bg-card overflow-hidden">
         <BlocksPanel />
       </ResizablePanel>
 
-      <ResizableHandle  />
+      <ResizableHandle />
 
-      <ResizablePanel defaultSize={56} minSize={30} className="min-w-0 overflow-hidden">
+      <ResizablePanel defaultSize={75} minSize={40} className="min-w-0 overflow-hidden">
         <PdfViewer />
-      </ResizablePanel>
-
-      <ResizableHandle  />
-
-      <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="bg-card overflow-hidden">
-        <RevampedBlockEditor />
       </ResizablePanel>
     </ResizablePanelGroup>
   );

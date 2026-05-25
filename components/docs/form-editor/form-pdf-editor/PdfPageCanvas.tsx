@@ -24,6 +24,7 @@ import type { ValidatorIRv0 } from "@/lib/validator-ir";
 import { computePreviewBaselineOffset } from "@/lib/form-previewer-rendering";
 import type { MissingFieldSuggestion } from "@/lib/missing-fields/pipeline";
 import { usePdfCoordinateTransform, type PointerLocation } from "./use-pdf-coordinate-transform";
+import { RevampedBlockEditor } from "@/components/editor/tab-panels/editor-components/RevampedBlockEditor";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const createUniqueFieldKey = (base: string) =>
@@ -120,8 +121,14 @@ export const PdfPageCanvas = memo(
     selectedSuggestionId,
     onSuggestionSelect,
   }: PdfPageCanvasProps) => {
-    const { handleBlockCreate, handleBlocksCreate, handleDeleteBlock, handleDuplicateBlock } =
-      useFormEditorTab();
+    const {
+      handleBlockCreate,
+      handleBlocksCreate,
+      handleDeleteBlock,
+      handleDuplicateBlock,
+      setSelectedBlockId,
+      setSelectedFieldId,
+    } = useFormEditorTab();
     const { updateBlocks } = useFormEditor();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -234,7 +241,8 @@ export const PdfPageCanvas = memo(
     const handleClick = (event: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
       const location = extractLocation(event);
       if (!location) return;
-      // Click handled through field box interactions
+      setSelectedBlockId(null);
+      setSelectedFieldId(null);
     };
 
     const handleDragOver = (e: React.DragEvent<HTMLCanvasElement>) => {
@@ -698,11 +706,12 @@ export const PdfPageCanvas = memo(
               const groupDragX = isGroupDragging ? activeGroupDrag!.x : 0;
               const groupDragY = isGroupDragging ? activeGroupDrag!.y : 0;
 
+              const isFieldSelected = selectedFieldId === fieldId;
               return (
                 <div
                   key={fieldId}
                   data-field-id={fieldId}
-                  className="pointer-events-auto relative z-20"
+                  className={isFieldSelected ? "pointer-events-auto relative z-[100]" : "pointer-events-auto relative z-20"}
                   style={{
                     position: "absolute",
                     left: `${pos.displayX}px`,
@@ -717,10 +726,11 @@ export const PdfPageCanvas = memo(
                 >
                   <FieldBox
                     field={field}
-                    isSelected={selectedFieldId === fieldId}
+                    isSelected={isFieldSelected}
                     onSelect={() => {
                       onFieldSelect?.(fieldId);
                     }}
+                    settingsContent={isFieldSelected ? <RevampedBlockEditor /> : undefined}
                     onDrag={(deltaX, deltaY) => handleFieldDrag(fieldId, deltaX, deltaY)}
                     onDragEnd={() => {}}
                     onResize={(handle, deltaX, deltaY) =>

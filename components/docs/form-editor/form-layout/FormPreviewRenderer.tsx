@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { type IFormBlock, type IFormMetadata, FormMetadata } from "@betterinternship/core/forms";
-import { FieldRenderer } from "@/components/docs/forms/FieldRenderer";
-import { HeaderRenderer, ParagraphRenderer } from "@/components/docs/forms/BlockrRenderer";
-import { getBlockField, isBlockField } from "@/components/docs/forms/utils";
-import { RadioGroupFiller } from "@/components/docs/forms/RadioGroupFiller";
+import z from "zod";
+import { type IFormBlock, type IFormMetadata, FormMetadata, type ClientBlock } from "@betterinternship/core/forms";
+import { BlocksRenderer } from "@/components/docs/forms/FormFillerRenderer";
+import { isBlockField, getBlockField } from "@/components/docs/forms/utils";
 
 interface FormPreviewRendererProps {
   formName: string;
@@ -20,11 +19,16 @@ interface FormPreviewRendererProps {
 }
 
 /**
- * Simple form preview renderer that replicates FormFillerRenderer
- * but without context, validation, or autofill dependencies
+ * Prop-driven adapter over FormFillerRenderer's canonical BlocksRenderer.
  *
- * // ! todo: use contexts to access field and block data instead of passing them in
- * // ! todo: use ClientField and ClientBlock instead of IFormField and IFormBlock
+ * Converts the raw IFormBlock[] passed by callers into ClientBlock[] so that
+ * BlocksRenderer can handle deduplication, radio-group collapsing, and field
+ * rendering with compiled validators. Callers pass already party-filtered
+ * blocks; we respect that filter by matching on _id.
+ *
+ * This component owns scroll, the form header, and local validation error
+ * state. Full context migration (replacing this with FormFillerRenderer
+ * directly) is a follow-on step once callers provide FormFiller context.
  */
 export const FormPreviewRenderer = ({
   formName,
@@ -40,6 +44,7 @@ export const FormPreviewRenderer = ({
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
   const metadataClient = useMemo(() => {
     if (!metadata) return null;
     try {
@@ -49,114 +54,81 @@ export const FormPreviewRenderer = ({
     }
   }, [metadata]);
 
-  // Extract actual fields from metadata for proper validation and field types
-  const metadataFields = useMemo(() => {
-    if (!metadataClient) return [];
-    return metadataClient.getFieldsForClientService();
-  }, [metadataClient]);
+  // Convert IFormBlock[] → ClientBlock[] so BlocksRenderer can access compiled
+  // validators and coerce functions on each field. We call getBlocksForClientService()
+  // without a party filter to get all blocks, then restrict to the IDs the caller
+  // already party-filtered.
+  const clientBlocks = useMemo((): ClientBlock<any>[] => {
+    if (!metadataClient) return blocks as unknown as ClientBlock<any>[];
+    try {
+      const allowedIds = new Set(blocks.map((b) => b._id));
+      return (metadataClient.getBlocksForClientService() as ClientBlock<any>[]).filter((cb) =>
+        allowedIds.has(cb._id)
+      );
+    } catch {
+      return blocks as unknown as ClientBlock<any>[];
+    }
+  }, [metadataClient, blocks]);
 
-  // Create a map of field name to field object for easy lookup
-  const fieldMap = useMemo(() => {
-    const map = new Map();
-    metadataFields.forEach((field) => {
-      map.set(field.field, field);
-    });
-    return map;
-  }, [metadataFields]);
-
-  // Deduplicate blocks: only keep first instance of each field ID
+  // Deduplicate: keep first occurrence of each field ID (same logic as FormFillerRenderer)
   const deduplicatedBlocks = useMemo(() => {
-    const seenFieldIds = new Set<string>();
-    return blocks.filter((block) => {
-      if (!isBlockField(block)) return true; // Always include non-field blocks
+    const seen = new Set<string>();
+    return clientBlocks.filter((block) => {
+      if (!isBlockField(block)) return true;
       const field = getBlockField(block);
       if (!field) return true;
-
-      // Only include if this is the first time we see this field ID
-      if (seenFieldIds.has(field.field)) return false;
-      seenFieldIds.add(field.field);
+      if (seen.has(field.field)) return false;
+      seen.add(field.field);
       return true;
     });
-  }, [blocks]);
-
-  // Use values prop directly without merging with local state
-  // Parent component handles initialization
-  const displayValues = useMemo(() => {
-    return values;
-  }, [values]);
-
-  // Scroll to selected field only when requested (e.g. selection came from PDF).
-  useEffect(() => {
-    if (!autoScrollToSelectedField || !selectedFieldId || !scrollContainerRef.current) return;
-    const element = fieldRefs.current[selectedFieldId];
-    if (!element) return;
-
-    const containerRect = scrollContainerRef.current.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    const isVisible =
-      elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
-
-    if (!isVisible) {
-      element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [autoScrollToSelectedField, selectedFieldId]);
-
-  const handleChange = (key: string, value: string) => {
-    onChange(key, value);
-  };
+  }, [clientBlocks]);
 
   const sortedBlocks = useMemo(
     () => [...deduplicatedBlocks].sort((a, b) => a.order - b.order),
     [deduplicatedBlocks]
   );
 
-  if (!sortedBlocks.length) {
-    return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
-  }
+  useEffect(() => {
+    if (!autoScrollToSelectedField || !selectedFieldId || !scrollContainerRef.current) return;
+    const element = fieldRefs.current[selectedFieldId];
+    if (!element) return;
+    const containerRect = scrollContainerRef.current.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const isInView =
+      elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
+    if (!isInView) element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [autoScrollToSelectedField, selectedFieldId]);
 
-  const handleBlurValidate = (fieldKey: string, nextValue?: unknown) => {
-    const currentField = fieldMap.get(fieldKey);
-    if (!currentField || currentField.source !== "manual") return;
-
-    const nextFieldValue =
-      nextValue === undefined ? displayValues[fieldKey] : String(nextValue ?? "");
-    const valuesForParams: Record<string, string> =
-      nextValue === undefined
-        ? displayValues
-        : {
-            ...displayValues,
-            [fieldKey]: nextFieldValue,
-          };
-
-    // Rebuild fields using merged params so cross-field validators can see latest values.
+  const handleBlurValidate = (fieldKey: string, field: any, nextValue?: unknown) => {
+    if (!field || !metadataClient || field.source !== "manual") return;
+    const nextFieldValue = nextValue === undefined ? values[fieldKey] : String(nextValue ?? "");
+    const valuesForParams =
+      nextValue === undefined ? values : { ...values, [fieldKey]: nextFieldValue };
+    // Re-fetch the field with current params so cross-field validators see up-to-date values.
     const hydratedField =
       metadataClient
-        ?.getFieldsForClientService(undefined, valuesForParams)
-        .find((field) => field.field === fieldKey) || currentField;
-
+        .getFieldsForClientService(undefined, valuesForParams)
+        .find((f) => f.field === fieldKey) ?? field;
     const coerced = hydratedField.coerce(nextFieldValue);
     const result = hydratedField.validator?.safeParse(coerced);
-
     if (result?.error) {
-      // ! todo: import zod at the top, not here (dynamic imports bad)
-      // ! todo: import zod at the top, not here (dynamic imports bad)
-      const z = require("zod");
       const errorString = z
         .treeifyError(result.error)
         .errors.map((e: string) => e.split(" ").slice(0).join(" "))
         .join("\n");
-      setErrors((prev) => ({
-        ...prev,
-        [fieldKey]: `${hydratedField.label}: ${errorString}`,
-      }));
+      setErrors((prev) => ({ ...prev, [fieldKey]: `${hydratedField.label}: ${errorString}` }));
     } else {
       setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[fieldKey];
-        return newErrors;
+        const next = { ...prev };
+        delete next[fieldKey];
+        return next;
       });
     }
   };
+
+  if (!sortedBlocks.length) {
+    return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
+  }
 
   return (
     <div className="relative flex h-full flex-col rounded-[0.33em] border border-gray-300">
@@ -168,145 +140,16 @@ export const FormPreviewRenderer = ({
           <BlocksRenderer
             formKey={formName}
             blocks={sortedBlocks}
-            values={displayValues}
-            onChange={handleChange}
+            values={values}
+            onChange={onChange}
             errors={errors}
+            setSelected={(fieldId) => onFieldClick?.(fieldId)}
             onBlurValidate={handleBlurValidate}
             fieldRefs={fieldRefs.current}
-            fieldMap={fieldMap}
             selectedFieldId={selectedFieldId}
-            onFieldClick={onFieldClick}
           />
         </div>
       </div>
     </div>
   );
-};
-
-type RenderUnit =
-  | { kind: "single"; block: IFormBlock; index: number }
-  | { kind: "radio-group"; groupId: string; groupBlocks: IFormBlock[] };
-
-const BlocksRenderer = ({
-  formKey,
-  blocks,
-  values,
-  onChange,
-  errors,
-  onBlurValidate,
-  fieldRefs,
-  fieldMap,
-  selectedFieldId,
-  onFieldClick,
-}: {
-  formKey: string;
-  // ! TODO: make this use ClientBlock<[any]>[] instead of IFormBlock[]
-  // ! TODO: make this use ClientBlock<[any]>[] instead of IFormBlock[]
-  blocks: IFormBlock[];
-  values: Record<string, string>;
-  onChange: (key: string, value: any) => void;
-  errors: Record<string, string>;
-  onBlurValidate?: (fieldKey: string, nextValue?: unknown) => void;
-  fieldRefs: Record<string, HTMLDivElement | null>;
-  fieldMap: Map<string, any>;
-  selectedFieldId?: string | null;
-  onFieldClick?: (fieldId: string) => void;
-}) => {
-  if (!blocks.length) return null;
-
-  // Pre-build a map of radio_group_id -> all blocks in that group
-  const radioGroupMap = new Map<string, IFormBlock[]>();
-  for (const block of blocks) {
-    const groupId = block.field_schema?.radio_group_id as string | undefined;
-    if (groupId) {
-      if (!radioGroupMap.has(groupId)) radioGroupMap.set(groupId, []);
-      radioGroupMap.get(groupId)!.push(block);
-    }
-  }
-
-  // Collapse radio group siblings into a single render unit (first occurrence wins)
-  const seenGroupIds = new Set<string>();
-  const units: RenderUnit[] = [];
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    const groupId = block.field_schema?.radio_group_id as string | undefined;
-    if (groupId) {
-      if (!seenGroupIds.has(groupId)) {
-        seenGroupIds.add(groupId);
-        units.push({ kind: "radio-group", groupId, groupBlocks: radioGroupMap.get(groupId)! });
-      }
-    } else {
-      units.push({ kind: "single", block, index: i });
-    }
-  }
-
-  return units.map((unit, i) => {
-    if (unit.kind === "radio-group") {
-      return (
-        <div className="space-between flex flex-row" key={`radio-group:${unit.groupId}`}>
-          <RadioGroupFiller
-            blocks={unit.groupBlocks}
-            values={values}
-            onChange={onChange}
-            errors={errors}
-            setSelected={(fieldId) => onFieldClick?.(fieldId)}
-            selectedFieldId={selectedFieldId}
-            fieldRefs={fieldRefs}
-          />
-        </div>
-      );
-    }
-
-    const { block, index } = unit;
-    const isForm = isBlockField(block);
-    const blockField = isForm ? getBlockField(block) : null;
-
-    // Get the actual field from metadata (has validators and proper type info)
-    const metadataField = blockField ? fieldMap.get(blockField.field) : null;
-
-    return (
-      <>
-        {isForm && blockField?.source === "manual" && metadataField && (
-          <div className="space-between flex flex-row" key={`${formKey}:${index}`}>
-            <div
-              ref={(el) => {
-                if (el && blockField) fieldRefs[blockField.field] = el;
-              }}
-              onClick={() => {
-                if (blockField) onFieldClick?.(blockField.field);
-              }}
-              className={`flex-1 cursor-pointer px-1 py-2 transition-all ${
-                blockField && selectedFieldId === blockField.field
-                  ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2"
-                  : ""
-              }`}
-              onFocus={() => {
-                if (blockField) onFieldClick?.(blockField.field);
-              }}
-            >
-              <FieldRenderer
-                field={metadataField}
-                value={values[blockField.field] ?? ""}
-                onChange={(v) => onChange(blockField.field, v)}
-                onAuxValueChange={onChange}
-                onBlur={(nextValue) => onBlurValidate?.(blockField.field, nextValue)}
-                error={errors[blockField.field]}
-                allValues={values}
-              />
-            </div>
-          </div>
-        )}
-        {block.block_type === "header" && block.text_content && (
-          <div className="flex flex-row">
-            <HeaderRenderer content={block.text_content} />
-          </div>
-        )}
-        {block.block_type === "paragraph" && block.text_content && (
-          <div className="flex flex-row">
-            <ParagraphRenderer content={block.text_content} />
-          </div>
-        )}
-      </>
-    );
-  });
 };

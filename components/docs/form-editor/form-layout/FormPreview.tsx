@@ -170,13 +170,6 @@ const FormPreviewFormPanel = ({
       className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white"
       order={0}
     >
-      {/* Top bar — height-matched to the PDF previewer's RecipientTabBar */}
-      <div className="flex h-9 flex-shrink-0 items-center border-b-4 border-slate-200 bg-white px-4">
-        <span className="truncate text-sm font-semibold text-slate-700">
-          {formMetadata.label || formMetadata.name}
-        </span>
-      </div>
-
       <div className="min-h-0 flex-1 overflow-hidden">
         <FormPreviewRenderer
           formName={formMetadata.name}

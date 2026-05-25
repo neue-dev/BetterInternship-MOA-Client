@@ -52,7 +52,7 @@ function PageContent() {
   const [view, setView] = useState<"choice" | "form" | "delegate">("choice");
   const [mobileStep, setMobileStep] = useState<MobileSigningStep>("fields");
   const [desktopStep, setDesktopStep] = useState<MobileSigningStep>("fields");
-  const [mobileFieldsTab, setMobileFieldsTab] = useState<"form" | "preview">("form");
+  const [mobileFieldsTab, setMobileFieldsTab] = useState<"template" | "preview">("form");
   const [mobilePreviewNeedsAttention, setMobilePreviewNeedsAttention] = useState(false);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf">("form");
   const [selectionTick, setSelectionTick] = useState(0);
@@ -287,7 +287,7 @@ function PageContent() {
     setMobileStep(nextStep);
   };
 
-  const handleMobileFieldsTabChange = useCallback((nextTab: "form" | "preview") => {
+  const handleMobileFieldsTabChange = useCallback((nextTab: "template" | "preview") => {
     setMobileFieldsTab(nextTab);
 
     if (nextTab === "preview") {
@@ -299,7 +299,7 @@ function PageContent() {
     setSelectedFieldSource("pdf");
     setSelectionTick((prev) => prev + 1);
     form.setSelectedPreviewId(fieldName);
-    handleMobileFieldsTabChange("form");
+    handleMobileFieldsTabChange("template");
   };
 
   const handleFormFieldSelect = (fieldName: string) => {
@@ -329,7 +329,7 @@ function PageContent() {
       <MobileStepTabs
         tabs={mobileFieldsTabs}
         activeTab={mobileFieldsTab}
-        onTabChange={(tabId) => handleMobileFieldsTabChange(tabId as "form" | "preview")}
+        onTabChange={(tabId) => handleMobileFieldsTabChange(tabId as "template" | "preview")}
       />
     ) : null;
 
@@ -628,7 +628,7 @@ function PageContent() {
                               variant="outline"
                               className="h-11 w-11 shrink-0"
                               onClick={() => {
-                                handleMobileFieldsTabChange("form");
+                                handleMobileFieldsTabChange("template");
                                 goToMobileStep("fields");
                               }}
                               aria-label="Back to form fields"

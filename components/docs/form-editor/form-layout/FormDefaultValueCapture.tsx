@@ -14,6 +14,8 @@ import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
+import { MobileStepTabs } from "@/app/docs/sign/components/MobileStepTabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FormDefaultValueCaptureProps {
   formName: string;
@@ -37,6 +39,7 @@ const FormDefaultValueCaptureContent = ({
   const autofillValues = useMyAutofill();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [mobileFieldsTab, setMobileFieldsTab] = useState<"template" | "preview">("template");
 
   // Get blocks from metadata
   const blocks = (metadata?.schema?.blocks || []) as IFormBlock[];
@@ -116,66 +119,83 @@ const FormDefaultValueCaptureContent = ({
     }
   };
 
+  const mobileFieldsTabs = [
+    { id: "template", label: "Fill Template" },
+    { id: "preview", label: "Template Preview" },
+  ];
+
+  const isMobile = useIsMobile();
+
   return (
-    <div className="relative flex h-full w-full flex-col gap-4 overflow-hidden">
-      {/* Main content with split layout - Form on left, PDF on right */}
-      <div className="flex flex-1 flex-col-reverse gap-4 overflow-hidden md:flex-row">
+    <div className="relative flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
+      {isMobile && (
+        <MobileStepTabs
+          tabs={mobileFieldsTabs}
+          activeTab={mobileFieldsTab}
+          onTabChange={(tabId) => {
+            setMobileFieldsTab(tabId as "template" | "preview");
+          }}
+        />
+      )}
+
+      <div className="flex flex-1 flex-col gap-4 overflow-hidden px-4 md:flex-row">
         {/* Left side - Form */}
-        <div className="relative h-1/2 flex-1 overflow-y-auto bg-white md:h-full">
-          {filteredBlocks.length > 0 ? (
-            <FormPreviewRenderer
-              formName={formName}
-              formLabel={metadata?.label || ""}
-              blocks={filteredBlocks}
-              values={formFiller.getFinalValues()}
-              onChange={(key, value) => formFiller.setValue(key, value)}
-              metadata={metadata}
-              selectedFieldId={selectedFieldId}
-              onFieldClick={setSelectedFieldId}
-            />
-          ) : (
-            <div className="rounded bg-slate-50 p-8 text-center">
-              <p className="text-sm text-slate-500">No form fields to fill out.</p>
-            </div>
-          )}
-        </div>
+        {(!isMobile || mobileFieldsTab === "template") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-y-auto bg-white">
+            {filteredBlocks.length > 0 ? (
+              <FormPreviewRenderer
+                formName={formName}
+                formLabel={metadata?.label || ""}
+                blocks={filteredBlocks}
+                values={formFiller.getFinalValues()}
+                onChange={(key, value) => formFiller.setValue(key, value)}
+                metadata={metadata}
+                selectedFieldId={selectedFieldId}
+                onFieldClick={setSelectedFieldId}
+              />
+            ) : (
+              <div className="rounded bg-slate-50 p-8 text-center">
+                <p className="text-sm text-slate-500">No form fields to fill out.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Right side - PDF Preview */}
-        <div className="relative h-1/2 flex-1 overflow-hidden bg-slate-100 md:h-full">
-          {documentUrl && hasRenderablePreviewField ? (
-            <FormPreviewPdfDisplay
-              documentUrl={documentUrl}
-              blocks={filteredBlocks}
-              values={previewValues}
-              onFieldClick={(fieldName) => setSelectedFieldId(fieldName)}
-              selectedFieldId={selectedFieldId}
-              prefillMode="dummy"
-              prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <div className="text-center">
-                {!documentUrl ? (
-                  <>
-                    <p className="text-sm text-slate-500">No document to preview</p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      PDF will appear here when available
-                    </p>
-                  </>
-                ) : (
-                  <>
+        {(!isMobile || mobileFieldsTab === "preview") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-slate-100">
+            {documentUrl && hasRenderablePreviewField ? (
+              <FormPreviewPdfDisplay
+                documentUrl={documentUrl}
+                blocks={filteredBlocks}
+                values={previewValues}
+                onFieldClick={(fieldName) => setSelectedFieldId(fieldName)}
+                selectedFieldId={selectedFieldId}
+                prefillMode="dummy"
+                prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="text-center">
+                  {!documentUrl ? (
+                    <>
+                      <p className="text-sm text-slate-500">No document to preview</p>
+                      <p className="mt-2 text-xs text-slate-400">
+                        PDF will appear here when available
+                      </p>
+                    </>
+                  ) : (
                     <p className="text-sm text-slate-500">No form fields in this section</p>
-                  </>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Save Button */}
       {onSave && (
-        <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-4">
+        <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-2">
           <Button onClick={handleSave} disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
             {isSaving ? "Saving..." : "Save Default Values"}

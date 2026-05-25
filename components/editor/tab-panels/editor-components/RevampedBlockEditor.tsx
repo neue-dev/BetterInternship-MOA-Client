@@ -278,6 +278,41 @@ export function RevampedBlockEditor() {
         </div>
       )}
 
+      {/* Label & Type */}
+      <div className="space-y-2.5 p-3">
+        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Label & Type</h4>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Field label</span>
+          <input
+            type="text"
+            className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
+            value={schema?.label || ""}
+            onChange={(e) => handleFieldChange("label", e.target.value)}
+          />
+        </div>
+        {isDefaultChildField && (
+          <div className="flex h-8 items-center justify-between gap-3">
+            <span className="shrink-0 text-xs text-slate-600">Field type</span>
+            <select
+              className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
+              value={presetIdOverride ?? matchedChildPreset?.id ?? ""}
+              onChange={(e) => {
+                const nextPreset = presetTemplates.find((preset) => preset.id === e.target.value);
+                if (!nextPreset) return;
+                setPresetIdOverride(e.target.value);
+                handleFieldPatch(applyPresetToSchema(schema, nextPreset));
+              }}
+            >
+              {presetOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       {/* Layout & Text (font size, wrap, H alignment, V alignment) */}
       <div className="space-y-2 p-3">
         <h4 className="text-muted-foreground text-xs font-semibold uppercase">Layout & Text</h4>
@@ -378,41 +413,6 @@ export function RevampedBlockEditor() {
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Field settings */}
-      <div className="space-y-2.5 p-3">
-        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
-        <div className="flex h-8 items-center justify-between gap-3">
-          <span className="shrink-0 text-xs text-slate-600">Field label</span>
-          <input
-            type="text"
-            className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
-            value={schema?.label || ""}
-            onChange={(e) => handleFieldChange("label", e.target.value)}
-          />
-        </div>
-        {isDefaultChildField && (
-          <div className="flex h-8 items-center justify-between gap-3">
-            <span className="shrink-0 text-xs text-slate-600">Field type</span>
-            <select
-              className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
-              value={presetIdOverride ?? matchedChildPreset?.id ?? ""}
-              onChange={(e) => {
-                const nextPreset = presetTemplates.find((preset) => preset.id === e.target.value);
-                if (!nextPreset) return;
-                setPresetIdOverride(e.target.value);
-                handleFieldPatch(applyPresetToSchema(schema, nextPreset));
-              }}
-            >
-              {presetOptions.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       <>

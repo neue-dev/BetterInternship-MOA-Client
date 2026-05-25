@@ -10,6 +10,7 @@ import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
 import { FormInput, FormTextarea, FormDropdown } from "@/components/docs/forms/EditForm";
 import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
 import {
   BiAlignLeft,
   BiAlignMiddle,
@@ -55,6 +56,7 @@ export function RevampedBlockEditor() {
 
   const [editedBlock, setEditedBlock] = useState<IFormBlock | null>(activeBlock);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [presetIdOverride, setPresetIdOverride] = useState<string | null>(null);
 
   type IntegerFieldKey = "size";
   const [integerDrafts, setIntegerDrafts] = useState<Partial<Record<IntegerFieldKey, string>>>({});
@@ -69,6 +71,7 @@ export function RevampedBlockEditor() {
   useEffect(() => {
     setIntegerDrafts({});
     setShowAdvancedSettings(false);
+    setPresetIdOverride(null);
   }, [selectedBlockId]);
 
   const presetTemplates = useMemo(
@@ -237,9 +240,7 @@ export function RevampedBlockEditor() {
       {/* Pending draft confirm/cancel */}
       {isPendingDraftSelected && (
         <div className="space-y-2.5 p-3">
-          <h4 className="text-muted-foreground text-xs font-semibold uppercase">
-            Suggested field
-          </h4>
+          <h4 className="text-muted-foreground text-xs font-semibold uppercase">Suggested field</h4>
           <p className="text-xs text-slate-600">
             This is a suggested field. Confirm to add it to the form, or cancel to discard it.
           </p>
@@ -304,9 +305,21 @@ export function RevampedBlockEditor() {
           <div className="inline-flex divide-x divide-slate-300 overflow-hidden rounded-[0.33em] border border-slate-300">
             {(
               [
-                { value: "left", icon: <BiAlignLeft className="h-3.5 w-3.5" />, title: "Align Left" },
-                { value: "center", icon: <BiAlignMiddle className="h-3.5 w-3.5" />, title: "Align Center" },
-                { value: "right", icon: <BiAlignRight className="h-3.5 w-3.5" />, title: "Align Right" },
+                {
+                  value: "left",
+                  icon: <BiAlignLeft className="h-3.5 w-3.5" />,
+                  title: "Align Left",
+                },
+                {
+                  value: "center",
+                  icon: <BiAlignMiddle className="h-3.5 w-3.5" />,
+                  title: "Align Center",
+                },
+                {
+                  value: "right",
+                  icon: <BiAlignRight className="h-3.5 w-3.5" />,
+                  title: "Align Right",
+                },
               ] as const
             ).map(({ value, icon, title }) => (
               <button
@@ -331,9 +344,21 @@ export function RevampedBlockEditor() {
           <div className="inline-flex divide-x divide-slate-300 overflow-hidden rounded-[0.33em] border border-slate-300">
             {(
               [
-                { value: "top", icon: <BiVerticalTop className="h-3.5 w-3.5" />, title: "Align Top" },
-                { value: "middle", icon: <BiVerticalCenter className="h-3.5 w-3.5" />, title: "Align Middle" },
-                { value: "bottom", icon: <BiVerticalBottom className="h-3.5 w-3.5" />, title: "Align Bottom" },
+                {
+                  value: "top",
+                  icon: <BiVerticalTop className="h-3.5 w-3.5" />,
+                  title: "Align Top",
+                },
+                {
+                  value: "middle",
+                  icon: <BiVerticalCenter className="h-3.5 w-3.5" />,
+                  title: "Align Middle",
+                },
+                {
+                  value: "bottom",
+                  icon: <BiVerticalBottom className="h-3.5 w-3.5" />,
+                  title: "Align Bottom",
+                },
               ] as const
             ).map(({ value, icon, title }) => (
               <button
@@ -358,103 +383,111 @@ export function RevampedBlockEditor() {
       {/* Field settings */}
       <div className="space-y-2.5 p-3">
         <h4 className="text-muted-foreground text-xs font-semibold uppercase">Field settings</h4>
-        <FormInput
-          label="Field Label"
-          value={schema?.label || ""}
-          setter={(value) => handleFieldChange("label", value)}
-          required={false}
-        />
-        {isDefaultChildField && (
-          <FormDropdown
-            label="Field Type"
-            value={matchedChildPreset?.id || ""}
-            options={presetOptions}
-            setter={(value) => {
-              const nextPreset = presetTemplates.find((preset) => preset.id === value);
-              if (!nextPreset) return;
-              const presetPatch = applyPresetToSchema(schema, nextPreset);
-              handleFieldPatch(presetPatch);
-            }}
-            required={false}
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Field label</span>
+          <input
+            type="text"
+            className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
+            value={schema?.label || ""}
+            onChange={(e) => handleFieldChange("label", e.target.value)}
           />
+        </div>
+        {isDefaultChildField && (
+          <div className="flex h-8 items-center justify-between gap-3">
+            <span className="shrink-0 text-xs text-slate-600">Field type</span>
+            <select
+              className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
+              value={presetIdOverride ?? matchedChildPreset?.id ?? ""}
+              onChange={(e) => {
+                const nextPreset = presetTemplates.find((preset) => preset.id === e.target.value);
+                if (!nextPreset) return;
+                setPresetIdOverride(e.target.value);
+                handleFieldPatch(applyPresetToSchema(schema, nextPreset));
+              }}
+            >
+              {presetOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
-        {isChildDerived ? (
-          <>
-            <div className="flex items-center justify-between rounded-[0.33em] border border-slate-200 px-2.5 py-2">
-              <p className="text-xs font-semibold text-slate-700">Derived value</p>
-              <Switch
-                checked={isChildDerived}
-                onCheckedChange={(checked) =>
-                  handleFieldChange("source", checked ? "derived" : "manual")
-                }
-              />
-            </div>
-            <DefaultValueSection
-              title="Default Values"
-              source={childSource}
-              value={(schema?.prefiller || "") as string}
-              fieldOptions={childFieldOptions}
-              onChange={(value) => handleFieldChange("prefiller", value)}
-            />
-          </>
-        ) : (
-          <>
-            <div className="flex items-center justify-between rounded-[0.33em] border border-slate-200 px-2.5 py-2">
-              <p className="text-xs font-semibold text-slate-700">Derived value</p>
-              <Switch
-                checked={isChildDerived}
-                onCheckedChange={(checked) =>
-                  handleFieldChange("source", checked ? "derived" : "manual")
-                }
-              />
-            </div>
-            {showAdvancedSettings && (
-              <>
-                {showChildValidation && (
-                  <ValidationSection
-                    validator={(schema?.validator || "") as string}
-                    schemaType={schema?.type}
-                    validatorIr={(schema?.validator_ir || null) as any}
-                    fieldOptions={childFieldOptions}
-                    currentFieldId={childFieldKey}
-                    onChange={(next) => {
-                      handleFieldPatch({
-                        validator: next.validator,
-                        validator_ir: next.validator_ir,
-                      });
-                    }}
-                  />
-                )}
-                {showChildPlaceholder && (
-                  <DefaultValueSection
-                    title="Placeholder"
-                    source={childSource}
-                    value={(schema?.prefiller || "") as string}
-                    fieldOptions={childFieldOptions}
-                    simpleMode="manual-only"
-                    onChange={(value) => handleFieldChange("prefiller", value)}
-                  />
-                )}
-                <FormTextarea
-                  label="Tooltip Label"
-                  value={schema?.tooltip_label || ""}
-                  setter={(value) => handleFieldChange("tooltip_label", value)}
-                  placeholder="Optional helper text shown beside the field"
-                  required={false}
-                  className="min-h-20"
-                />
-              </>
-            )}
-          </>
-        )}
+      </div>
+
+      <>
         <button
           type="button"
-          className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+          className="flex w-full items-center justify-between bg-red-900/5 p-3"
           onClick={() => setShowAdvancedSettings((prev) => !prev)}
         >
-          {showAdvancedSettings ? "Hide advanced settings" : "Advanced settings"}
+          <h4 className="text-xs font-semibold text-red-700/80 uppercase">Advanced settings</h4>
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 text-slate-400 transition-transform",
+              showAdvancedSettings && "rotate-180"
+            )}
+          />
         </button>
-      </div>
+        {showAdvancedSettings && (
+          <div className="space-y-2.5 bg-red-900/5 p-3">
+            <div className="flex h-8 items-center justify-between gap-3">
+              <span className="shrink-0 text-xs text-slate-600">Derived value</span>
+              <Switch
+                checked={isChildDerived}
+                onCheckedChange={(checked) =>
+                  handleFieldChange("source", checked ? "derived" : "manual")
+                }
+              />
+            </div>
+            {isChildDerived && (
+              <DefaultValueSection
+                title="Default Values"
+                hideTitle
+                source={childSource}
+                value={(schema?.prefiller || "") as string}
+                fieldOptions={childFieldOptions}
+                onChange={(value) => handleFieldChange("prefiller", value)}
+              />
+            )}
+            {showChildValidation && (
+              <ValidationSection
+                validator={(schema?.validator || "") as string}
+                schemaType={schema?.type}
+                validatorIr={(schema?.validator_ir || null) as any}
+                fieldOptions={childFieldOptions}
+                currentFieldId={childFieldKey}
+                hideTitle
+                onChange={(next) => {
+                  handleFieldPatch({
+                    validator: next.validator,
+                    validator_ir: next.validator_ir,
+                  });
+                }}
+              />
+            )}
+            {showChildPlaceholder && (
+              <DefaultValueSection
+                title="Placeholder"
+                hideTitle
+                source={childSource}
+                value={(schema?.prefiller || "") as string}
+                fieldOptions={childFieldOptions}
+                simpleMode="manual-only"
+                onChange={(value) => handleFieldChange("prefiller", value)}
+              />
+            )}
+            <FormTextarea
+              label="Tooltip Label"
+              value={schema?.tooltip_label || ""}
+              setter={(value) => handleFieldChange("tooltip_label", value)}
+              placeholder="Optional helper text shown beside the field"
+              required={false}
+              className="min-h-20"
+            />
+          </div>
+        )}
+      </>
     </div>
   );
 }

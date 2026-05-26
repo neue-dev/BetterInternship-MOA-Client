@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Save, Eye, Settings, ArrowLeft, Menu } from "lucide-react";
+import { Save, Settings, ArrowLeft, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatWhen } from "@/lib/format";
 
@@ -23,7 +23,6 @@ import { formatWhen } from "@/lib/format";
 export function EditorToolbar() {
   const { formMetadata, formDocument, formVersion, isSaving, saveForm } = useFormEditorMetadata();
   const { activeTab, setActiveTab } = useEditorSelection();
-  const isPreviewMode = activeTab === "preview";
 
   return (
     <div className="bg-card flex items-center justify-between border-b px-6 py-3">
@@ -94,16 +93,6 @@ export function EditorToolbar() {
             <Settings className="h-4 w-4" />
           </Button>
         )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setActiveTab(isPreviewMode ? "editor" : "preview")}
-          className={cn("gap-2", activeTab === "preview" && "border-primary text-primary")}
-        >
-          {isPreviewMode ? <ArrowLeft className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          {isPreviewMode ? "Back" : "Preview"}
-        </Button>
 
         <Button onClick={() => void saveForm()} disabled={isSaving} size="sm" className="gap-2">
           <Save className="h-4 w-4" />

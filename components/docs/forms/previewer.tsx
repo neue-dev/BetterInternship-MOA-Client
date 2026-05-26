@@ -84,6 +84,12 @@ interface FormPreviewPdfDisplayProps {
   prefillMode?: PreviewPrefillMode;
   prefillUser?: Record<string, unknown> | null;
   squareFrame?: boolean;
+  // Optional: lets a parent observe the scroll container (used by the form
+  // editor to sync scroll position with the editor PDF when crossfading).
+  registerScrollContainer?: (el: HTMLElement | null) => void;
+  // Optional: reports the current zoom whenever it changes (used by the form
+  // editor to sync zoom with the editor PDF when crossfading).
+  onScaleChange?: (scale: number) => void;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -115,6 +121,8 @@ export const FormPreviewPdfDisplay = ({
   prefillMode = "live",
   prefillUser = null,
   squareFrame = false,
+  registerScrollContainer,
+  onScaleChange,
 }: FormPreviewPdfDisplayProps) => {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -161,6 +169,11 @@ export const FormPreviewPdfDisplay = ({
   useEffect(() => {
     setScale(initialScale);
   }, [initialScale]);
+
+  // Report current zoom so a parent can sync it (e.g. editor <-> preview crossfade).
+  useEffect(() => {
+    onScaleChange?.(scale);
+  }, [scale, onScaleChange]);
 
   useEffect(() => {
     didAutoFocusOwnedTaskRef.current = false;
@@ -306,6 +319,7 @@ export const FormPreviewPdfDisplay = ({
 
       {/* Pages container */}
       <div
+        ref={registerScrollContainer}
         className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain bg-slate-100 p-2 sm:p-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
@@ -353,8 +367,8 @@ const PreviewToolbar = ({
   onZoom,
 }: PreviewToolbarProps) => {
   return (
-    <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
-      <div className="flex items-center gap-3">
+    <div className="relative flex h-12 flex-shrink-0 items-center border-b border-slate-300 bg-white px-3">
+      <div className="flex w-full items-center gap-3">
         {headerLeft ? <div className="min-w-0">{headerLeft}</div> : null}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="text-xs font-medium text-slate-700">

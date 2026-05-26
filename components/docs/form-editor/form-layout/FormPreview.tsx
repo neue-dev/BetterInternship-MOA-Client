@@ -14,67 +14,19 @@ import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
+import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
-import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
 import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
-import { motion } from "framer-motion";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
   mode?: "preview" | "sort";
-  showRecipientTabBar?: boolean;
-  animatePanels?: boolean;
-}
-
-type AnimatedPreviewPanelProps = {
-  animatePanels?: boolean;
-  children: React.ReactNode;
-  className: string;
-  order: number;
-};
-
-const PREVIEW_PANEL_STAGGER_SECONDS = 0.07;
-const PREVIEW_PANEL_TRANSITION_SECONDS = 0.2;
-
-function AnimatedPreviewPanel({
-  animatePanels = false,
-  children,
-  className,
-  order,
-}: AnimatedPreviewPanelProps) {
-  if (!animatePanels) return <div className={className}>{children}</div>;
-
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 18 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        transition: {
-          delay: order * PREVIEW_PANEL_STAGGER_SECONDS,
-          duration: PREVIEW_PANEL_TRANSITION_SECONDS,
-          ease: "easeOut",
-        },
-      }}
-      exit={{
-        opacity: 0,
-        y: 18,
-        transition: {
-          delay: order * PREVIEW_PANEL_STAGGER_SECONDS,
-          duration: PREVIEW_PANEL_TRANSITION_SECONDS,
-          ease: "easeIn",
-        },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
 }
 
 /**
@@ -143,14 +95,12 @@ const FormSortView = ({
  * StaticFormRendererContext + FormFillerContext installed by FormPreviewContent.
  */
 const FormPreviewFormPanel = ({
-  animatePanels,
   autoScrollToSelectedField,
   onFieldClick,
   generationResult,
   isGenerating,
   onGenerate,
 }: {
-  animatePanels?: boolean;
   autoScrollToSelectedField: boolean;
   onFieldClick: (fieldId: string) => void;
   generationResult: string | null;
@@ -160,11 +110,7 @@ const FormPreviewFormPanel = ({
   const editing = useFormPreviewEditing();
 
   return (
-    <AnimatedPreviewPanel
-      animatePanels={animatePanels}
-      className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-white"
-      order={0}
-    >
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-hidden">
         <FormPreviewRenderer
           autoScrollToSelectedField={autoScrollToSelectedField}
@@ -191,7 +137,7 @@ const FormPreviewFormPanel = ({
           {isGenerating ? "Generating..." : "Generate Test PDF"}
         </Button>
       </div>
-    </AnimatedPreviewPanel>
+    </div>
   );
 };
 
@@ -201,15 +147,12 @@ interface FormPreviewContentBodyProps {
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
   selectedPartyId: string;
-  setSelectedPartyId: (id: string) => void;
   selectedFieldId: string | null;
   setSelectedFieldId: (id: string | null) => void;
   selectedFieldSource: "form" | "pdf" | null;
   setSelectedFieldSource: (s: "form" | "pdf" | null) => void;
   showAllPdfFields: boolean;
   setShowAllPdfFields: (v: boolean) => void;
-  showRecipientTabBar: boolean;
-  animatePanels: boolean;
 }
 
 /**
@@ -222,17 +165,15 @@ const FormPreviewContentBody = ({
   signingParties,
   documentUrl,
   selectedPartyId,
-  setSelectedPartyId,
   selectedFieldId,
   setSelectedFieldId,
   selectedFieldSource,
   setSelectedFieldSource,
   showAllPdfFields,
   setShowAllPdfFields,
-  showRecipientTabBar,
-  animatePanels,
 }: FormPreviewContentBodyProps) => {
   const formFiller = useFormFiller();
+  const { registerPreviewScroller, previewScale, reportPreviewScale } = useEditorViewSync();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<string | null>(null);
 
@@ -287,69 +228,58 @@ const FormPreviewContentBody = ({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex flex-1 overflow-hidden">
-        {/* Form */}
+    <EditorSplitLayout
+      side="preview"
+      left={
         <FormPreviewFormPanel
-          animatePanels={animatePanels}
           autoScrollToSelectedField={selectedFieldSource === "pdf"}
           onFieldClick={handleFormFieldClick}
           generationResult={generationResult}
           isGenerating={isGenerating}
           onGenerate={handleGenerateTestForm}
         />
-
-        {/* PDF Preview */}
-        <AnimatedPreviewPanel
-          animatePanels={animatePanels}
-          className="bg-secondary/30 flex flex-1 flex-col overflow-hidden"
-          order={1}
-        >
-          {showRecipientTabBar && (
-            <RecipientTabBar
-              parties={signingParties}
-              selectedPartyId={selectedPartyId}
-              onSelectParty={setSelectedPartyId}
+      }
+      right={
+        <div className="bg-secondary/30 flex h-full flex-col overflow-hidden">
+          {documentUrl ? (
+            <FormPreviewPdfDisplay
+              documentUrl={documentUrl}
+              blocks={blocks}
+              values={previewValues}
+              scale={previewScale}
+              onScaleChange={reportPreviewScale}
+              registerScrollContainer={registerPreviewScroller}
+              headerLeft={
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <span>Show all fields</span>
+                  <Switch checked={showAllPdfFields} onCheckedChange={setShowAllPdfFields} />
+                </label>
+              }
+              onFieldClick={(fieldId) => {
+                setSelectedFieldSource("pdf");
+                setSelectedFieldId(fieldId);
+              }}
+              selectedFieldId={selectedFieldId || undefined}
+              autoScrollToSelectedField={selectedFieldSource === "form"}
+              signingParties={signingParties}
+              currentSigningPartyId={selectedPartyId}
+              showOwnership
+              fieldVisibility={showAllPdfFields ? "all" : "mine"}
+              defaultFieldVisibility="mine"
+              prefillMode="dummy"
+              prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
+              squareFrame
             />
-          )}
-          <div className="flex-1 overflow-hidden">
-            {documentUrl ? (
-              <FormPreviewPdfDisplay
-                documentUrl={documentUrl}
-                blocks={blocks}
-                values={previewValues}
-                headerLeft={
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-                    <span>Show all fields</span>
-                    <Switch checked={showAllPdfFields} onCheckedChange={setShowAllPdfFields} />
-                  </label>
-                }
-                onFieldClick={(fieldId) => {
-                  setSelectedFieldSource("pdf");
-                  setSelectedFieldId(fieldId);
-                }}
-                selectedFieldId={selectedFieldId || undefined}
-                autoScrollToSelectedField={selectedFieldSource === "form"}
-                signingParties={signingParties}
-                currentSigningPartyId={selectedPartyId}
-                showOwnership
-                fieldVisibility={showAllPdfFields ? "all" : "mine"}
-                defaultFieldVisibility="mine"
-                prefillMode="dummy"
-                prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
-                squareFrame
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <p className="text-muted-foreground text-sm">Upload a PDF to preview</p>
-                </div>
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <p className="text-muted-foreground text-sm">Upload a PDF to preview</p>
               </div>
-            )}
-          </div>
-        </AnimatedPreviewPanel>
-      </div>
-    </div>
+            </div>
+          )}
+        </div>
+      }
+    />
   );
 };
 
@@ -363,17 +293,13 @@ const FormPreviewContent = ({
   blocks,
   signingParties,
   documentUrl,
-  showRecipientTabBar = true,
-  animatePanels = false,
 }: {
   formMetadata: IFormMetadata;
   blocks: IFormBlock[];
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
-  showRecipientTabBar?: boolean;
-  animatePanels?: boolean;
 }) => {
-  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useEditorSelection();
+  const { selectedPartyId: ctxPartyId } = useEditorSelection();
   const selectedPartyId = ctxPartyId || signingParties[0]._id;
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
@@ -395,27 +321,19 @@ const FormPreviewContent = ({
           signingParties={signingParties}
           documentUrl={documentUrl}
           selectedPartyId={selectedPartyId}
-          setSelectedPartyId={setSelectedPartyId}
           selectedFieldId={selectedFieldId}
           setSelectedFieldId={setSelectedFieldId}
           selectedFieldSource={selectedFieldSource}
           setSelectedFieldSource={setSelectedFieldSource}
           showAllPdfFields={showAllPdfFields}
           setShowAllPdfFields={setShowAllPdfFields}
-          showRecipientTabBar={showRecipientTabBar}
-          animatePanels={animatePanels}
         />
       </FormFillerContextProvider>
     </StaticFormRendererContextProvider>
   );
 };
 
-export const FormPreview = ({
-  metadata,
-  mode = "preview",
-  showRecipientTabBar = true,
-  animatePanels = false,
-}: FormPreviewProps) => {
+export const FormPreview = ({ metadata, mode = "preview" }: FormPreviewProps) => {
   const { formMetadata, documentUrl, documentFile } = useFormEditorMetadata();
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
 
@@ -465,8 +383,6 @@ export const FormPreview = ({
       blocks={actualBlocks}
       signingParties={actualSigningParties}
       documentUrl={actualDocumentUrl}
-      showRecipientTabBar={showRecipientTabBar}
-      animatePanels={animatePanels}
     />
   );
 };

@@ -31,9 +31,12 @@ import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
  */
 type PdfViewerProps = {
   showRecipientTabBar?: boolean;
+  // Optional: lets a parent observe this panel's scroll container (used to sync
+  // scroll position with the preview when crossfading). Unused elsewhere.
+  registerScrollContainer?: (el: HTMLElement | null) => void;
 };
 
-export function PdfViewer({ showRecipientTabBar = true }: PdfViewerProps) {
+export function PdfViewer({ showRecipientTabBar = true, registerScrollContainer }: PdfViewerProps) {
   const {
     blocks,
     selectedFieldId,
@@ -336,6 +339,7 @@ export function PdfViewer({ showRecipientTabBar = true }: PdfViewerProps) {
 
             {pdfDoc && (
               <div
+                ref={registerScrollContainer}
                 className="h-full overflow-auto p-4"
                 aria-live="polite"
                 onScroll={handlePdfScroll}

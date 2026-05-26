@@ -40,8 +40,8 @@ export function PdfViewerToolbar({
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
-      <div className="flex items-center justify-between gap-3">
+    <div className="relative flex h-12 flex-shrink-0 items-center border-b border-slate-300 bg-white px-3">
+      <div className="flex w-full items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

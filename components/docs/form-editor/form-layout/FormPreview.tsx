@@ -18,7 +18,6 @@ import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.con
 import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
-import { Switch } from "@/components/ui/switch";
 import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
@@ -151,8 +150,6 @@ interface FormPreviewContentBodyProps {
   setSelectedFieldId: (id: string | null) => void;
   selectedFieldSource: "form" | "pdf" | null;
   setSelectedFieldSource: (s: "form" | "pdf" | null) => void;
-  showAllPdfFields: boolean;
-  setShowAllPdfFields: (v: boolean) => void;
 }
 
 /**
@@ -169,8 +166,6 @@ const FormPreviewContentBody = ({
   setSelectedFieldId,
   selectedFieldSource,
   setSelectedFieldSource,
-  showAllPdfFields,
-  setShowAllPdfFields,
 }: FormPreviewContentBodyProps) => {
   const formFiller = useFormFiller();
   const { registerPreviewScroller, previewScale, reportPreviewScale } = useEditorViewSync();
@@ -249,12 +244,6 @@ const FormPreviewContentBody = ({
               scale={previewScale}
               onScaleChange={reportPreviewScale}
               registerScrollContainer={registerPreviewScroller}
-              headerLeft={
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-                  <span>Show all fields</span>
-                  <Switch checked={showAllPdfFields} onCheckedChange={setShowAllPdfFields} />
-                </label>
-              }
               onFieldClick={(fieldId) => {
                 setSelectedFieldSource("pdf");
                 setSelectedFieldId(fieldId);
@@ -264,8 +253,8 @@ const FormPreviewContentBody = ({
               signingParties={signingParties}
               currentSigningPartyId={selectedPartyId}
               showOwnership
-              fieldVisibility={showAllPdfFields ? "all" : "mine"}
-              defaultFieldVisibility="mine"
+              fieldVisibility="all"
+              defaultFieldVisibility="all"
               prefillMode="dummy"
               prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
               squareFrame
@@ -303,7 +292,6 @@ const FormPreviewContent = ({
   const selectedPartyId = ctxPartyId || signingParties[0]._id;
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
-  const [showAllPdfFields, setShowAllPdfFields] = useState(false);
 
   return (
     <StaticFormRendererContextProvider
@@ -325,8 +313,6 @@ const FormPreviewContent = ({
           setSelectedFieldId={setSelectedFieldId}
           selectedFieldSource={selectedFieldSource}
           setSelectedFieldSource={setSelectedFieldSource}
-          showAllPdfFields={showAllPdfFields}
-          setShowAllPdfFields={setShowAllPdfFields}
         />
       </FormFillerContextProvider>
     </StaticFormRendererContextProvider>

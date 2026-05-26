@@ -137,8 +137,14 @@ export function duplicateBlock(
       ? { field_schema: { ...block.field_schema, field: duplicateFieldKey } }
       : {}),
   };
+
+  const originalIndex = metadata.schema.blocks.findIndex((existing) => existing._id === block._id);
+  const insertIndex = originalIndex === -1 ? metadata.schema.blocks.length : originalIndex + 1;
+  const blocks = [...metadata.schema.blocks];
+  blocks.splice(insertIndex, 0, newBlock);
+
   return {
-    metadata: withBlocks(metadata, reindex([...metadata.schema.blocks, newBlock])),
+    metadata: withBlocks(metadata, reindex(blocks)),
     block: newBlock,
   };
 }

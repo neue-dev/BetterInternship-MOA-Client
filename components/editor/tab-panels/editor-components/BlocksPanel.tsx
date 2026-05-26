@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type DragEvent } from "react";
+import { useMemo, type DragEvent } from "react";
 import { IFormBlock, IFormField } from "@betterinternship/core/forms";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
@@ -58,7 +58,9 @@ const matchesSearch = (field: Pick<PaletteField, "name" | "label">, query: strin
 };
 
 const toDisplayTag = (tag: string) =>
-  tag.length > 0 ? tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase() : "Ungrouped";
+  tag.trim().toLowerCase() === "ungrouped" || tag.trim().length === 0
+    ? "Custom Fields"
+    : tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
 
 const BASE_TYPE_ICON_MAP: Partial<Record<ValidatorIRv0["baseType"], PresetFieldIconKey>> = {
   text: "shortText",
@@ -90,7 +92,6 @@ export function BlocksPanel() {
     setSearchQuery,
   } = useEditorSelection();
   const { visiblePage } = useFormEditorPdfViewer();
-  const [fieldTab, setFieldTab] = useState<"default" | "custom">("default");
   const allowClickToAdd = false;
   const signingParties = formMetadata?.signing_parties || [];
 
@@ -170,7 +171,7 @@ export function BlocksPanel() {
           type: (field.type as PaletteField["type"]) || "text",
           source: (field.source as PaletteField["source"]) || "manual",
           shared: typeof field.shared === "boolean" ? field.shared : true,
-          tag: field.tag || "Ungrouped",
+          tag: field.tag || "Custom Fields",
           preset: field.preset || "default",
           prefiller: field.prefiller || "",
           tooltip_label: field.tooltip_label || "",
@@ -431,7 +432,7 @@ export function BlocksPanel() {
 
   const hasDefaultResults = filteredDefaultFields.length > 0;
   const hasCustomResults = groupedCustomFields.length > 0;
-  const hasActiveTabResults = fieldTab === "default" ? hasDefaultResults : hasCustomResults;
+  const hasAnyResults = hasDefaultResults || hasCustomResults;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -448,39 +449,11 @@ export function BlocksPanel() {
       </div>
 
       <div className="flex-1 space-y-2 overflow-auto p-3">
-        <div className="grid grid-cols-2 gap-1 rounded-[0.33em] border border-slate-300 bg-white">
-          <button
-            type="button"
-            onClick={() => setFieldTab("default")}
-            className={`rounded-[0.33em] p-2 text-xs font-semibold transition-colors ${
-              fieldTab === "default"
-                ? "bg-slate-100 text-slate-800"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-            }`}
-          >
-            Default Fields
-          </button>
-          <button
-            type="button"
-            onClick={() => setFieldTab("custom")}
-            className={`rounded-[0.33em] px-2 py-1 text-xs font-semibold transition-colors ${
-              fieldTab === "custom"
-                ? "bg-slate-100 text-slate-800"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-            }`}
-          >
-            Custom Fields
-          </button>
-        </div>
-        {!hasActiveTabResults ? (
+        {!hasAnyResults ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-muted-foreground text-sm">
-              {fieldTab === "default"
-                ? "No default fields match this search."
-                : "No custom fields match this search."}
-            </p>
+            <p className="text-muted-foreground text-sm">No fields match this search.</p>
           </div>
-        ) : fieldTab === "default" ? (
+        ) : (
           <div className="space-y-1.5">
             {filteredDefaultFields.map((field) => {
               const Icon = getPresetFieldIcon(field.iconKey, field.name);
@@ -505,11 +478,13 @@ export function BlocksPanel() {
                 </button>
               );
             })}
-          </div>
-        ) : (
-          <div className="space-y-1.5">
+
+            <div className="py-2">
+              <div className="border-t border-slate-200" />
+            </div>
+
             {groupedCustomFields.map(({ tag, fields }) => (
-              <Collapsible key={tag} defaultOpen={true} className="space-y-1.5">
+              <Collapsible key={tag} defaultOpen={false} className="space-y-1.5">
                 <CollapsibleTrigger className="group hover:bg-primary/5 flex w-full items-center justify-between rounded-[0.33em] px-2 py-1.5 text-sm font-semibold">
                   <span className="flex items-center gap-2">
                     <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />

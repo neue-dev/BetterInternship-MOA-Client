@@ -22,8 +22,8 @@ function PeopleList({ list }: { list?: DocResponse["signatories"] }) {
         <div key={i}>
           <span className="font-semibold">{p.name}</span>
           <div className="flex flex-col">
+            {p.email && <code className="font-mono text-xs text-blue-700/80">{p.email}</code>}
             {p.title && <div className="text-xs text-gray-500">{p.title}</div>}
-            {p.email && <code className="font-mono text-xs text-gray-500">{p.email}</code>}
             {p.signedDate && (
               <code className="text-xs text-gray-500">{formatWhen(p.signedDate as string)}</code>
             )}

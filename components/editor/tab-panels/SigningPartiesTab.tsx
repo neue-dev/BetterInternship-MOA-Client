@@ -1,10 +1,10 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { PartiesPanel } from "@/components/docs/form-editor/form-layout/PartiesPanel";
 
 export function SigningPartiesTab() {
-  const { formMetadata, updateSigningParties } = useFormEditor();
+  const { formMetadata, updateSigningParties } = useFormEditorMetadata();
 
   if (!formMetadata) {
     return (

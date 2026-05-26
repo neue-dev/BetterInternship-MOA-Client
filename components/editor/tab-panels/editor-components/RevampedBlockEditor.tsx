@@ -5,8 +5,8 @@
 import { IFormBlock } from "@betterinternship/core/forms";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
 import { FormInput, FormTextarea, FormDropdown } from "@/components/docs/forms/EditForm";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ import { RadioGroupFieldEditor } from "./RadioGroupFieldEditor";
 type FieldOption = DefaultValueFieldOption;
 
 export function RevampedBlockEditor() {
-  const { formMetadata, updateBlocks } = useFormEditor();
+  const { formMetadata, updateBlocks } = useFormEditorMetadata();
   const { registry } = useFieldTemplateContext();
   const {
     selectedBlockId,
@@ -43,7 +43,7 @@ export function RevampedBlockEditor() {
     setPendingMissingFieldDraft,
     confirmPendingMissingFieldDraft,
     cancelPendingMissingFieldDraft,
-  } = useFormEditorTab();
+  } = useEditorSelection();
 
   const block = selectedBlockId
     ? formMetadata?.schema.blocks?.find((b) => b._id === selectedBlockId) || null

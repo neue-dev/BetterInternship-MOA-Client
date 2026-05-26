@@ -3,9 +3,10 @@
 import { useMemo, useState, type DragEvent } from "react";
 import { IFormBlock, IFormField } from "@betterinternship/core/forms";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { usePdfViewer } from "@/app/contexts/pdf-viewer.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useFormEditorPdfViewer } from "@/app/contexts/pdf-viewer.context";
+import { createUniqueFieldKey } from "@/lib/form-editor-metadata";
 import { isPresetRegistryField } from "@/lib/field-library";
 import { getPresetFieldIcon, type PresetFieldIconKey } from "@/lib/preset-field-icons";
 import type { ValidatorIRv0 } from "@/lib/validator-ir";
@@ -55,8 +56,6 @@ const matchesSearch = (field: Pick<PaletteField, "name" | "label">, query: strin
   if (!query) return true;
   return field.name.toLowerCase().includes(query) || field.label.toLowerCase().includes(query);
 };
-const createUniqueFieldKey = (base: string) =>
-  `${base}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const toDisplayTag = (tag: string) =>
   tag.length > 0 ? tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase() : "Ungrouped";
@@ -80,7 +79,7 @@ const BASE_TYPE_ICON_MAP: Partial<Record<ValidatorIRv0["baseType"], PresetFieldI
  * - Custom fields come from DB registry.
  */
 export function BlocksPanel() {
-  const { formMetadata } = useFormEditor();
+  const { formMetadata } = useFormEditorMetadata();
   const { registry } = useFieldTemplateContext();
   const {
     blocks,
@@ -89,8 +88,8 @@ export function BlocksPanel() {
     handleBlocksCreate,
     searchQuery,
     setSearchQuery,
-  } = useFormEditorTab();
-  const { visiblePage } = usePdfViewer();
+  } = useEditorSelection();
+  const { visiblePage } = useFormEditorPdfViewer();
   const [fieldTab, setFieldTab] = useState<"default" | "custom">("default");
   const allowClickToAdd = false;
   const signingParties = formMetadata?.signing_parties || [];

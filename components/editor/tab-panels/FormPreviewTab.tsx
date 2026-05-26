@@ -1,13 +1,13 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { FormEditorTabProvider, useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { FormPreview } from "@/components/docs/form-editor/form-layout/FormPreview";
 
 function FormPreviewTabContent({ animatePanels = false }: { animatePanels?: boolean }) {
-  const { formMetadata } = useFormEditor();
-  const { selectedPartyId, setSelectedPartyId } = useFormEditorTab();
+  const { formMetadata } = useFormEditorMetadata();
+  const { selectedPartyId, setSelectedPartyId } = useEditorSelection();
 
   if (!formMetadata) {
     return (
@@ -37,9 +37,5 @@ function FormPreviewTabContent({ animatePanels = false }: { animatePanels?: bool
 }
 
 export function FormPreviewTab({ animatePanels = false }: { animatePanels?: boolean }) {
-  return (
-    <FormEditorTabProvider>
-      <FormPreviewTabContent animatePanels={animatePanels} />
-    </FormEditorTabProvider>
-  );
+  return <FormPreviewTabContent animatePanels={animatePanels} />;
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { SubscribersPanel } from "@/components/docs/form-editor/form-layout/SubscribersPanel";
 
 export function SubscribersTab() {
-  const { formMetadata, updateSubscribers } = useFormEditor();
+  const { formMetadata, updateSubscribers } = useFormEditorMetadata();
 
   if (!formMetadata) {
     return (

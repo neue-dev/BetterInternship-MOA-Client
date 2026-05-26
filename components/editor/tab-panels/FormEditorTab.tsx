@@ -1,8 +1,7 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { FormEditorTabProvider, useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
-import { PdfViewerProvider } from "@/app/contexts/pdf-viewer.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { PdfViewer } from "@/components/docs/form-editor/form-pdf-editor/PdfViewer";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { BlocksPanel } from "./editor-components/BlocksPanel";
@@ -56,8 +55,8 @@ function AnimatedPanel({ animatePanels = false, children, className, order }: An
  * Wrapped with tab/pdf providers so child panels share selection and placement state.
  */
 function FormEditorTabContent({ animatePanels = false }: { animatePanels?: boolean }) {
-  const { formMetadata } = useFormEditor();
-  const { selectedPartyId, setSelectedPartyId } = useFormEditorTab();
+  const { formMetadata } = useFormEditorMetadata();
+  const { selectedPartyId, setSelectedPartyId } = useEditorSelection();
   const isMobile = useIsMobile();
 
   if (!formMetadata) {
@@ -132,19 +131,5 @@ function FormEditorTabContent({ animatePanels = false }: { animatePanels?: boole
 }
 
 export function FormEditorTab({ animatePanels = false }: { animatePanels?: boolean }) {
-  const { documentFile, setDocumentFile, lastLoadedFileName, setLastLoadedFileName } =
-    useFormEditor();
-
-  return (
-    <PdfViewerProvider
-      documentFile={documentFile}
-      setDocumentFile={setDocumentFile}
-      lastLoadedFileName={lastLoadedFileName}
-      setLastLoadedFileName={setLastLoadedFileName}
-    >
-      <FormEditorTabProvider>
-        <FormEditorTabContent animatePanels={animatePanels} />
-      </FormEditorTabProvider>
-    </PdfViewerProvider>
-  );
+  return <FormEditorTabContent animatePanels={animatePanels} />;
 }

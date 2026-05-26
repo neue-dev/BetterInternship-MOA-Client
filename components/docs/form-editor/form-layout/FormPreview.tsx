@@ -12,8 +12,8 @@ import { FormPreviewRenderer } from "./FormPreviewRenderer";
 import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
@@ -373,7 +373,7 @@ const FormPreviewContent = ({
   showRecipientTabBar?: boolean;
   animatePanels?: boolean;
 }) => {
-  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
+  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useEditorSelection();
   const selectedPartyId = ctxPartyId || signingParties[0]._id;
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
@@ -416,7 +416,7 @@ export const FormPreview = ({
   showRecipientTabBar = true,
   animatePanels = false,
 }: FormPreviewProps) => {
-  const { formMetadata, documentUrl, documentFile } = useFormEditor();
+  const { formMetadata, documentUrl, documentFile } = useFormEditorMetadata();
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
 
   // Convert file to data URL

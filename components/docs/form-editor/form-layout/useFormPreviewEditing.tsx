@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ClientBlock, IFormBlock } from "@betterinternship/core/forms";
 import { GripVertical, Heading, Pilcrow, Plus, Copy, Trash2 } from "lucide-react";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import type { BlocksRendererEditing } from "@/components/docs/forms/FormFillerRenderer";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ export function useFormPreviewEditing(): BlocksRendererEditing {
     handleBlockUpdate,
     handleDuplicateBlock,
     handleDeleteBlock,
-  } = useFormEditorTab();
+  } = useEditorSelection();
 
   const [draggedUnitId, setDraggedUnitId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);

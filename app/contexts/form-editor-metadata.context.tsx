@@ -11,6 +11,7 @@ import {
 } from "@/app/api";
 import { normalizeBlocksForSave } from "@/lib/form-schema-normalizer";
 import {
+  BLANK_FORM_METADATA,
   IFormMetadata,
   IFormBlock,
   IFormSigningParty,
@@ -19,29 +20,12 @@ import {
 } from "@betterinternship/core/forms";
 
 /**
- * Global editor state container for the form editor route.
- * Keeps all tab surfaces (builder/preview/settings) synchronized on one metadata source.
+ * Owns the form editor metadata: the metadata source of truth, the fetched
+ * document descriptor, the working PDF file, and persistence. Block edits are
+ * expressed as pure operations from `@/lib/form-editor-metadata` applied via
+ * `mutateMetadata`.
  */
-const BLANK_FORM_METADATA: IFormMetadata = {
-  name: "new-form",
-  label: "New Form",
-  schema_version: SCHEMA_VERSION,
-  schema: {
-    blocks: [],
-  },
-  signing_parties: [
-    {
-      _id: "initiator",
-      order: 1,
-      signatory_title: "initiator",
-    },
-  ],
-  subscribers: [],
-};
-
-export type EditorTab = "editor" | "preview" | "metadata" | "parties" | "subscribers" | "settings";
-
-interface FormDocumentType {
+export interface FormDocumentDescriptor {
   name: string;
   label: string;
   version: number;
@@ -49,97 +33,85 @@ interface FormDocumentType {
   time_generated: string;
 }
 
-interface FormEditorContextType {
-  // Metadata
+type MetadataRecipe = (prev: IFormMetadata) => IFormMetadata;
+
+interface FormEditorMetadataContextType {
+  // Document metadata (source of truth)
   formMetadata: IFormMetadata | null;
   setFormMetadata: (metadata: IFormMetadata) => void;
+  mutateMetadata: (recipe: MetadataRecipe) => void;
+  blocks: IFormBlock[];
 
-  // Fetched Data
-  formDocument: FormDocumentType | null;
-  setFormDocument: (document: FormDocumentType | null) => void;
+  // Convenience metadata setters
+  updateFormMetadata: (updates: Partial<IFormMetadata>) => void;
+  updateBlocks: (blocks: IFormBlock[]) => void;
+  updateSigningParties: (parties: IFormSigningParty[]) => void;
+  updateSubscribers: (subscribers: IFormSubscriber[]) => void;
+
+  // Fetched document + working file
+  formDocument: FormDocumentDescriptor | null;
+  setFormDocument: (document: FormDocumentDescriptor | null) => void;
   formVersion: number | null;
   setFormVersion: (version: number | null) => void;
   documentUrl: string | null;
   setDocumentUrl: (url: string | null) => void;
   documentFile: File | null;
   setDocumentFile: (file: File | null) => void;
-  lastLoadedFileName: string | null;
-  setLastLoadedFileName: (name: string | null) => void;
 
-  // UI State
-  activeTab: EditorTab;
-  setActiveTab: (tab: EditorTab) => void;
-  isEditing: boolean;
-  setIsEditing: (editing: boolean) => void;
+  // Persistence
   isSaving: boolean;
-
-  // Form operations
-  updateFormMetadata: (updates: Partial<IFormMetadata>) => void;
-  updateBlocks: (blocks: IFormBlock[]) => void;
-  updateSigningParties: (parties: IFormSigningParty[]) => void;
-  updateSubscribers: (subscribers: IFormSubscriber[]) => void;
   saveForm: () => Promise<void>;
 }
 
-const FormEditorContext = createContext<FormEditorContextType | undefined>(undefined);
+const FormEditorMetadataContext = createContext<FormEditorMetadataContextType | undefined>(undefined);
 
-export function FormEditorProvider({
+export function FormEditorMetadataProvider({
   children,
   initialMetadata = BLANK_FORM_METADATA,
 }: {
   children: ReactNode;
   initialMetadata?: IFormMetadata;
 }) {
-  const [formMetadata, setFormMetadata] = useState<IFormMetadata>(initialMetadata);
-  const [formDocument, setFormDocument] = useState<FormDocumentType | null>(null);
+  const [formMetadata, setFormMetadataState] = useState<IFormMetadata | null>(initialMetadata);
+  const [formDocument, setFormDocument] = useState<FormDocumentDescriptor | null>(null);
   const [formVersion, setFormVersion] = useState<number | null>(null);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [lastLoadedFileName, setLastLoadedFileName] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<EditorTab>("editor");
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Shallow metadata updates for top-level form fields (name/label/etc).
-  const updateFormMetadata = useCallback((updates: Partial<IFormMetadata>) => {
-    setFormMetadata((prev) => ({
-      ...prev,
-      ...updates,
-    }));
+  const setFormMetadata = useCallback((metadata: IFormMetadata) => {
+    setFormMetadataState(metadata);
   }, []);
 
-  // Normalize block schemas before committing to state so save payload shape stays stable.
-  const updateBlocks = useCallback((blocks: IFormBlock[]) => {
-    const normalizedBlocks = normalizeBlocksForSave(blocks);
-    setFormMetadata((prev) => {
-      const newMetadata = {
-        ...prev,
-        schema: {
-          ...prev.schema,
-          blocks: normalizedBlocks,
-        },
-      };
-      return newMetadata;
-    });
+  // Apply a pure operation to the current metadata. Skips when no document is loaded.
+  const mutateMetadata = useCallback((recipe: MetadataRecipe) => {
+    setFormMetadataState((prev) => (prev ? recipe(prev) : prev));
+  }, []);
+
+  const blocks = useMemo(() => formMetadata?.schema.blocks || [], [formMetadata]);
+
+  const updateFormMetadata = useCallback((updates: Partial<IFormMetadata>) => {
+    setFormMetadataState((prev) => (prev ? { ...prev, ...updates } : prev));
+  }, []);
+
+  const updateBlocks = useCallback((nextBlocks: IFormBlock[]) => {
+    setFormMetadataState((prev) =>
+      prev ? { ...prev, schema: { ...prev.schema, blocks: nextBlocks } } : prev
+    );
   }, []);
 
   const updateSigningParties = useCallback((parties: IFormSigningParty[]) => {
-    setFormMetadata((prev) => ({
-      ...prev,
-      signing_parties: parties,
-    }));
+    setFormMetadataState((prev) => (prev ? { ...prev, signing_parties: parties } : prev));
   }, []);
 
   const updateSubscribers = useCallback((subscribers: IFormSubscriber[]) => {
-    setFormMetadata((prev) => ({
-      ...prev,
-      subscribers,
-    }));
+    setFormMetadataState((prev) => (prev ? { ...prev, subscribers } : prev));
   }, []);
 
   const queryClient = useQueryClient();
 
-  // Persist latest in-memory metadata snapshot and refresh dependent queries.
+  // Normalization happens here, at the persistence boundary, instead of on every
+  // in-memory edit.
   const saveForm = useCallback(async () => {
     if (!formMetadata) return;
     setIsSaving(true);
@@ -155,7 +127,6 @@ export function FormEditorProvider({
 
       const payload: RegisterFormSchemaDto = {
         ...(normalizedMetadata as unknown as RegisterFormSchemaDto),
-        // Persist newly uploaded PDF when saving an existing form.
         base_document: documentFile ?? undefined,
       };
 
@@ -177,10 +148,16 @@ export function FormEditorProvider({
     }
   }, [formMetadata, documentFile, queryClient]);
 
-  const value: FormEditorContextType = useMemo(() => {
-    return {
+  const value: FormEditorMetadataContextType = useMemo(
+    () => ({
       formMetadata,
       setFormMetadata,
+      mutateMetadata,
+      blocks,
+      updateFormMetadata,
+      updateBlocks,
+      updateSigningParties,
+      updateSubscribers,
       formDocument,
       setFormDocument,
       formVersion,
@@ -189,43 +166,34 @@ export function FormEditorProvider({
       setDocumentUrl,
       documentFile,
       setDocumentFile,
-      lastLoadedFileName,
-      setLastLoadedFileName,
-      activeTab,
-      setActiveTab,
-      isEditing,
-      setIsEditing,
       isSaving,
+      saveForm,
+    }),
+    [
+      formMetadata,
+      setFormMetadata,
+      mutateMetadata,
+      blocks,
       updateFormMetadata,
       updateBlocks,
       updateSigningParties,
       updateSubscribers,
+      formDocument,
+      formVersion,
+      documentUrl,
+      documentFile,
+      isSaving,
       saveForm,
-    };
-  }, [
-    formMetadata,
-    formDocument,
-    formVersion,
-    documentUrl,
-    documentFile,
-    lastLoadedFileName,
-    activeTab,
-    isEditing,
-    isSaving,
-    updateFormMetadata,
-    updateBlocks,
-    updateSigningParties,
-    updateSubscribers,
-    saveForm,
-  ]);
+    ]
+  );
 
-  return <FormEditorContext.Provider value={value}>{children}</FormEditorContext.Provider>;
+  return <FormEditorMetadataContext.Provider value={value}>{children}</FormEditorMetadataContext.Provider>;
 }
 
-export function useFormEditor() {
-  const context = useContext(FormEditorContext);
+export function useFormEditorMetadata() {
+  const context = useContext(FormEditorMetadataContext);
   if (!context) {
-    throw new Error("useFormEditor must be used within FormEditorProvider");
+    throw new Error("useFormEditorMetadata must be used within FormEditorMetadataProvider");
   }
   return context;
 }

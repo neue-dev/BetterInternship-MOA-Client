@@ -5,8 +5,8 @@ import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 import { cn } from "@/lib/utils";
 import { RadioGroupOverlay } from "./RadioGroupOverlay";
 import { FieldRegistryEntry } from "@/app/api";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { IFormBlock, IFormMetadata } from "@betterinternship/core/forms";
 import { SIGNATURE_PRINTED_NAME_TEMPLATE } from "@/lib/composite-field-templates";
 import type { MissingFieldSuggestion } from "@/lib/missing-fields/pipeline";
@@ -77,8 +77,8 @@ export const PdfPageCanvas = memo(
       handleDuplicateBlock,
       setSelectedBlockId,
       setSelectedFieldId,
-    } = useFormEditorTab();
-    const { updateBlocks } = useFormEditor();
+    } = useEditorSelection();
+    const { updateBlocks } = useFormEditorMetadata();
 
     const [localHover, setLocalHover] = useState<PointerLocation | null>(null);
 

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GlobalWorkerOptions, version as pdfjsVersion } from "pdfjs-dist";
-import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { usePdfViewer } from "@/app/contexts/pdf-viewer.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useFormEditorPdfViewer } from "@/app/contexts/pdf-viewer.context";
 import { resolveSystemPresetTemplates } from "@/lib/system-preset-resolver";
 import { SIGNATURE_PRINTED_NAME_TEMPLATE } from "@/lib/composite-field-templates";
 import { ensurePreviewFontsLoaded } from "@/lib/form-previewer-rendering";
@@ -48,9 +48,9 @@ export function PdfViewer({ showRecipientTabBar = true }: PdfViewerProps) {
     setSelectedBlockGroup,
     pendingMissingFieldDraft,
     setPendingMissingFieldDraft,
-  } = useFormEditorTab();
+  } = useEditorSelection();
 
-  const { formMetadata, updateBlocks } = useFormEditor();
+  const { formMetadata, updateBlocks } = useFormEditorMetadata();
   const { registry: fieldRegistryDetails } = useFieldTemplateContext();
 
   const {
@@ -66,7 +66,7 @@ export function PdfViewer({ showRecipientTabBar = true }: PdfViewerProps) {
     setIsDragging,
     handleFileUpload,
     registry,
-  } = usePdfViewer();
+  } = useFormEditorPdfViewer();
 
   // Setup PDF worker
   useEffect(() => {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,8 +21,8 @@ import { formatWhen } from "@/lib/format";
  * - save action bound to FormEditor context
  */
 export function EditorToolbar() {
-  const { formMetadata, formDocument, formVersion, isSaving, saveForm, activeTab, setActiveTab } =
-    useFormEditor();
+  const { formMetadata, formDocument, formVersion, isSaving, saveForm } = useFormEditorMetadata();
+  const { activeTab, setActiveTab } = useEditorSelection();
   const isPreviewMode = activeTab === "preview";
 
   return (

@@ -12,7 +12,7 @@ import { createBlockFromSuggestionWithPreset } from "@/lib/missing-fields/preset
 import { classifyBlankRegionsAgainstBlocks } from "@/lib/missing-fields/compare";
 import { toExistingFieldRects } from "@/lib/missing-fields/types";
 import { type ResolvedSystemPresetTemplate } from "@/lib/system-preset-resolver";
-import { type BlockGroup } from "@/app/contexts/form-editor-tab.context";
+import { type BlockGroup } from "@/lib/form-editor-metadata";
 
 export function useMissingFields({
   pdfDoc,

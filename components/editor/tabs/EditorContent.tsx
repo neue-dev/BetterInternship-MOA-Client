@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { FormEditorTab } from "@/components/editor/tab-panels/FormEditorTab";
 import { FormPreviewTab } from "@/components/editor/tab-panels/FormPreviewTab";
 import { FormMetadataTab } from "@/components/editor/tab-panels/FormMetadataTab";
@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 // Central tab switchboard for the editor route.
 export function EditorContent() {
-  const { activeTab } = useFormEditor();
+  const { activeTab } = useEditorSelection();
 
   return (
     <div className="relative h-full w-full overflow-hidden">

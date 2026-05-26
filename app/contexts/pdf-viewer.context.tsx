@@ -13,19 +13,12 @@ import {
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 import { getDocument } from "pdfjs-dist";
 import type { FieldRegistryEntry } from "@/app/api";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 
-export interface PdfViewerContextType {
-  // File state
-  documentFile: File | null;
-  setDocumentFile: (file: File | null) => void;
-  lastLoadedFileName: string | null;
-  setLastLoadedFileName: (name: string | null) => void;
-
+export interface FormEditorPdfViewerContextType {
   // PDF document state
   pdfDoc: PDFDocumentProxy | null;
-  setPdfDoc: (doc: PDFDocumentProxy | null) => void;
   pageCount: number;
-  setPageCount: (count: number) => void;
   selectedPage: number;
   setSelectedPage: (page: number) => void;
   visiblePage: number;
@@ -35,9 +28,7 @@ export interface PdfViewerContextType {
   scale: number;
   setScale: (scale: number) => void;
   isLoadingDoc: boolean;
-  setIsLoadingDoc: (loading: boolean) => void;
   error: string | null;
-  setError: (error: string | null) => void;
 
   // Dragging state
   isDragging: boolean;
@@ -51,132 +42,79 @@ export interface PdfViewerContextType {
   handleFileUpload: (file: File) => void;
 }
 
-const PdfViewerContext = createContext<PdfViewerContextType | undefined>(undefined);
+const FormEditorPdfViewerContext = createContext<FormEditorPdfViewerContextType | undefined>(
+  undefined
+);
 
-export function PdfViewerProvider({
-  children,
-  documentFile: externalDocumentFile = null,
-  setDocumentFile: externalSetDocumentFile,
-  lastLoadedFileName: externalLastLoadedFileName = null,
-  setLastLoadedFileName: externalSetLastLoadedFileName,
-}: {
-  children: ReactNode;
-  documentFile?: File | null;
-  setDocumentFile?: (file: File | null) => void;
-  lastLoadedFileName?: string | null;
-  setLastLoadedFileName?: (name: string | null) => void;
-}) {
-  // Use external state if provided (from FormEditorContext), otherwise manage internally
-  const documentFile = externalDocumentFile;
-  const setDocumentFile = externalSetDocumentFile || (() => {});
-  const lastLoadedFileName = externalLastLoadedFileName;
-  const setLastLoadedFileName = externalSetLastLoadedFileName || (() => {});
+/**
+ * Renders the working PDF. Reads `documentFile` straight from the form document
+ * provider (no prop proxy) and loads it through a single identity-keyed path:
+ * a given File object is parsed once, so save/refetch that keep the same File do
+ * not trigger a reload. Hoisted above the tab switch, so the parsed document
+ * survives tab changes.
+ */
+export function FormEditorPdfViewerProvider({ children }: { children: ReactNode }) {
+  const { documentFile, setDocumentFile } = useFormEditorMetadata();
 
-  // PDF document state
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
   const [selectedPage, setSelectedPage] = useState<number>(1);
   const [visiblePage, setVisiblePage] = useState<number>(1);
 
-  // UI state
   const [scale, setScale] = useState<number>(1.1);
   const [isLoadingDoc, setIsLoadingDoc] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dragging state
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Field registry
   const [registry, setRegistry] = useState<FieldRegistryEntry[]>([]);
 
-  // Ref to track loaded file
   const loadingTaskRef = useRef<any>(null);
+  // The File object we have already parsed; identity (not name) drives dedup.
+  const loadedFileRef = useRef<File | null>(null);
 
-  // Handle file upload
-  const handleFileUpload = useCallback(
-    (file: File) => {
-      if (setDocumentFile) {
-        setDocumentFile(file);
-      }
-    },
-    [setDocumentFile]
-  );
+  // Sets the working file on the form document; the load effect below picks it up.
+  const handleFileUpload = useCallback((file: File) => setDocumentFile(file), [setDocumentFile]);
 
-  // Auto-load PDF when documentFile changes
   useEffect(() => {
-    if (!documentFile) return;
-
-    // Check if this is the same file as what we've already loaded
-    const isSameFile = lastLoadedFileName && lastLoadedFileName === documentFile.name;
-
-    // If pdfDoc is null but we've loaded this file before, re-read quietly
-    if (!pdfDoc && isSameFile) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arrayBuffer = e.target?.result;
-        if (arrayBuffer && typeof arrayBuffer !== "string") {
-          const loadingTask = getDocument({ data: arrayBuffer });
-          loadingTaskRef.current = loadingTask;
-
-          loadingTask.promise
-            .then((doc) => {
-              setPdfDoc(doc);
-              setPageCount(doc.numPages);
-              setSelectedPage(1);
-              setVisiblePage(1);
-              setError(null);
-            })
-            .catch((err: any) => {
-              console.error("Failed to load PDF", err);
-              setError((err as { message?: string })?.message ?? "Failed to load PDF document");
-              setPdfDoc(null);
-              setPageCount(0);
-            });
-        }
-      };
-      reader.readAsArrayBuffer(documentFile);
+    if (!documentFile) {
+      loadedFileRef.current = null;
       return;
     }
+    if (loadedFileRef.current === documentFile) return;
+    loadedFileRef.current = documentFile;
 
-    // Load new file
-    if (!isSameFile) {
-      setIsLoadingDoc(true);
+    setIsLoadingDoc(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arrayBuffer = e.target?.result;
+      if (!arrayBuffer || typeof arrayBuffer === "string") {
+        setIsLoadingDoc(false);
+        return;
+      }
+      const loadingTask = getDocument({ data: arrayBuffer });
+      loadingTaskRef.current = loadingTask;
+      loadingTask.promise
+        .then((doc) => {
+          setPdfDoc(doc);
+          setPageCount(doc.numPages);
+          setSelectedPage(1);
+          setVisiblePage(1);
+          setError(null);
+        })
+        .catch((err: any) => {
+          console.error("Failed to load PDF", err);
+          setError((err as { message?: string })?.message ?? "Failed to load PDF document");
+          setPdfDoc(null);
+          setPageCount(0);
+        })
+        .finally(() => {
+          setIsLoadingDoc(false);
+        });
+    };
+    reader.readAsArrayBuffer(documentFile);
+  }, [documentFile]);
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arrayBuffer = e.target?.result;
-        if (arrayBuffer && typeof arrayBuffer !== "string") {
-          const loadingTask = getDocument({ data: arrayBuffer });
-          loadingTaskRef.current = loadingTask;
-
-          loadingTask.promise
-            .then((doc) => {
-              setPdfDoc(doc);
-              setPageCount(doc.numPages);
-              setSelectedPage(1);
-              setVisiblePage(1);
-              setError(null);
-              // Mark this file as loaded
-              if (setLastLoadedFileName) {
-                setLastLoadedFileName(documentFile.name);
-              }
-            })
-            .catch((err: any) => {
-              console.error("Failed to load PDF", err);
-              setError((err as { message?: string })?.message ?? "Failed to load PDF document");
-              setPdfDoc(null);
-              setPageCount(0);
-            })
-            .finally(() => {
-              setIsLoadingDoc(false);
-            });
-        }
-      };
-      reader.readAsArrayBuffer(documentFile);
-    }
-  }, [documentFile, lastLoadedFileName, pdfDoc, setLastLoadedFileName]);
-
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (loadingTaskRef.current) {
@@ -186,16 +124,10 @@ export function PdfViewerProvider({
     };
   }, []);
 
-  const value: PdfViewerContextType = useMemo(() => {
-    return {
-      documentFile,
-      setDocumentFile,
-      lastLoadedFileName,
-      setLastLoadedFileName,
+  const value: FormEditorPdfViewerContextType = useMemo(
+    () => ({
       pdfDoc,
-      setPdfDoc,
       pageCount,
-      setPageCount,
       selectedPage,
       setSelectedPage,
       visiblePage,
@@ -203,35 +135,36 @@ export function PdfViewerProvider({
       scale,
       setScale,
       isLoadingDoc,
-      setIsLoadingDoc,
       error,
-      setError,
       isDragging,
       setIsDragging,
       registry,
       setRegistry,
       handleFileUpload,
-    };
-  }, [
-    documentFile,
-    lastLoadedFileName,
-    pdfDoc,
-    pageCount,
-    selectedPage,
-    visiblePage,
-    scale,
-    isLoadingDoc,
-    error,
-    isDragging,
-    registry,
-    handleFileUpload,
-  ]);
+    }),
+    [
+      pdfDoc,
+      pageCount,
+      selectedPage,
+      visiblePage,
+      scale,
+      isLoadingDoc,
+      error,
+      isDragging,
+      registry,
+      handleFileUpload,
+    ]
+  );
 
-  return <PdfViewerContext.Provider value={value}>{children}</PdfViewerContext.Provider>;
+  return (
+    <FormEditorPdfViewerContext.Provider value={value}>
+      {children}
+    </FormEditorPdfViewerContext.Provider>
+  );
 }
 
-export function usePdfViewer() {
-  const context = useContext(PdfViewerContext);
+export function useFormEditorPdfViewer() {
+  const context = useContext(FormEditorPdfViewerContext);
   if (!context) {
     throw new Error("usePdfViewer must be used within PdfViewerProvider");
   }

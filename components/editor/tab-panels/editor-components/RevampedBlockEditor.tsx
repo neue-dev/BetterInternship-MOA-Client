@@ -33,6 +33,26 @@ import { RadioGroupFieldEditor } from "./RadioGroupFieldEditor";
 
 type FieldOption = DefaultValueFieldOption;
 
+// Resolve the preset that the field's current schema actually reflects, by
+// comparing the applied type/validator (not the field key — applying a preset
+// rewrites the schema but leaves the key untouched). Prefers an exact match
+// including validator_ir, then a looser type+validator match.
+function findPresetMatchingSchema(schema: any, presets: any[]): any | null {
+  if (!schema) return null;
+  const targetType = schema.type;
+  const targetValidator = String(schema.validator || "");
+  const targetIr = JSON.stringify(schema.validator_ir ?? null);
+  let looseMatch: any = null;
+  for (const preset of presets) {
+    const applied = applyPresetToSchema(schema, preset);
+    if (applied.type !== targetType) continue;
+    if (String(applied.validator || "") !== targetValidator) continue;
+    if (!looseMatch) looseMatch = preset;
+    if (JSON.stringify(applied.validator_ir ?? null) === targetIr) return preset;
+  }
+  return looseMatch;
+}
+
 export function RevampedBlockEditor() {
   const { formMetadata, updateBlocks } = useFormEditorMetadata();
   const { registry } = useFieldTemplateContext();
@@ -234,6 +254,7 @@ export function RevampedBlockEditor() {
   const childFieldKey = String(schema?.field || "");
   const isDefaultChildField = isDefaultPresetFieldKey(childFieldKey, presetTemplates);
   const matchedChildPreset = findPresetByFieldKey(childFieldKey, presetTemplates);
+  const presetMatchingSchema = findPresetMatchingSchema(schema, presetTemplates);
 
   return (
     <div className="divide-y divide-slate-200">
@@ -295,7 +316,7 @@ export function RevampedBlockEditor() {
             <span className="shrink-0 text-xs text-slate-600">Field type</span>
             <select
               className="h-8 flex-1 rounded-[0.33em] border border-slate-300 px-2 text-xs"
-              value={presetIdOverride ?? matchedChildPreset?.id ?? ""}
+              value={presetIdOverride ?? presetMatchingSchema?.id ?? matchedChildPreset?.id ?? ""}
               onChange={(e) => {
                 const nextPreset = presetTemplates.find((preset) => preset.id === e.target.value);
                 if (!nextPreset) return;

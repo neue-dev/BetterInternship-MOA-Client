@@ -89,7 +89,12 @@ export function EditorSelectionProvider({ children }: { children: ReactNode }) {
   const [selectedBlockGroup, setSelectedBlockGroup] = useState<BlockGroup | null>(null);
   const [pendingMissingFieldDraft, setPendingMissingFieldDraft] = useState<IFormBlock | null>(null);
 
-  const activePartyId = useMemo(() => getActivePartyId(formMetadata), [formMetadata]);
+  // The party whose blocks drive the form-view (units, add/reorder, preview).
+  // Tracks the party selected in the top-bar selector, falling back to the first.
+  const activePartyId = useMemo(
+    () => selectedPartyId || getActivePartyId(formMetadata),
+    [selectedPartyId, formMetadata]
+  );
   const formViewUnits = useMemo(
     () => computeFormViewUnits(blocks, activePartyId),
     [blocks, activePartyId]

@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "sonner";
@@ -33,8 +33,15 @@ function FormEditorLoadingFallback({ label = "Loading editor..." }: { label?: st
 function FormEditorContent() {
   const searchParams = useSearchParams();
   const formName = searchParams.get("form_name");
-  const { setFormMetadata, setFormDocument, setFormVersion, setDocumentUrl, setDocumentFile } =
-    useFormEditorMetadata();
+  const {
+    loadFormMetadata,
+    setFormDocument,
+    setFormVersion,
+    setDocumentUrl,
+    setDocumentFile,
+    undo,
+    redo,
+  } = useFormEditorMetadata();
   const [isLoading, setIsLoading] = useState(true);
   const hasBootstrappedRef = useRef(false);
   const activeFormNameRef = useRef<string | null>(null);
@@ -61,7 +68,7 @@ function FormEditorContent() {
 
     try {
       if (formName && fetchedData?.formMetadata) {
-        setFormMetadata(fetchedData.formMetadata);
+        loadFormMetadata(fetchedData.formMetadata);
         setFormDocument(fetchedData.formTemplate || null);
         setFormVersion(fetchedData.formVersion || null);
         setDocumentUrl(fetchedData.documentUrl || null);
@@ -92,7 +99,7 @@ function FormEditorContent() {
         }
       } else if (isInitialBootstrap) {
         // Create-new form path: seed blank metadata.
-        setFormMetadata(BLANK_FORM_METADATA);
+        loadFormMetadata(BLANK_FORM_METADATA);
         setFormDocument(null);
         setFormVersion(null);
         setDocumentUrl(null);
@@ -102,7 +109,7 @@ function FormEditorContent() {
     } catch (error) {
       console.error("Error loading form:", error);
       toast.error("Failed to load form", toastPresets.destructive);
-      setFormMetadata(BLANK_FORM_METADATA);
+      loadFormMetadata(BLANK_FORM_METADATA);
       setFormDocument(null);
       setFormVersion(null);
       setDocumentUrl(null);
@@ -110,6 +117,33 @@ function FormEditorContent() {
       hasBootstrappedRef.current = true;
     }
   }, [formName, fetchedData]);
+
+  // Editor-scoped undo/redo; ignored when focus is inside a text input.
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true"
+      )
+        return;
+      if (!e.metaKey && !e.ctrlKey) return;
+      if (e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    },
+    [undo, redo]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   if (isLoading) {
     return <FormEditorLoadingFallback label="Loading form..." />;

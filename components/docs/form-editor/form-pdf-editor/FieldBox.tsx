@@ -126,6 +126,12 @@ export const FieldBox = ({
     startX: number;
     startY: number;
     handle: ResizeHandle;
+    initialW: number;
+    initialH: number;
+    initialLeft: number;
+    initialTop: number;
+    lastDeltaX: number;
+    lastDeltaY: number;
   } | null>(null);
 
   const partyColor = getPartyColorByOrder(field.signing_party_order || 1);
@@ -194,21 +200,57 @@ export const FieldBox = ({
     e.stopPropagation();
     e.preventDefault();
 
-    resizeState.current = { startX: e.clientX, startY: e.clientY, handle };
+    const parentEl = elementRef.current?.parentElement;
+    resizeState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      handle,
+      initialW: parentEl?.offsetWidth ?? 0,
+      initialH: parentEl?.offsetHeight ?? 0,
+      initialLeft: parseFloat(parentEl?.style.left ?? "0") || 0,
+      initialTop: parseFloat(parentEl?.style.top ?? "0") || 0,
+      lastDeltaX: 0,
+      lastDeltaY: 0,
+    };
     setIsResizing(true);
 
     const handleMove = (moveEvent: MouseEvent) => {
-      if (!resizeState.current || !onResize) return;
+      const rs = resizeState.current;
+      if (!rs || !parentEl) return;
 
-      const deltaX = moveEvent.clientX - resizeState.current.startX;
-      const deltaY = moveEvent.clientY - resizeState.current.startY;
+      const deltaX = moveEvent.clientX - rs.startX;
+      const deltaY = moveEvent.clientY - rs.startY;
+      rs.lastDeltaX = deltaX;
+      rs.lastDeltaY = deltaY;
 
-      onResize(resizeState.current.handle, deltaX, deltaY);
+      const minPx = 4;
+      let newLeft = rs.initialLeft;
+      let newTop = rs.initialTop;
+      let newW = rs.initialW;
+      let newH = rs.initialH;
+
+      if (handle === "n")       { newTop = rs.initialTop + deltaY; newH = Math.max(minPx, rs.initialH - deltaY); }
+      else if (handle === "e")  { newW = Math.max(minPx, rs.initialW + deltaX); }
+      else if (handle === "s")  { newH = Math.max(minPx, rs.initialH + deltaY); }
+      else if (handle === "w")  { newLeft = rs.initialLeft + deltaX; newW = Math.max(minPx, rs.initialW - deltaX); }
+      else if (handle === "nw") { newLeft = rs.initialLeft + deltaX; newTop = rs.initialTop + deltaY; newW = Math.max(minPx, rs.initialW - deltaX); newH = Math.max(minPx, rs.initialH - deltaY); }
+      else if (handle === "ne") { newTop = rs.initialTop + deltaY; newW = Math.max(minPx, rs.initialW + deltaX); newH = Math.max(minPx, rs.initialH - deltaY); }
+      else if (handle === "sw") { newLeft = rs.initialLeft + deltaX; newW = Math.max(minPx, rs.initialW - deltaX); newH = Math.max(minPx, rs.initialH + deltaY); }
+      else if (handle === "se") { newW = Math.max(minPx, rs.initialW + deltaX); newH = Math.max(minPx, rs.initialH + deltaY); }
+
+      parentEl.style.left = `${newLeft}px`;
+      parentEl.style.top = `${newTop}px`;
+      parentEl.style.width = `${newW}px`;
+      parentEl.style.height = `${newH}px`;
     };
 
     const handleUp = () => {
+      const rs = resizeState.current;
       resizeState.current = null;
       setIsResizing(false);
+      if (rs && onResize) {
+        onResize(rs.handle, rs.lastDeltaX, rs.lastDeltaY);
+      }
       onResizeEnd?.();
       document.removeEventListener("mousemove", handleMove);
       document.removeEventListener("mouseup", handleUp);

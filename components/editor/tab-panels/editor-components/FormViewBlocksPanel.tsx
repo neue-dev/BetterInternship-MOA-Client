@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
 import { useFormEditor } from "@/app/contexts/form-editor.context";
 import { FormPreviewRenderer } from "@/components/docs/form-editor/form-layout/FormPreviewRenderer";
 import { FormMetadata } from "@betterinternship/core/forms";
-import { withDerivedFormValues } from "@/lib/derived-form-values";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
+import { FormFillerContextProvider } from "@/components/docs/forms/form-filler.ctx";
 
 interface FormViewBlocksPanelProps {
   signingParties: any[];
@@ -20,31 +21,33 @@ export function FormViewBlocksPanel({ signingParties: _signingParties }: FormVie
     selectedBlockGroup,
     handleSelectFormViewUnit,
   } = useFormEditorTab();
-  const [values, setValues] = useState<Record<string, any>>({});
+
   const activePartyId = selectedPartyId || formMetadata?.signing_parties?.[0]?._id || "";
-  const previewValues = useMemo(() => {
-    if (!formMetadata) return values;
-    return withDerivedFormValues(new FormMetadata(formMetadata), values);
-  }, [formMetadata, values]);
 
-  const selectedPartyBlocks = useMemo(
-    () =>
-      blocks
-        .filter((block) => {
-          const party = block.signing_party_id || "";
-          return party === activePartyId || party === "";
-        })
-        .sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [activePartyId, blocks]
-  );
-
-  const selectedFieldId = useMemo(() => {
+  // Track selected field ID for the preview renderer context.
+  // Seeded from selectedBlockGroup; also updated when the user clicks a field in the renderer.
+  const derivedSelectedFieldId = useMemo(() => {
     if (!selectedBlockGroup) return null;
     if (selectedBlockGroup.fieldName === "header" || selectedBlockGroup.fieldName === "paragraph") {
       return null;
     }
     return selectedBlockGroup.fieldName;
   }, [selectedBlockGroup]);
+
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(derivedSelectedFieldId);
+
+  useEffect(() => {
+    setSelectedPreviewId(derivedSelectedFieldId);
+  }, [derivedSelectedFieldId]);
+
+  const hasBlocks = useMemo(
+    () =>
+      blocks.some((block) => {
+        const party = block.signing_party_id || "";
+        return party === activePartyId || party === "";
+      }),
+    [activePartyId, blocks]
+  );
 
   const handleFieldClick = (fieldName: string) => {
     const targetUnit = formViewUnits.find((unit) => {
@@ -62,22 +65,24 @@ export function FormViewBlocksPanel({ signingParties: _signingParties }: FormVie
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-1 overflow-auto p-3">
-        {selectedPartyBlocks.length === 0 ? (
+        {!hasBlocks || !formMetadata ? (
           <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
             No blocks for this recipient yet.
           </div>
         ) : (
           <div className="h-full rounded-[0.33em] border bg-white">
-            <FormPreviewRenderer
-              formName={formMetadata?.name || "form"}
-              formLabel={formMetadata?.label || "Form"}
-              blocks={selectedPartyBlocks}
-              values={previewValues}
-              onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
-              metadata={formMetadata || undefined}
-              selectedFieldId={selectedFieldId}
-              onFieldClick={handleFieldClick}
-            />
+            <StaticFormRendererContextProvider
+              formName={formMetadata.name}
+              formLabel={formMetadata.label}
+              formMetadata={formMetadata}
+              signingPartyId={activePartyId}
+              selectedPreviewId={selectedPreviewId}
+              onSelectedPreviewId={setSelectedPreviewId}
+            >
+              <FormFillerContextProvider>
+                <FormPreviewRenderer onFieldClick={handleFieldClick} />
+              </FormFillerContextProvider>
+            </StaticFormRendererContextProvider>
           </div>
         )}
       </div>

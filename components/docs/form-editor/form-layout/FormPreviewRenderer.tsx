@@ -1,25 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
-import z from "zod";
-import {
-  type IFormBlock,
-  type IFormMetadata,
-  FormMetadata,
-  type ClientBlock,
-} from "@betterinternship/core/forms";
+import { useMemo, useRef, useEffect } from "react";
+import { type ClientBlock, type ClientField } from "@betterinternship/core/forms";
 import { BlocksRenderer, type BlocksRendererEditing } from "@/components/docs/forms/FormFillerRenderer";
 import { isBlockField, getBlockField } from "@/components/docs/forms/utils";
+import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
+import { useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 import { cn } from "@/lib/utils";
 
 interface FormPreviewRendererProps {
-  formName: string;
-  formLabel: string;
-  blocks: IFormBlock[];
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
-  metadata?: IFormMetadata;
-  selectedFieldId?: string | null;
   onFieldClick?: (fieldId: string) => void;
   autoScrollToSelectedField?: boolean;
   squareFrame?: boolean;
@@ -30,62 +19,37 @@ interface FormPreviewRendererProps {
 /**
  * Prop-driven adapter over FormFillerRenderer's canonical BlocksRenderer.
  *
- * Converts the raw IFormBlock[] passed by callers into ClientBlock[] so that
- * BlocksRenderer can handle deduplication, radio-group collapsing, and field
- * rendering with compiled validators. Callers pass already party-filtered
- * blocks; we respect that filter by matching on _id.
+ * Reads blocks, values, errors, and selected-field state from the
+ * StaticFormRendererContextProvider + FormFillerContextProvider that
+ * FormPreviewContent installs, giving the editor preview the same context
+ * interface as the live sign route — so future context additions are
+ * inherited automatically by both paths.
  *
- * This component owns scroll, the form header, and local validation error
- * state. Full context migration (replacing this with FormFillerRenderer
- * directly) is a follow-on step once callers provide FormFiller context.
+ * The editing prop (drag handles, inline adders) is passed directly to
+ * BlocksRenderer so FormPreviewFormPanel can supply editor chrome without
+ * requiring changes to FormFillerRenderer.
  */
 export const FormPreviewRenderer = ({
-  formName,
-  formLabel,
-  blocks,
-  values,
-  onChange,
-  metadata,
-  selectedFieldId,
   onFieldClick,
   autoScrollToSelectedField = true,
   squareFrame = false,
   editing,
   hideTitle = false,
 }: FormPreviewRendererProps) => {
+  const form = useFormRendererContext();
+  const formFiller = useFormFiller();
+
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const metadataClient = useMemo(() => {
-    if (!metadata) return null;
-    try {
-      return new FormMetadata(metadata);
-    } catch {
-      return null;
-    }
-  }, [metadata]);
-
-  // Convert IFormBlock[] → ClientBlock[] so BlocksRenderer can access compiled
-  // validators and coerce functions on each field. We call getBlocksForClientService()
-  // without a party filter to get all blocks, then restrict to the IDs the caller
-  // already party-filtered.
-  const clientBlocks = useMemo((): ClientBlock<any>[] => {
-    if (!metadataClient) return blocks as unknown as ClientBlock<any>[];
-    try {
-      const allowedIds = new Set(blocks.map((b) => b._id));
-      return (metadataClient.getBlocksForClientService() as ClientBlock<any>[]).filter((cb) =>
-        allowedIds.has(cb._id)
-      );
-    } catch {
-      return blocks as unknown as ClientBlock<any>[];
-    }
-  }, [metadataClient, blocks]);
+  const values = formFiller.getFinalValues();
+  const errors = formFiller.errors;
+  const selectedFieldId = form.selectedPreviewId;
 
   // Deduplicate: keep first occurrence of each field ID (same logic as FormFillerRenderer)
   const deduplicatedBlocks = useMemo(() => {
     const seen = new Set<string>();
-    return clientBlocks.filter((block) => {
+    return (form.blocks as ClientBlock<any>[]).filter((block) => {
       if (!isBlockField(block)) return true;
       const field = getBlockField(block);
       if (!field) return true;
@@ -93,7 +57,7 @@ export const FormPreviewRenderer = ({
       seen.add(field.field);
       return true;
     });
-  }, [clientBlocks]);
+  }, [form.blocks]);
 
   const sortedBlocks = useMemo(
     () => [...deduplicatedBlocks].sort((a, b) => a.order - b.order),
@@ -111,33 +75,6 @@ export const FormPreviewRenderer = ({
     if (!isInView) element.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [autoScrollToSelectedField, selectedFieldId]);
 
-  const handleBlurValidate = (fieldKey: string, field: any, nextValue?: unknown) => {
-    if (!field || !metadataClient || field.source !== "manual") return;
-    const nextFieldValue = nextValue === undefined ? values[fieldKey] : String(nextValue ?? "");
-    const valuesForParams =
-      nextValue === undefined ? values : { ...values, [fieldKey]: nextFieldValue };
-    // Re-fetch the field with current params so cross-field validators see up-to-date values.
-    const hydratedField =
-      metadataClient
-        .getFieldsForClientService(undefined, valuesForParams)
-        .find((f) => f.field === fieldKey) ?? field;
-    const coerced = hydratedField.coerce(nextFieldValue);
-    const result = hydratedField.validator?.safeParse(coerced);
-    if (result?.error) {
-      const errorString = z
-        .treeifyError(result.error)
-        .errors.map((e: string) => e.split(" ").slice(0).join(" "))
-        .join("\n");
-      setErrors((prev) => ({ ...prev, [fieldKey]: `${hydratedField.label}: ${errorString}` }));
-    } else {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[fieldKey];
-        return next;
-      });
-    }
-  };
-
   if (!sortedBlocks.length && !editing) {
     return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
   }
@@ -152,18 +89,23 @@ export const FormPreviewRenderer = ({
       <div ref={scrollContainerRef} className="relative flex flex-1 flex-col overflow-auto">
         {!hideTitle && (
           <div className="px-6 pt-8">
-            <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>
+            <h2 className="text-primary text-2xl font-bold">{form.formLabel || form.formName}</h2>
           </div>
         )}
         <div className={cn("flex-1 space-y-2", editing ? "py-4 pr-6 pl-12" : "px-6")}>
           <BlocksRenderer
-            formKey={formName}
+            formKey={form.formName}
             blocks={sortedBlocks}
             values={values}
-            onChange={onChange}
+            onChange={(key, value) => formFiller.setValue(key, value)}
             errors={errors}
-            setSelected={(fieldId) => onFieldClick?.(fieldId)}
-            onBlurValidate={handleBlurValidate}
+            setSelected={(fieldId) => {
+              form.setSelectedPreviewId(fieldId);
+              onFieldClick?.(fieldId);
+            }}
+            onBlurValidate={(fieldKey, field: ClientField<any>, nextValue) =>
+              formFiller.validateField(fieldKey, field, undefined, nextValue)
+            }
             fieldRefs={fieldRefs.current}
             selectedFieldId={selectedFieldId}
             editing={editing}

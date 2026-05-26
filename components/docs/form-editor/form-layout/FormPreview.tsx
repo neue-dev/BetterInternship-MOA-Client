@@ -18,9 +18,11 @@ import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
 import { Switch } from "@/components/ui/switch";
-import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
+import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { motion } from "framer-motion";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
+import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -136,14 +138,12 @@ const FormSortView = ({
  * Center form panel. Owns the transient block-editing drag state (via
  * useFormPreviewEditing) so that dragging blocks around re-renders only this
  * panel — not the sibling PDF previewer, which is expensive to re-render.
+ *
+ * Field rendering and state are handled inside FormPreviewRenderer via the
+ * StaticFormRendererContext + FormFillerContext installed by FormPreviewContent.
  */
 const FormPreviewFormPanel = ({
   animatePanels,
-  formMetadata,
-  filteredBlocks,
-  values,
-  onChange,
-  selectedFieldId,
   autoScrollToSelectedField,
   onFieldClick,
   generationResult,
@@ -151,11 +151,6 @@ const FormPreviewFormPanel = ({
   onGenerate,
 }: {
   animatePanels?: boolean;
-  formMetadata: IFormMetadata;
-  filteredBlocks: IFormBlock[];
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
-  selectedFieldId: string | null;
   autoScrollToSelectedField: boolean;
   onFieldClick: (fieldId: string) => void;
   generationResult: string | null;
@@ -172,13 +167,6 @@ const FormPreviewFormPanel = ({
     >
       <div className="min-h-0 flex-1 overflow-hidden">
         <FormPreviewRenderer
-          formName={formMetadata.name}
-          formLabel={formMetadata.label}
-          blocks={filteredBlocks}
-          values={values}
-          onChange={onChange}
-          metadata={formMetadata}
-          selectedFieldId={selectedFieldId}
           autoScrollToSelectedField={autoScrollToSelectedField}
           squareFrame
           editing={editing}
@@ -207,68 +195,79 @@ const FormPreviewFormPanel = ({
   );
 };
 
-/**
- * Preview Content - Main form and PDF preview
- */
-const FormPreviewContent = ({
-  formMetadata,
-  blocks,
-  signingParties,
-  documentUrl,
-  showRecipientTabBar = true,
-  animatePanels = false,
-}: {
+interface FormPreviewContentBodyProps {
   formMetadata: IFormMetadata;
   blocks: IFormBlock[];
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
-  showRecipientTabBar?: boolean;
-  animatePanels?: boolean;
-}) => {
-  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
-  const selectedPartyId = ctxPartyId || signingParties[0]._id;
-  const [values, setValues] = useState<Record<string, string>>({});
+  selectedPartyId: string;
+  setSelectedPartyId: (id: string) => void;
+  selectedFieldId: string | null;
+  setSelectedFieldId: (id: string | null) => void;
+  selectedFieldSource: "form" | "pdf" | null;
+  setSelectedFieldSource: (s: "form" | "pdf" | null) => void;
+  showAllPdfFields: boolean;
+  setShowAllPdfFields: (v: boolean) => void;
+  showRecipientTabBar: boolean;
+  animatePanels: boolean;
+}
+
+/**
+ * Inner consumer: reads values, errors, and field data from the
+ * StaticFormRendererContext + FormFillerContext installed by FormPreviewContent.
+ */
+const FormPreviewContentBody = ({
+  formMetadata,
+  blocks,
+  signingParties,
+  documentUrl,
+  selectedPartyId,
+  setSelectedPartyId,
+  selectedFieldId,
+  setSelectedFieldId,
+  selectedFieldSource,
+  setSelectedFieldSource,
+  showAllPdfFields,
+  setShowAllPdfFields,
+  showRecipientTabBar,
+  animatePanels,
+}: FormPreviewContentBodyProps) => {
+  const formFiller = useFormFiller();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<string | null>(null);
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
-  const [showAllPdfFields, setShowAllPdfFields] = useState(false);
 
-  const filteredBlocks = useMemo(
-    () => filterBlocksByParty(blocks, selectedPartyId),
-    [blocks, selectedPartyId]
-  );
-  const previewValues = useMemo(
-    () => withDerivedFormValues(new FormMetadata(formMetadata), values),
-    [formMetadata, values]
-  );
-
-  // Hydrate preview values from configured field prefillers/defaults.
-  // Keep existing values so manual edits in preview are not overwritten.
   useEffect(() => {
     setSelectedFieldId(null);
     setSelectedFieldSource(null);
   }, [selectedPartyId]);
 
+  // Hydrate preview values from configured field prefillers/defaults.
+  // Keep existing values so manual edits in preview are not overwritten on party switch.
   useEffect(() => {
     try {
       const metadataClient = new FormMetadata(formMetadata);
       const partyFields = metadataClient.getFieldsForClientService(selectedPartyId);
-      setValues((prev) => {
-        const prefilled = extractPrefillValues(partyFields, { existing: prev, skipExisting: true });
-        return Object.keys(prefilled).length > 0 ? { ...prev, ...prefilled } : prev;
+      const prefilled = extractPrefillValues(partyFields, {
+        existing: formFiller.getFinalValues(),
+        skipExisting: true,
       });
+      if (Object.keys(prefilled).length > 0) formFiller.initializeValues(prefilled);
     } catch (error) {
       console.error("Failed to hydrate preview default values:", error);
     }
   }, [formMetadata, selectedPartyId]);
+
+  const previewValues = withDerivedFormValues(
+    new FormMetadata(formMetadata),
+    formFiller.getFinalValues()
+  );
 
   const handleGenerateTestForm = useCallback(async () => {
     setIsGenerating(true);
     try {
       const result = await formsControllerGenerateTestForm({
         formName: formMetadata.name,
-        values,
+        values: formFiller.getFinalValues(),
       });
       const url = result?.data?.documentUrl || result?.documentUrl;
       if (url) setGenerationResult(url);
@@ -277,31 +276,22 @@ const FormPreviewContent = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [formMetadata.name, values]);
+  }, [formFiller, formMetadata.name]);
 
-  // Stable callbacks so the form panel (which owns transient drag state) does
-  // not force the sibling PDF previewer to re-render on every drag move.
-  const handleFormValueChange = useCallback(
-    (key: string, value: string) => setValues((prev) => ({ ...prev, [key]: value })),
-    []
+  const handleFormFieldClick = useCallback(
+    (fieldId: string) => {
+      setSelectedFieldSource("form");
+      setSelectedFieldId(fieldId);
+    },
+    [setSelectedFieldId, setSelectedFieldSource]
   );
-  const handleFormFieldClick = useCallback((fieldId: string) => {
-    setSelectedFieldSource("form");
-    setSelectedFieldId(fieldId);
-  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Form */}
         <FormPreviewFormPanel
           animatePanels={animatePanels}
-          formMetadata={formMetadata}
-          filteredBlocks={filteredBlocks}
-          values={values}
-          onChange={handleFormValueChange}
-          selectedFieldId={selectedFieldId}
           autoScrollToSelectedField={selectedFieldSource === "pdf"}
           onFieldClick={handleFormFieldClick}
           generationResult={generationResult}
@@ -360,6 +350,63 @@ const FormPreviewContent = ({
         </AnimatedPreviewPanel>
       </div>
     </div>
+  );
+};
+
+/**
+ * Preview Content - provides the StaticFormRendererContext + FormFillerContext
+ * so both FormPreviewRenderer and FormPreviewContentBody share the same context
+ * interface as the live sign route.
+ */
+const FormPreviewContent = ({
+  formMetadata,
+  blocks,
+  signingParties,
+  documentUrl,
+  showRecipientTabBar = true,
+  animatePanels = false,
+}: {
+  formMetadata: IFormMetadata;
+  blocks: IFormBlock[];
+  signingParties: IFormSigningParty[];
+  documentUrl?: string | null;
+  showRecipientTabBar?: boolean;
+  animatePanels?: boolean;
+}) => {
+  const { selectedPartyId: ctxPartyId, setSelectedPartyId } = useFormEditorTab();
+  const selectedPartyId = ctxPartyId || signingParties[0]._id;
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
+  const [showAllPdfFields, setShowAllPdfFields] = useState(false);
+
+  return (
+    <StaticFormRendererContextProvider
+      formName={formMetadata.name}
+      formLabel={formMetadata.label}
+      formMetadata={formMetadata}
+      signingPartyId={selectedPartyId}
+      selectedPreviewId={selectedFieldId}
+      onSelectedPreviewId={setSelectedFieldId}
+    >
+      <FormFillerContextProvider>
+        <FormPreviewContentBody
+          formMetadata={formMetadata}
+          blocks={blocks}
+          signingParties={signingParties}
+          documentUrl={documentUrl}
+          selectedPartyId={selectedPartyId}
+          setSelectedPartyId={setSelectedPartyId}
+          selectedFieldId={selectedFieldId}
+          setSelectedFieldId={setSelectedFieldId}
+          selectedFieldSource={selectedFieldSource}
+          setSelectedFieldSource={setSelectedFieldSource}
+          showAllPdfFields={showAllPdfFields}
+          setShowAllPdfFields={setShowAllPdfFields}
+          showRecipientTabBar={showRecipientTabBar}
+          animatePanels={animatePanels}
+        />
+      </FormFillerContextProvider>
+    </StaticFormRendererContextProvider>
   );
 };
 

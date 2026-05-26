@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { FormMetadata } from "@betterinternship/core/forms";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
@@ -142,17 +143,17 @@ const FormDefaultValueCaptureContent = ({
         {/* Left side - Form */}
         {(!isMobile || mobileFieldsTab === "template") && (
           <div className="relative h-full min-h-0 flex-1 overflow-y-auto bg-white">
-            {filteredBlocks.length > 0 ? (
-              <FormPreviewRenderer
+            {filteredBlocks.length > 0 && metadata ? (
+              <StaticFormRendererContextProvider
                 formName={formName}
-                formLabel={metadata?.label || ""}
-                blocks={filteredBlocks}
-                values={formFiller.getFinalValues()}
-                onChange={(key, value) => formFiller.setValue(key, value)}
-                metadata={metadata}
-                selectedFieldId={selectedFieldId}
-                onFieldClick={setSelectedFieldId}
-              />
+                formLabel={metadata.label || ""}
+                formMetadata={metadata}
+                signingPartyId={selectedPartyId}
+                selectedPreviewId={selectedFieldId}
+                onSelectedPreviewId={setSelectedFieldId}
+              >
+                <FormPreviewRenderer onFieldClick={setSelectedFieldId} />
+              </StaticFormRendererContextProvider>
             ) : (
               <div className="rounded bg-slate-50 p-8 text-center">
                 <p className="text-sm text-slate-500">No form fields to fill out.</p>

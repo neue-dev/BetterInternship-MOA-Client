@@ -23,13 +23,72 @@ export const normalizeParentPatch = (updates: ParentPatch): ParentPatch => {
   };
 };
 
+export type FieldGroupIdentity = {
+  fieldName?: string | null;
+  partyId?: string | null;
+  blockType?: string | null;
+};
+
+type PartyMatchMode = "exact" | "group";
+
+export const getBlockSchema = (
+  block?: Pick<IFormBlock, "field_schema" | "phantom_field_schema"> | null
+) => block?.field_schema || block?.phantom_field_schema || undefined;
+
+export const getBlockFieldName = (
+  block?: Pick<IFormBlock, "field_schema" | "phantom_field_schema"> | null
+) => getBlockSchema(block)?.field;
+
+export const normalizeGroupPartyId = (partyId?: string | null) => partyId || "unknown";
+
+const blockPartyMatches = (
+  blockPartyId: string | undefined,
+  partyId: string | null | undefined,
+  mode: PartyMatchMode
+) => {
+  if (mode === "group") {
+    return normalizeGroupPartyId(blockPartyId) === normalizeGroupPartyId(partyId);
+  }
+  return (blockPartyId || "") === (partyId || "");
+};
+
+export const blockMatchesFieldIdentity = (
+  block: IFormBlock,
+  identity: FieldGroupIdentity,
+  options: { partyMatchMode?: PartyMatchMode; includeTextBlocks?: boolean } = {}
+): boolean => {
+  const { fieldName, partyId, blockType } = identity;
+  if (!fieldName) return false;
+  if (blockType && block.block_type !== blockType) return false;
+
+  const textBlockFieldName =
+    options.includeTextBlocks && (block.block_type === "header" || block.block_type === "paragraph")
+      ? block.block_type
+      : undefined;
+  const blockFieldName = getBlockFieldName(block) || textBlockFieldName;
+  if (blockFieldName !== fieldName) return false;
+
+  return blockPartyMatches(block.signing_party_id, partyId, options.partyMatchMode || "exact");
+};
+
+export const blocksShareFieldIdentity = (block: IFormBlock, target: IFormBlock): boolean =>
+  blockMatchesFieldIdentity(block, {
+    fieldName: getBlockFieldName(target),
+    partyId: target.signing_party_id,
+    blockType: target.block_type,
+  });
+
+export const getBlockFieldGroupKey = (block: IFormBlock): string | null => {
+  const fieldName = getBlockFieldName(block);
+  if (!fieldName) return null;
+  return `${fieldName}-${normalizeGroupPartyId(block.signing_party_id)}-${block.block_type}`;
+};
+
 export const blockMatchesGroup = (block: any, group: BlockGroup): boolean => {
-  const schema = block.field_schema || block.phantom_field_schema;
-  return (
-    (schema?.field === group.fieldName || block.block_type === group.fieldName) &&
-    (block.signing_party_id === group.partyId ||
-      (block.signing_party_id === "" && group.partyId === "unknown") ||
-      (block.signing_party_id === "unknown" && group.partyId === ""))
+  return blockMatchesFieldIdentity(
+    block,
+    { fieldName: group.fieldName, partyId: group.partyId },
+    { partyMatchMode: "group", includeTextBlocks: true }
   );
 };
 

@@ -7,6 +7,7 @@ import {
   createSignaturePrintedNameBlocks,
   resolveSignaturePrintedNameDimensions,
 } from "@/lib/composite-block-factory";
+import { blockMatchesFieldIdentity } from "@/lib/form-editor-metadata";
 import type { ValidatorIRv0 } from "@/lib/validator-ir";
 import { createUniqueFieldKey } from "./pdf-editor-utils";
 
@@ -79,11 +80,12 @@ export const buildDroppedFieldBlock = ({
 }): IFormBlock => {
   const uniqueId = Math.random().toString(36).substr(2, 9);
   const fieldKey = resolveDroppedFieldKey(draggedField, selectedPartyId);
-  const existingForField = blocks.find(
-    (block) =>
-      block.block_type === "form_field" &&
-      block.signing_party_id === (selectedPartyId || "") &&
-      block.field_schema?.field === fieldKey
+  const existingForField = blocks.find((block) =>
+    blockMatchesFieldIdentity(block, {
+      fieldName: fieldKey,
+      partyId: selectedPartyId || "",
+      blockType: "form_field",
+    })
   );
   const baseSchema = existingForField?.field_schema;
   const defaults = sanitizeFieldSchemaDefaults(draggedField.field_schema_defaults);
@@ -111,9 +113,7 @@ export const buildDroppedFieldBlock = ({
       align_h: baseSchema?.align_h ?? defaults?.align_h ?? "center",
       align_v: baseSchema?.align_v ?? defaults?.align_v ?? "bottom",
       shared:
-        typeof baseSchema?.shared === "boolean"
-          ? baseSchema.shared
-          : (draggedField.shared ?? true),
+        typeof baseSchema?.shared === "boolean" ? baseSchema.shared : (draggedField.shared ?? true),
       source: (baseSchema?.source || draggedField.source || "manual") as IFormField["source"],
       ...(baseSchema?.prefiller
         ? { prefiller: baseSchema.prefiller }

@@ -1,5 +1,11 @@
 import type { IFormBlock, IFormMetadata } from "@betterinternship/core/forms";
 import type { BlockGroup, FormViewUnit } from "./types";
+import {
+  getBlockFieldGroupKey,
+  getBlockFieldName,
+  getBlockSchema,
+  normalizeGroupPartyId,
+} from "./helpers";
 
 // The party whose blocks drive the form-view (sort/reorder) surface.
 // Matches historical behavior: the first signing party.
@@ -17,10 +23,7 @@ export function buildBlocksMap(blocks: IFormBlock[]): Record<string, IFormBlock>
 
 // Field/header/paragraph "units" for the active party, collapsing radio groups
 // and same-field/party/type blocks into a single addressable row.
-export function computeFormViewUnits(
-  blocks: IFormBlock[],
-  activePartyId: string
-): FormViewUnit[] {
+export function computeFormViewUnits(blocks: IFormBlock[], activePartyId: string): FormViewUnit[] {
   if (!activePartyId) return [];
 
   const units: FormViewUnit[] = [];
@@ -44,8 +47,8 @@ export function computeFormViewUnits(
       return;
     }
 
-    const schema = block.field_schema || block.phantom_field_schema;
-    const fieldName = schema?.field;
+    const schema = getBlockSchema(block);
+    const fieldName = getBlockFieldName(block);
     if (!fieldName) return;
 
     const radioGroupId = block.field_schema?.radio_group_id;
@@ -68,7 +71,8 @@ export function computeFormViewUnits(
       return;
     }
 
-    const groupId = `${fieldName}-${activePartyId}-${block.block_type}`;
+    const groupId = getBlockFieldGroupKey(block);
+    if (!groupId) return;
     const existing = fieldUnits.get(groupId);
     if (existing) {
       existing.blockIds.push(block._id);
@@ -109,7 +113,7 @@ export function computeBlockGroups(blocks: IFormBlock[]): {
         blockGroups[groupId] = {
           id: groupId,
           fieldName: blockType,
-          partyId: block.signing_party_id || "unknown",
+          partyId: normalizeGroupPartyId(block.signing_party_id),
           blockIds: [block._id],
         };
         blockGroupsOrder.push(groupId);
@@ -118,15 +122,12 @@ export function computeBlockGroups(blocks: IFormBlock[]): {
       return;
     }
 
-    let schema: any = block.field_schema;
-    if (!schema && (blockType === "phantom_field" || blockType === "form_phantom_field")) {
-      schema = block.phantom_field_schema;
-    }
+    const schema = getBlockSchema(block);
     if (!schema) return;
 
     const fieldName: string = (schema.field || "Unnamed") as string;
-    const partyId = block.signing_party_id || "unknown";
-    const groupId = `${fieldName}-${partyId}-${blockType}`;
+    const partyId = normalizeGroupPartyId(block.signing_party_id);
+    const groupId = getBlockFieldGroupKey(block) || `${fieldName}-${partyId}-${blockType}`;
 
     if (!seenGroupIds.has(groupId)) {
       blockGroups[groupId] = {

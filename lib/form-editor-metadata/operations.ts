@@ -4,7 +4,9 @@ import type { BlockGroup, FormViewUnit, ParentPatch } from "./types";
 import {
   applyPatchToFieldSchema,
   applyPatchToPhantomFieldSchema,
+  blockMatchesFieldIdentity,
   blockMatchesGroup,
+  blocksShareFieldIdentity,
   ensureRequiredRuleOnNewBlock,
   getUnlinkedDefaultDuplicateKey,
   normalizeParentPatch,
@@ -50,23 +52,11 @@ export function updateBlock(metadata: IFormMetadata, updatedBlock: IFormBlock): 
       : updatedBlock;
 
   const layoutKeys = new Set(["x", "y", "w", "h", "page", "align_h", "align_v", "size"]);
-  const updatedSchema =
-    normalizedUpdatedBlock.field_schema || normalizedUpdatedBlock.phantom_field_schema || undefined;
-  const updatedFieldName = updatedSchema?.field;
-  const updatedParty = normalizedUpdatedBlock.signing_party_id;
 
   const updatedBlocks = metadata.schema.blocks.map((block) => {
     if (block._id === normalizedUpdatedBlock._id) return normalizedUpdatedBlock;
 
-    const targetSchema = block.field_schema || block.phantom_field_schema || undefined;
-    const sameGroup =
-      block.block_type === normalizedUpdatedBlock.block_type &&
-      block.signing_party_id === updatedParty &&
-      targetSchema?.field &&
-      updatedFieldName &&
-      targetSchema.field === updatedFieldName;
-
-    if (!sameGroup) return block;
+    if (!blocksShareFieldIdentity(block, normalizedUpdatedBlock)) return block;
 
     if (block.field_schema && normalizedUpdatedBlock.field_schema) {
       const merged = { ...block.field_schema };
@@ -150,10 +140,7 @@ export function duplicateBlock(
 }
 
 export function deleteBlock(metadata: IFormMetadata, blockId: string): IFormMetadata {
-  return withBlocks(
-    metadata,
-    reindex(metadata.schema.blocks.filter((b) => b._id !== blockId))
-  );
+  return withBlocks(metadata, reindex(metadata.schema.blocks.filter((b) => b._id !== blockId)));
 }
 
 export function deleteGroupBlocks(
@@ -162,12 +149,11 @@ export function deleteGroupBlocks(
   partyId: string
 ): IFormMetadata {
   const remaining = metadata.schema.blocks.filter((b) => {
-    const isMatch =
-      b.signing_party_id === partyId &&
-      (b.field_schema?.field === fieldName ||
-        b.phantom_field_schema?.field === fieldName ||
-        ((b.block_type === "header" || b.block_type === "paragraph") &&
-          fieldName === b.block_type));
+    const isMatch = blockMatchesFieldIdentity(
+      b,
+      { fieldName, partyId },
+      { includeTextBlocks: true }
+    );
     return !isMatch;
   });
   return withBlocks(metadata, reindex(remaining));
@@ -202,7 +188,10 @@ export function applyGroupPatch(
     }
 
     if (block.phantom_field_schema) {
-      updated.phantom_field_schema = applyPatchToPhantomFieldSchema(block.phantom_field_schema, patch);
+      updated.phantom_field_schema = applyPatchToPhantomFieldSchema(
+        block.phantom_field_schema,
+        patch
+      );
     }
 
     if (patch.block_type !== undefined) updated.block_type = patch.block_type;

@@ -1,4 +1,5 @@
 import { IFormBlock } from "@betterinternship/core/forms";
+import { blocksShareFieldIdentity } from "@/lib/form-editor-metadata";
 
 export function useFieldInteractions({
   blocks,
@@ -120,10 +121,9 @@ export function useFieldInteractions({
 
   const findSameFieldIds = (fieldId: string): string[] => {
     const target = blocks.find((b) => b._id === fieldId);
-    const fieldName = target?.field_schema?.field;
-    if (!fieldName) return [fieldId];
+    if (!target?.field_schema?.field) return [fieldId];
     return blocks
-      .filter((b) => b.block_type === "form_field" && b.field_schema?.field === fieldName)
+      .filter((b) => blocksShareFieldIdentity(b, target))
       .sort((a, b) => {
         const aPage = a.field_schema?.page || 0;
         const bPage = b.field_schema?.page || 0;

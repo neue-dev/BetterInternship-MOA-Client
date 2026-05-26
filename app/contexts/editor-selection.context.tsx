@@ -17,6 +17,7 @@ import {
   reorderUnits,
   addTextBlock,
   addTextBlockAt,
+  getBlockFieldName,
 } from "@/lib/form-editor-metadata";
 
 export type EditorTab = "editor" | "preview" | "metadata" | "parties" | "subscribers" | "settings";
@@ -177,9 +178,7 @@ export function EditorSelectionProvider({ children }: { children: ReactNode }) {
         id: unit.id,
         fieldName:
           unit.kind === "field"
-            ? blocks.find((b) => b._id === unit.primaryBlockId)?.field_schema?.field ||
-              blocks.find((b) => b._id === unit.primaryBlockId)?.phantom_field_schema?.field ||
-              unit.label
+            ? getBlockFieldName(blocks.find((b) => b._id === unit.primaryBlockId)) || unit.label
             : unit.kind,
         partyId: unit.partyId || "unknown",
         blockIds: unit.blockIds,

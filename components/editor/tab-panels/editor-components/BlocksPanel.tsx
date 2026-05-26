@@ -6,7 +6,7 @@ import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useFormEditorPdfViewer } from "@/app/contexts/pdf-viewer.context";
-import { createUniqueFieldKey } from "@/lib/form-editor-metadata";
+import { blockMatchesFieldIdentity, createUniqueFieldKey } from "@/lib/form-editor-metadata";
 import { isPresetRegistryField } from "@/lib/field-library";
 import { getPresetFieldIcon, type PresetFieldIconKey } from "@/lib/preset-field-icons";
 import type { ValidatorIRv0 } from "@/lib/validator-ir";
@@ -387,11 +387,12 @@ export function BlocksPanel() {
             ? `${baseFieldKey}:${presetTag}`
             : baseFieldKey;
 
-    const existingForField = blocks.find(
-      (block) =>
-        block.block_type === "form_field" &&
-        block.signing_party_id === partyId &&
-        block.field_schema?.field === fieldKey
+    const existingForField = blocks.find((block) =>
+      blockMatchesFieldIdentity(block, {
+        fieldName: fieldKey,
+        partyId,
+        blockType: "form_field",
+      })
     );
 
     const baseSchema = existingForField?.field_schema;

@@ -1,5 +1,5 @@
 // lib/types/db.ts
-import { DocumentTables, EntityTables, SchoolTables } from "@betterinternship/schema.moa";
+import { DocumentTables, EntityTables, SchoolTables } from "@betterinternship/schema";
 
 // ---------- Shared ----------
 export type UUID = string; // randomUUID

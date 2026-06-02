@@ -10,6 +10,7 @@ import { FormActionButtons } from "./FormActionButtons";
 import { getBlockField, isBlockField } from "./utils";
 import { useFormFiller } from "./form-filler.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
+import { getSignatureImageFieldKey } from "@betterinternship/core/forms";
 
 interface FormFillerRendererProps {
   hideActions?: boolean;
@@ -31,13 +32,21 @@ export function FormFillerRenderer({
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Deduplicate blocks: only keep first instance of each field ID
+  // Deduplicate blocks: only keep first instance of each field ID.
+  // Signatures are recipient-level inputs, so multiple placements for the same recipient
+  // collapse into one list entry while still filling every signature field for that recipient.
   const deduplicatedBlocks = useMemo(() => {
     const seenFieldIds = new Set<string>();
+    const seenSignatureRecipientIds = new Set<string>();
     return filteredBlocks.filter((block) => {
       if (!isBlockField(block)) return true; // Always include non-field blocks
       const field = getBlockField(block);
       if (!field) return true;
+
+      if (field.type === "signature" && field.signing_party_id) {
+        if (seenSignatureRecipientIds.has(field.signing_party_id)) return false;
+        seenSignatureRecipientIds.add(field.signing_party_id);
+      }
 
       if (seenFieldIds.has(field.field)) return false;
       seenFieldIds.add(field.field);
@@ -130,6 +139,7 @@ export const BlocksRenderer = <T extends any[]>({
   fieldRefs: Record<string, HTMLDivElement | null>;
   selectedFieldId?: string | null;
 }) => {
+  const form = useFormRendererContext();
   if (!blocks.length) return null;
   const sortedBlocks = blocks.toSorted((a, b) => a.order - b.order);
 
@@ -169,7 +179,48 @@ export const BlocksRenderer = <T extends any[]>({
     }
 
     // Only check selection for form fields
-    const isSelected = isForm && field && selectedFieldId === field.field;
+    const signatureFieldsForRecipient =
+      field?.type === "signature" && field.signing_party_id
+        ? form.formMetadata.getSignatureFieldsForClientService(field.signing_party_id)
+        : [];
+    const isSelected =
+      isForm &&
+      field &&
+      (selectedFieldId === field.field ||
+        signatureFieldsForRecipient.some(
+          (signatureField) => signatureField.field === selectedFieldId
+        ));
+    const handleFieldChange = (value: any) => {
+      if (!field) return;
+      if (!signatureFieldsForRecipient.length) {
+        onChange(field.field, value);
+        return;
+      }
+
+      for (const signatureField of signatureFieldsForRecipient) {
+        onChange(signatureField.field, value);
+      }
+    };
+    const handleAuxValueChange = (key: string, value: any) => {
+      if (!signatureFieldsForRecipient.length) {
+        onChange(key, value);
+        return;
+      }
+
+      const signatureImageKeys = new Set(
+        signatureFieldsForRecipient.map((signatureField) =>
+          getSignatureImageFieldKey(signatureField.field)
+        )
+      );
+      if (!signatureImageKeys.has(key)) {
+        onChange(key, value);
+        return;
+      }
+
+      for (const signatureImageKey of signatureImageKeys) {
+        onChange(signatureImageKey, value);
+      }
+    };
 
     return (
       <div key={blockKey}>
@@ -177,7 +228,12 @@ export const BlocksRenderer = <T extends any[]>({
           <div className="space-between flex flex-row">
             <div
               ref={(el) => {
-                if (el && field) fieldRefs[field.field] = el;
+                if (!el || !field) return;
+
+                fieldRefs[field.field] = el;
+                for (const signatureField of signatureFieldsForRecipient) {
+                  fieldRefs[signatureField.field] = el;
+                }
               }}
               onClick={() => setSelected(block.field_schema?.field as string)}
               className={`flex-1 cursor-pointer px-1 py-2 transition-all ${isSelected ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2" : ""}`}
@@ -186,8 +242,8 @@ export const BlocksRenderer = <T extends any[]>({
               <FieldRenderer
                 field={field}
                 value={values[field.field]}
-                onChange={(v) => onChange(field.field, v)}
-                onAuxValueChange={onChange}
+                onChange={handleFieldChange}
+                onAuxValueChange={handleAuxValueChange}
                 onBlur={(nextValue) => onBlurValidate?.(field.field, field, nextValue)}
                 error={errors[field.field]}
                 allValues={values}

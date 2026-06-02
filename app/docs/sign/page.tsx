@@ -40,6 +40,18 @@ const areFormValuesEqual = (left: Record<string, string>, right: Record<string, 
   return leftEntries.every(([key, value]) => right[key] === value);
 };
 
+const getCanonicalSignatureFields = (
+  signatureFields: { field: string; signing_party_id?: string }[]
+) => {
+  const seenRecipientIds = new Set<string>();
+  return signatureFields.filter((signatureField) => {
+    const recipientKey = signatureField.signing_party_id || "initiator";
+    if (seenRecipientIds.has(recipientKey)) return false;
+    seenRecipientIds.add(recipientKey);
+    return true;
+  });
+};
+
 const Page = () => {
   return (
     <Suspense>
@@ -152,7 +164,7 @@ function PageContent() {
 
     formFiller.initializeValues(valuesWithSavedSignatureImages);
     signContext.setRequiredSignatures(
-      signatureFields.map((signatureField) => signatureField.field)
+      getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
     );
 
     for (const signatureField of signatureFields) {

@@ -11,7 +11,8 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { toastPresets } from "@/components/sonner-toaster";
+import { toastPresets, showCompactToast } from "@/components/sonner-toaster";
+import { Undo2, Redo2 } from "lucide-react";
 import {
   formsControllerRegisterForm,
   getFormsControllerGetLatestFormDocumentAndMetadataQueryKey,
@@ -259,8 +260,15 @@ export function FormEditorMetadataProvider({
     dispatch({ type: "MUTATE", recipe: (prev) => ({ ...prev, subscribers }) });
   }, []);
 
-  const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
-  const redo = useCallback(() => dispatch({ type: "REDO" }), []);
+  const undo = useCallback(() => {
+    dispatch({ type: "UNDO" });
+    showCompactToast("Undo", <Undo2 className="h-4 w-4" />);
+  }, []);
+
+  const redo = useCallback(() => {
+    dispatch({ type: "REDO" });
+    showCompactToast("Redo", <Redo2 className="h-4 w-4" />);
+  }, []);
 
   const markSaved = useCallback(() => {
     dispatch({ type: "MARK_SAVED" });

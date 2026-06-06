@@ -21,8 +21,7 @@ import {
   resolveSignaturePrintedNameDimensions,
 } from "@/lib/composite-block-factory";
 import { Input } from "@/components/ui/input";
-import { Search as SearchIcon, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Search as SearchIcon } from "lucide-react";
 
 type PaletteSource = "default" | "custom";
 
@@ -56,11 +55,6 @@ const matchesSearch = (field: Pick<PaletteField, "name" | "label">, query: strin
   if (!query) return true;
   return field.name.toLowerCase().includes(query) || field.label.toLowerCase().includes(query);
 };
-
-const toDisplayTag = (tag: string) =>
-  tag.trim().toLowerCase() === "ungrouped" || tag.trim().length === 0
-    ? "Custom Fields"
-    : tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
 
 const BASE_TYPE_ICON_MAP: Partial<Record<ValidatorIRv0["baseType"], PresetFieldIconKey>> = {
   text: "shortText",
@@ -216,21 +210,6 @@ export function BlocksPanel() {
     () => customFields.filter((field) => matchesSearch(field, searchQueryNormalized)),
     [customFields, searchQueryNormalized]
   );
-
-  const groupedCustomFields = useMemo(() => {
-    const tags = Array.from(
-      new Set(filteredCustomFields.map((field) => field.tag).filter((tag) => tag.trim().length > 0))
-    );
-
-    return tags
-      .sort((a, b) => a.localeCompare(b))
-      .map((tag) => ({
-        tag,
-        fields: filteredCustomFields
-          .filter((field) => field.tag === tag)
-          .sort((a, b) => a.label.localeCompare(b.label)),
-      }));
-  }, [filteredCustomFields]);
 
   const handleDragStart = (e: DragEvent, field: PaletteField) => {
     const payload: DragFieldPayload = {
@@ -432,7 +411,7 @@ export function BlocksPanel() {
   };
 
   const hasDefaultResults = filteredDefaultFields.length > 0;
-  const hasCustomResults = groupedCustomFields.length > 0;
+  const hasCustomResults = filteredCustomFields.length > 0;
   const hasAnyResults = hasDefaultResults || hasCustomResults;
 
   return (
@@ -456,8 +435,43 @@ export function BlocksPanel() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {filteredDefaultFields.map((field) => {
-              const Icon = getPresetFieldIcon(field.iconKey, field.name);
+            <div className="grid grid-cols-4 gap-2">
+              {filteredDefaultFields.map((field) => {
+                const Icon = getPresetFieldIcon(field.iconKey, field.name);
+                return (
+                  <button
+                    key={field.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, field)}
+                    onClick={(e) => {
+                      if (!allowClickToAdd) {
+                        e.preventDefault();
+                        return;
+                      }
+                      handleFieldAdd(field);
+                    }}
+                    className="hover:bg-primary/5 flex cursor-move flex-col items-center gap-1 rounded-[0.33em] p-1.5 transition-colors"
+                    type="button"
+                    title={field.label}
+                  >
+                    <Icon className="h-5 w-5 text-slate-500" />
+                    <span className="line-clamp-2 text-center text-[10px] leading-tight text-slate-600">
+                      {field.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="py-2">
+              <div className="border-t border-slate-200" />
+            </div>
+
+            {filteredCustomFields.map((field) => {
+              const iconKey = field.validator_ir
+                ? BASE_TYPE_ICON_MAP[field.validator_ir.baseType]
+                : undefined;
+              const Icon = getPresetFieldIcon(iconKey);
               return (
                 <button
                   key={field.id}
@@ -474,57 +488,11 @@ export function BlocksPanel() {
                   type="button"
                   title="Drag to add"
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                  <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" />
                   <span className="text-sm text-slate-800">{field.label}</span>
                 </button>
               );
             })}
-
-            <div className="py-2">
-              <div className="border-t border-slate-200" />
-            </div>
-
-            {groupedCustomFields.map(({ tag, fields }) => (
-              <Collapsible key={tag} defaultOpen={false} className="space-y-1.5">
-                <CollapsibleTrigger className="group hover:bg-primary/5 flex w-full items-center justify-between rounded-[0.33em] px-2 py-1.5 text-sm font-semibold">
-                  <span className="flex items-center gap-2">
-                    <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-data-[state=open]:rotate-180" />
-                    {toDisplayTag(tag)}
-                  </span>
-                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                    ({fields.length})
-                  </span>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-1.5">
-                  {fields.map((field) => {
-                    const iconKey = field.validator_ir
-                      ? BASE_TYPE_ICON_MAP[field.validator_ir.baseType]
-                      : undefined;
-                    const Icon = getPresetFieldIcon(iconKey);
-                    return (
-                      <button
-                        key={field.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, field)}
-                        onClick={(e) => {
-                          if (!allowClickToAdd) {
-                            e.preventDefault();
-                            return;
-                          }
-                          handleFieldAdd(field);
-                        }}
-                        className="hover:bg-primary/5 hover:text-primary flex w-full cursor-move items-center gap-2 rounded-[0.33em] border border-transparent px-2 py-1.5 text-left transition-colors"
-                        type="button"
-                        title="Drag to add"
-                      >
-                        <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" />
-                        <span className="text-sm text-slate-800">{field.label}</span>
-                      </button>
-                    );
-                  })}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
           </div>
         )}
       </div>

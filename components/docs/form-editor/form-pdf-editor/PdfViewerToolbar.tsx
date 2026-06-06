@@ -1,89 +1,24 @@
-import { ZoomIn, ZoomOut, FileUp, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ZoomIn, ZoomOut, FileUp } from "lucide-react";
 
 export function PdfViewerToolbar({
   visiblePage,
   pageCount,
   scale,
-  canUseTools,
-  showMissingFieldSuggestions,
-  isMissingFieldScanRunning,
-  isBaselineAlignmentRunning,
-  showBaselineGuides,
+  children,
   onZoom,
-  onToggleMissingFields,
-  onAlignBaselines,
-  onToggleBaselineGuides,
   onFileChange,
 }: {
   visiblePage: number;
   pageCount: number;
   scale: number;
-  canUseTools: boolean;
-  showMissingFieldSuggestions: boolean;
-  isMissingFieldScanRunning: boolean;
-  isBaselineAlignmentRunning: boolean;
-  showBaselineGuides: boolean;
+  children?: React.ReactNode;
   onZoom: (direction: "in" | "out") => void;
-  onToggleMissingFields: () => void;
-  onAlignBaselines: () => void;
-  onToggleBaselineGuides: (checked: boolean) => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <div className="relative flex h-12 flex-shrink-0 items-center border-b border-slate-300 bg-white px-3">
       <div className="flex w-full items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                title="Open PDF tools"
-                aria-label="Open PDF tools"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuLabel>PDF Tools</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onToggleMissingFields}
-                disabled={!canUseTools || isMissingFieldScanRunning}
-              >
-                {isMissingFieldScanRunning
-                  ? "Scanning..."
-                  : showMissingFieldSuggestions
-                    ? "Clear Missing Fields"
-                    : "Find Missing Fields"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onAlignBaselines}
-                disabled={!canUseTools || isMissingFieldScanRunning || isBaselineAlignmentRunning}
-              >
-                {isBaselineAlignmentRunning ? "Aligning..." : "Align Fields to Baselines"}
-              </DropdownMenuItem>
-              <DropdownMenuCheckboxItem
-                checked={showBaselineGuides}
-                onCheckedChange={(checked) => onToggleBaselineGuides(Boolean(checked))}
-              >
-                Show baselines
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <div className="flex items-center gap-1">{children}</div>
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">

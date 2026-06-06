@@ -4,19 +4,18 @@ import { useState } from "react";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { Button } from "@/components/ui/button";
-import { Save, Settings, ArrowLeft, Undo2, Redo2 } from "lucide-react";
+import { Save, Settings, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatWhen } from "@/lib/format";
 import { SaveConfirmDialog } from "@/components/editor/SaveConfirmDialog";
 
 /**
  * Header toolbar for editor page:
- * - undo / redo
  * - quick mode switches (settings/preview)
  * - save action (opens confirmation dialog)
  */
 export function EditorToolbar() {
-  const { formMetadata, formDocument, formVersion, isSaving, canUndo, canRedo, undo, redo } =
+  const { formMetadata, formDocument, formVersion, isSaving } =
     useFormEditorMetadata();
   const { activeTab, setActiveTab } = useEditorSelection();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -50,27 +49,6 @@ export function EditorToolbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={undo}
-          disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={redo}
-          disabled={!canRedo}
-          title="Redo (Ctrl+Shift+Z)"
-        >
-          <Redo2 className="h-4 w-4" />
-        </Button>
-
         {activeTab === "settings" ? (
           <Button
             variant="outline"

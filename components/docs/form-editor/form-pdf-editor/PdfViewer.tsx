@@ -11,6 +11,17 @@ import { ensurePreviewFontsLoaded } from "@/lib/form-previewer-rendering";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Undo2, Redo2, SlidersHorizontal } from "lucide-react";
 import { PdfPageCanvas } from "./PdfPageCanvas";
 import {
   buildCompositeDropBlocks,
@@ -53,7 +64,7 @@ export function PdfViewer({ showRecipientTabBar = true, registerScrollContainer 
     setPendingMissingFieldDraft,
   } = useEditorSelection();
 
-  const { formMetadata, updateBlocks } = useFormEditorMetadata();
+  const { formMetadata, updateBlocks, canUndo, canRedo, undo, redo } = useFormEditorMetadata();
   const { registry: fieldRegistryDetails } = useFieldTemplateContext();
 
   const {
@@ -70,6 +81,8 @@ export function PdfViewer({ showRecipientTabBar = true, registerScrollContainer 
     handleFileUpload,
     registry,
   } = useFormEditorPdfViewer();
+
+  const canUseTools = !!pdfDoc;
 
   // Setup PDF worker
   useEffect(() => {
@@ -310,17 +323,70 @@ export function PdfViewer({ showRecipientTabBar = true, registerScrollContainer 
         visiblePage={visiblePage}
         pageCount={pageCount}
         scale={scale}
-        canUseTools={!!pdfDoc}
-        showMissingFieldSuggestions={showMissingFieldSuggestions}
-        isMissingFieldScanRunning={isMissingFieldScanRunning}
-        isBaselineAlignmentRunning={isBaselineAlignmentRunning}
-        showBaselineGuides={showBaselineGuides}
         onZoom={handleZoom}
-        onToggleMissingFields={handleToggleMissingFields}
-        onAlignBaselines={() => void alignNearbyFieldsToBaselines()}
-        onToggleBaselineGuides={(checked) => setShowBaselineGuides(checked)}
         onFileChange={handleFileChange}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              title="Open PDF tools"
+              aria-label="Open PDF tools"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuLabel>PDF Tools</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleToggleMissingFields}
+              disabled={!canUseTools || isMissingFieldScanRunning}
+            >
+              {isMissingFieldScanRunning
+                ? "Scanning..."
+                : showMissingFieldSuggestions
+                  ? "Clear Missing Fields"
+                  : "Find Missing Fields"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => void alignNearbyFieldsToBaselines()}
+              disabled={!canUseTools || isMissingFieldScanRunning || isBaselineAlignmentRunning}
+            >
+              {isBaselineAlignmentRunning ? "Aligning..." : "Align Fields to Baselines"}
+            </DropdownMenuItem>
+            <DropdownMenuCheckboxItem
+              checked={showBaselineGuides}
+              onCheckedChange={(checked) => setShowBaselineGuides(Boolean(checked))}
+            >
+              Show baselines
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          onClick={undo}
+          disabled={!canUndo}
+          className="rounded p-1.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={redo}
+          disabled={!canRedo}
+          className="rounded p-1.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+          title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo"
+        >
+          <Redo2 className="h-3.5 w-3.5" />
+        </button>
+      </PdfViewerToolbar>
 
       {/* PDF Canvas */}
       <div className="relative flex-1 overflow-hidden bg-white">

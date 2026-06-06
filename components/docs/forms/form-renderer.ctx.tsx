@@ -53,7 +53,7 @@ interface IDocument {
 }
 
 // Context defs
-const FormRendererContext = createContext<IFormRendererContext<[any]>>(
+export const FormRendererContext = createContext<IFormRendererContext<[any]>>(
   {} as IFormRendererContext<[any]>
 );
 export const useFormRendererContext = () => useContext(FormRendererContext);
@@ -203,6 +203,72 @@ export const FormRendererContextProvider = ({ children }: { children: React.Reac
   return (
     <FormRendererContext.Provider value={formContext}>{children}</FormRendererContext.Provider>
   );
+};
+
+/**
+ * Prop-driven context provider for the editor's form preview. Provides the
+ * same FormRendererContext shape as FormRendererContextProvider but derives
+ * blocks/fields from props instead of API fetches, so the editor preview and
+ * the sign route both run through the same context interface.
+ */
+export const StaticFormRendererContextProvider = ({
+  children,
+  formName,
+  formLabel,
+  formMetadata: rawMetadata,
+  signingPartyId,
+  selectedPreviewId,
+  onSelectedPreviewId,
+}: {
+  children: React.ReactNode;
+  formName: string;
+  formLabel: string;
+  formMetadata: IFormMetadata;
+  signingPartyId: string;
+  selectedPreviewId: string | null;
+  onSelectedPreviewId: (id: string | null) => void;
+}) => {
+  const metadataClient = useMemo(() => {
+    try {
+      return new FormMetadata(rawMetadata);
+    } catch {
+      return null;
+    }
+  }, [rawMetadata]);
+
+  const blocks = useMemo(
+    () =>
+      metadataClient
+        ? (metadataClient.getBlocksForClientService(signingPartyId) as ClientBlock<[any]>[])
+        : [],
+    [metadataClient, signingPartyId]
+  );
+
+  const fields = useMemo(
+    () => (metadataClient ? metadataClient.getFieldsForClientService(signingPartyId) : []),
+    [metadataClient, signingPartyId]
+  );
+
+  const value: IFormRendererContext<[any]> = {
+    formName,
+    formLabel,
+    formVersion: 0,
+    formMetadata: metadataClient as unknown as FormMetadata<[any]>,
+    fields,
+    blocks,
+    params: {},
+    keyedFields: [],
+    previews: {},
+    loading: false,
+    selectedPreviewId,
+    setSelectedPreviewId: onSelectedPreviewId,
+    document: { name: "", url: "" },
+    updateFormName: () => {},
+    updateSigningPartyId: () => {},
+    refreshPreviews: () => {},
+  };
+
+  return <FormRendererContext.Provider value={value}>{children}</FormRendererContext.Provider>;
 };
 
 /**

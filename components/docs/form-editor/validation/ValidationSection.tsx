@@ -17,6 +17,7 @@ export interface ValidationSectionProps {
   fieldOptions?: ValidationFieldOption[];
   currentFieldId?: string;
   allowedRuleIds?: ValidationRuleId[];
+  hideTitle?: boolean;
   onChange: (next: { validator: string; validator_ir: ValidatorIRv0 | null }) => void;
 }
 
@@ -54,6 +55,7 @@ export function ValidationSection({
   fieldOptions = [],
   currentFieldId,
   allowedRuleIds,
+  hideTitle = false,
   onChange,
 }: ValidationSectionProps) {
   const {
@@ -75,26 +77,28 @@ export function ValidationSection({
   const hasStateBanner = importState.status !== "exact";
 
   return (
-    <div className="relative mt-6 space-y-1.5">
-      <div className="flex items-center justify-between">
-        <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          Validation
-        </h4>
-        {!hasStateBanner ? (
-          <button
-            type="button"
-            onClick={() => setMode((prev) => (prev === "raw" ? "simple" : "raw"))}
-            className={`rounded px-1 text-[10px] leading-none ${
-              mode === "raw"
-                ? "bg-slate-100 text-slate-700"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            }`}
-            title={mode === "raw" ? "Back to no-code" : "Edit raw validator"}
-          >
-            {"<>"}
-          </button>
-        ) : null}
-      </div>
+    <div className={`relative space-y-1.5${hideTitle ? "" : " mt-6"}`}>
+      {!hideTitle && (
+        <div className="flex items-center justify-between">
+          <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            Validation
+          </h4>
+          {!hasStateBanner ? (
+            <button
+              type="button"
+              onClick={() => setMode((prev) => (prev === "raw" ? "simple" : "raw"))}
+              className={`rounded px-1 text-[10px] leading-none ${
+                mode === "raw"
+                  ? "bg-slate-100 text-slate-700"
+                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              }`}
+              title={mode === "raw" ? "Back to no-code" : "Edit raw validator"}
+            >
+              {"<>"}
+            </button>
+          ) : null}
+        </div>
+      )}
       {hasStateBanner ? (
         <div className="flex items-center justify-between gap-2">
           <ValidatorStateBanner

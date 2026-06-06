@@ -10,9 +10,11 @@ import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { FormMetadata } from "@betterinternship/core/forms";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 import { MobileStepTabs } from "@/app/docs/sign/components/MobileStepTabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -75,16 +77,7 @@ const FormDefaultValueCaptureContent = ({
     }
 
     // Then, add values from prefiller (prefiller takes precedence)
-    fields.forEach((field) => {
-      if (field.prefiller && field.source !== "prefill") {
-        try {
-          const value = field.prefiller({ signatory: {} });
-          initialValues[field.field] = typeof value === "string" ? value.trim() : String(value);
-        } catch (error) {
-          // Silently skip if prefiller fails
-        }
-      }
-    });
+    Object.assign(initialValues, extractPrefillValues(fields, { trim: true }));
 
     // Finally, add autofill values (autofill takes highest precedence)
     if (autofillValues) {
@@ -97,10 +90,7 @@ const FormDefaultValueCaptureContent = ({
     }
   }, [selectedPartyId, metadata]);
 
-  // Filter blocks for the selected party
-  const filteredBlocks = blocks.filter(
-    (block) => block.signing_party_id === selectedPartyId || !block.signing_party_id
-  );
+  const filteredBlocks = filterBlocksByParty(blocks, selectedPartyId);
 
   const hasRenderablePreviewField = filteredBlocks.some(
     (block) => !!block.field_schema?.field || !!block.phantom_field_schema?.field
@@ -153,17 +143,17 @@ const FormDefaultValueCaptureContent = ({
         {/* Left side - Form */}
         {(!isMobile || mobileFieldsTab === "template") && (
           <div className="relative h-full min-h-0 flex-1 overflow-y-auto bg-white">
-            {filteredBlocks.length > 0 ? (
-              <FormPreviewRenderer
+            {filteredBlocks.length > 0 && metadata ? (
+              <StaticFormRendererContextProvider
                 formName={formName}
-                formLabel={metadata?.label || ""}
-                blocks={filteredBlocks}
-                values={formFiller.getFinalValues()}
-                onChange={(key, value) => formFiller.setValue(key, value)}
-                metadata={metadata}
-                selectedFieldId={selectedFieldId}
-                onFieldClick={setSelectedFieldId}
-              />
+                formLabel={metadata.label || ""}
+                formMetadata={metadata}
+                signingPartyId={selectedPartyId}
+                selectedPreviewId={selectedFieldId}
+                onSelectedPreviewId={setSelectedFieldId}
+              >
+                <FormPreviewRenderer onFieldClick={setSelectedFieldId} />
+              </StaticFormRendererContextProvider>
             ) : (
               <div className="rounded bg-slate-50 p-8 text-center">
                 <p className="text-sm text-slate-500">No form fields to fill out.</p>

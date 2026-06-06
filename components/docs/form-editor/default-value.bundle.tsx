@@ -164,6 +164,7 @@ export function DefaultValueRawEditor({
 
 interface DefaultValueSectionProps {
   title?: string;
+  hideTitle?: boolean;
   source: string;
   value: string;
   fieldOptions: DefaultValueFieldOption[];
@@ -173,6 +174,7 @@ interface DefaultValueSectionProps {
 
 export function DefaultValueSection({
   title = "Default value",
+  hideTitle = false,
   source,
   value,
   fieldOptions,
@@ -196,31 +198,33 @@ export function DefaultValueSection({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          {title}
-        </h4>
-        <div className="flex items-center gap-2">
-          {parsed.kind === "custom" && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
-              Custom
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setMode((prev) => (prev === "raw" ? "simple" : "raw"))}
-            className="rounded-[0.33em] px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-          >
-            {mode === "raw" ? "Back" : "<>"}
-          </button>
-          {isLocked && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-              <Lock className="h-3 w-3" />
-              Locked
-            </span>
-          )}
+      {!hideTitle && (
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            {title}
+          </h4>
+          <div className="flex items-center gap-2">
+            {parsed.kind === "custom" && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                Custom
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setMode((prev) => (prev === "raw" ? "simple" : "raw"))}
+              className="rounded-[0.33em] px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            >
+              {mode === "raw" ? "Back" : "<>"}
+            </button>
+            {isLocked && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                <Lock className="h-3 w-3" />
+                Locked
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {mode === "simple" ? (
         <DefaultValueSimplePicker

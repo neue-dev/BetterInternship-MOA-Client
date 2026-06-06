@@ -1,23 +1,21 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { FormEditorTabProvider, useFormEditorTab } from "@/app/contexts/form-editor-tab.context";
-import { PdfViewerProvider } from "@/app/contexts/pdf-viewer.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
 import { PdfViewer } from "@/components/docs/form-editor/form-pdf-editor/PdfViewer";
+import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { BlocksPanel } from "./editor-components/BlocksPanel";
-import { RevampedBlockEditor } from "./editor-components/RevampedBlockEditor";
-import { FormViewCanvas } from "./editor-components/FormViewCanvas";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 
 /**
- * Main builder surface (left palette + center PDF + right block editor).
- * Wrapped with tab/pdf providers so child panels share selection and placement state.
+ * Main builder surface (left palette + right PDF). Shares its column geometry
+ * with the preview via EditorSplitLayout so the two crossfade in place.
  */
 function FormEditorTabContent() {
-  const { formMetadata } = useFormEditor();
-  const { editorViewMode } = useFormEditorTab();
-  const isMobile = useIsMobile();
+  const { formMetadata } = useFormEditorMetadata();
+  const { selectedPartyId, setSelectedPartyId } = useEditorSelection();
+  const { registerEditorScroller } = useEditorViewSync();
 
   if (!formMetadata) {
     return (
@@ -27,58 +25,24 @@ function FormEditorTabContent() {
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className="bg-background flex h-full w-full">
-        <div className="bg-card flex flex-shrink-0 basis-72 flex-col overflow-hidden border-r lg:basis-[320px] xl:basis-[360px]">
-          {editorViewMode === "pdf" ? <BlocksPanel /> : <FormViewCanvas />}
-        </div>
-        <div className="min-w-0 flex-1 overflow-hidden border-r">
-          <PdfViewer />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <ResizablePanelGroup
-      direction="horizontal"
-      autoSaveId="form-editor:pdf-layout"
-      className="bg-background h-full w-full"
-    >
-      <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="bg-card overflow-hidden">
-        {editorViewMode === "pdf" ? <BlocksPanel /> : <FormViewCanvas />}
-      </ResizablePanel>
-
-      <ResizableHandle  />
-
-      <ResizablePanel defaultSize={56} minSize={30} className="min-w-0 overflow-hidden">
-        <PdfViewer />
-      </ResizablePanel>
-
-      <ResizableHandle  />
-
-      <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="bg-card overflow-hidden">
-        <RevampedBlockEditor />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="bg-background flex h-full w-full flex-col overflow-hidden">
+      <RecipientTabBar
+        parties={formMetadata.signing_parties || []}
+        selectedPartyId={selectedPartyId}
+        onSelectParty={setSelectedPartyId}
+      />
+      <EditorSplitLayout
+        side="editor"
+        left={<BlocksPanel />}
+        right={
+          <PdfViewer showRecipientTabBar={false} registerScrollContainer={registerEditorScroller} />
+        }
+      />
+    </div>
   );
 }
 
 export function FormEditorTab() {
-  const { documentFile, setDocumentFile, lastLoadedFileName, setLastLoadedFileName } =
-    useFormEditor();
-
-  return (
-    <PdfViewerProvider
-      documentFile={documentFile}
-      setDocumentFile={setDocumentFile}
-      lastLoadedFileName={lastLoadedFileName}
-      setLastLoadedFileName={setLastLoadedFileName}
-    >
-      <FormEditorTabProvider>
-        <FormEditorTabContent />
-      </FormEditorTabProvider>
-    </PdfViewerProvider>
-  );
+  return <FormEditorTabContent />;
 }

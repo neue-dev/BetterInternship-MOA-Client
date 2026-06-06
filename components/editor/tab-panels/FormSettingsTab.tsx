@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +18,7 @@ type SettingsSection = "metadata" | "recipients" | "subscribers" | "settings" | 
 
 export function FormSettingsTab() {
   const [section, setSection] = useState<SettingsSection>("settings");
-  const { setActiveTab } = useFormEditor();
+  const { setActiveTab } = useEditorSelection();
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
@@ -114,7 +115,7 @@ export function FormSettingsTab() {
 }
 
 function FormSettingsContent() {
-  const { formMetadata, updateFormMetadata } = useFormEditor();
+  const { formMetadata, updateFormMetadata } = useFormEditorMetadata();
 
   if (!formMetadata) {
     return (

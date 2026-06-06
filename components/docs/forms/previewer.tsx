@@ -34,6 +34,7 @@ import {
   resolvePreviewFont,
 } from "@/lib/form-previewer-rendering";
 import { getSignatureImageFieldKey, parseSignatureImageValue } from "@betterinternship/core/forms";
+import { cn } from "@/lib/utils";
 
 type DefaultFieldVisibility = "all" | "mine";
 type FieldStatus = "empty" | "filled" | "signed";
@@ -82,6 +83,13 @@ interface FormPreviewPdfDisplayProps {
   fieldErrors?: Record<string, string>;
   prefillMode?: PreviewPrefillMode;
   prefillUser?: Record<string, unknown> | null;
+  squareFrame?: boolean;
+  // Optional: lets a parent observe the scroll container (used by the form
+  // editor to sync scroll position with the editor PDF when crossfading).
+  registerScrollContainer?: (el: HTMLElement | null) => void;
+  // Optional: reports the current zoom whenever it changes (used by the form
+  // editor to sync zoom with the editor PDF when crossfading).
+  onScaleChange?: (scale: number) => void;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -112,6 +120,9 @@ export const FormPreviewPdfDisplay = ({
   fieldErrors = {},
   prefillMode = "live",
   prefillUser = null,
+  squareFrame = false,
+  registerScrollContainer,
+  onScaleChange,
 }: FormPreviewPdfDisplayProps) => {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -158,6 +169,11 @@ export const FormPreviewPdfDisplay = ({
   useEffect(() => {
     setScale(initialScale);
   }, [initialScale]);
+
+  // Report current zoom so a parent can sync it (e.g. editor <-> preview crossfade).
+  useEffect(() => {
+    onScaleChange?.(scale);
+  }, [scale, onScaleChange]);
 
   useEffect(() => {
     didAutoFocusOwnedTaskRef.current = false;
@@ -285,7 +301,12 @@ export const FormPreviewPdfDisplay = ({
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-[0.33em] border border-slate-300">
+    <div
+      className={cn(
+        "flex h-full w-full flex-col overflow-hidden border border-slate-300",
+        squareFrame ? "rounded-none" : "rounded-[0.33em]"
+      )}
+    >
       {showToolbar && (
         <PreviewToolbar
           headerLeft={headerLeft}
@@ -298,6 +319,7 @@ export const FormPreviewPdfDisplay = ({
 
       {/* Pages container */}
       <div
+        ref={registerScrollContainer}
         className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain bg-slate-100 p-2 sm:p-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
@@ -345,8 +367,8 @@ const PreviewToolbar = ({
   onZoom,
 }: PreviewToolbarProps) => {
   return (
-    <div className="relative flex-shrink-0 border-b border-slate-300 bg-white px-3 py-2">
-      <div className="flex items-center gap-3">
+    <div className="relative flex h-12 flex-shrink-0 items-center border-b border-slate-300 bg-white px-3">
+      <div className="flex w-full items-center gap-3">
         {headerLeft ? <div className="min-w-0">{headerLeft}</div> : null}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="text-xs font-medium text-slate-700">
@@ -582,8 +604,7 @@ const PdfPageOverlay = ({
               isMine: false,
               isKnownOwner: false,
             } satisfies OwnerMeta);
-          const canRevealValue =
-            !showOwnership || ownerMeta?.isMine || fieldVisibility === "all";
+          const canRevealValue = !showOwnership || ownerMeta?.isMine || fieldVisibility === "all";
           const rawValue = canRevealValue ? getPreviewRawValue(values, fieldName) : "";
           const signatureImage =
             field.type === "signature"

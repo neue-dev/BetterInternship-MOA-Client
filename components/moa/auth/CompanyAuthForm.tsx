@@ -70,7 +70,7 @@ export function CompanyAuthForm() {
         className="w-auto justify-self-end sm:w-full md:w-auto"
         aria-busy={loading}
       >
-        {loading ? "Verifying…" : "Log in"}
+        {loading ? "Verifying..." : "Log in"}
       </Button>
     </form>
   );

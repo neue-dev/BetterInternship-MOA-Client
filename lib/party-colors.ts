@@ -20,3 +20,22 @@ export const PARTY_COLORS = [
 export const getPartyColorByIndex = (index: number) => {
   return PARTY_COLORS[index % PARTY_COLORS.length];
 };
+
+/**
+ * Get color for a signing party using its 1-based order field.
+ * order 1 → index 0, order 2 → index 1, etc.
+ */
+export function getPartyColorByOrder(order: number) {
+  return getPartyColorByIndex(Math.max(0, order - 1));
+}
+
+/**
+ * Returns the human-readable display title for a signing party.
+ * The "initiator" party always displays as "Student".
+ */
+export function getPartyDisplayTitle(
+  party: { _id?: string; signatory_title?: string } | null | undefined
+): string {
+  if (!party) return "";
+  return party._id === "initiator" ? "Student" : party.signatory_title || "Party";
+}

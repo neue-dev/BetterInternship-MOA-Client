@@ -307,7 +307,7 @@ function Sidebar({
               <strong>{highlight.comment.text}</strong>
               {/* {highlight.content.text ? (
                 <blockquote style={{ marginTop: "0.5rem" }}>
-                  {`${highlight.content.text.slice(0, 90).trim()}…`}
+                  {`${highlight.content.text.slice(0, 90).trim()}...`}
                 </blockquote>
               ) : null}
               {highlight.content.image ? (

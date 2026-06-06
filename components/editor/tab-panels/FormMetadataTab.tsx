@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, Edit2, Check, X } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ const sanitizeMetadata = (metadata: IFormMetadata): IFormMetadata => ({
 });
 
 export function FormMetadataTab() {
-  const { formMetadata, setFormMetadata } = useFormEditor();
+  const { formMetadata, setFormMetadata } = useFormEditorMetadata();
   const [isEditing, setIsEditing] = useState(false);
   const [editedMetadata, setEditedMetadata] = useState<string>("");
 

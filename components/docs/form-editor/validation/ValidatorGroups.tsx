@@ -15,6 +15,7 @@ import {
 } from "@/components/docs/form-editor/validation/ValidatorControls";
 import {
   getArrayOptions,
+  getBusinessDaysMessage,
   getDateRelativeValidator,
   getEnumOptions,
   getEnumMessage,
@@ -158,8 +159,6 @@ export function ValidatorGroups({
     const comparator = kind === "dateOnOrAfterField" ? "on or after" : "on or before";
     return `Date must be ${comparator} ${offset.offsetValue} ${unit} ${offset.offsetDirection} ${referenceLabel}.`;
   };
-  const getBusinessDaysValidationMessage = (businessDays: number) =>
-    `Date must be at least ${businessDays} business day${businessDays === 1 ? "" : "s"} after today.`;
   const updateRelativeField = (
     kind: RelativeFieldKind,
     patch?: Partial<{
@@ -350,58 +349,7 @@ export function ValidatorGroups({
     return <div className="space-y-2">{renderRequiredRow()}</div>;
   }
 
-  if (baseType === "text") {
-    return (
-      <div>
-        {renderRequiredRow()}
-
-        {isAllowed("minLength") && (
-          <ValidatorRow
-            label="Minimum characters"
-            enabled={vm.minLength.enabled}
-            onToggle={(enabled) => toggle("minLength", enabled)}
-            disabled={readOnly}
-            messageControl={renderMessageButton("minLength", vm.minLength.value)}
-          >
-            <ValidatorNumberInput
-              value={vm.minLength.value as number | undefined}
-              onChange={(next) => setValue("minLength", next)}
-              placeholder="Minimum"
-              disabled={readOnly}
-            />
-          </ValidatorRow>
-        )}
-
-        {isAllowed("maxLength") && (
-          <ValidatorRow
-            label="Maximum characters"
-            enabled={vm.maxLength.enabled}
-            onToggle={(enabled) => toggle("maxLength", enabled)}
-            disabled={readOnly}
-            messageControl={renderMessageButton("maxLength", vm.maxLength.value)}
-          >
-            <ValidatorNumberInput
-              value={vm.maxLength.value as number | undefined}
-              onChange={(next) => setValue("maxLength", next)}
-              placeholder="Maximum"
-              disabled={readOnly}
-            />
-          </ValidatorRow>
-        )}
-
-        {isAllowed("plainText") && (
-          <ValidatorRow
-            label="Plain text only"
-            enabled={vm.plainText.enabled}
-            onToggle={(enabled) => toggle("plainText", enabled)}
-            disabled={readOnly}
-          />
-        )}
-      </div>
-    );
-  }
-
-  if (baseType === "textarea") {
+  if (baseType === "text" || baseType === "textarea") {
     return (
       <div className="space-y-2">
         {renderRequiredRow()}
@@ -548,7 +496,7 @@ export function ValidatorGroups({
                       message:
                         relativeDate.kind === "dateOnOrAfterBusinessDays"
                           ? relativeDate.message
-                          : getBusinessDaysValidationMessage(1),
+                          : getBusinessDaysMessage(1),
                     }
                   : { kind: "none" }
               )
@@ -556,7 +504,7 @@ export function ValidatorGroups({
           }
           disabled={readOnly}
           messageControl={renderRelativeMessageButton(
-            getBusinessDaysValidationMessage(
+            getBusinessDaysMessage(
               relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.businessDays : 1
             )
           )}
@@ -570,7 +518,7 @@ export function ValidatorGroups({
               const businessDays = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
               const previousBusinessDays =
                 relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.businessDays : 1;
-              const previousDefault = getBusinessDaysValidationMessage(previousBusinessDays);
+              const previousDefault = getBusinessDaysMessage(previousBusinessDays);
               const currentMessage =
                 relativeDate.kind === "dateOnOrAfterBusinessDays" ? relativeDate.message : undefined;
               onConfigChange(
@@ -579,7 +527,7 @@ export function ValidatorGroups({
                   businessDays,
                   message:
                     !currentMessage || currentMessage === previousDefault
-                      ? getBusinessDaysValidationMessage(businessDays)
+                      ? getBusinessDaysMessage(businessDays)
                       : currentMessage,
                 })
               );

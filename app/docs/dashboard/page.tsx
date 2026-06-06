@@ -98,7 +98,7 @@ export default function DocsDashboardPage() {
       {/* Table */}
       <div className="min-h-0 flex-1">
         {loading ? (
-          <div className="text-sm text-gray-600">Loading signed documents…</div>
+          <div className="text-sm text-gray-600">Loading signed documents...</div>
         ) : error ? (
           <div className="text-sm text-red-600">Failed to load signed documents.</div>
         ) : (

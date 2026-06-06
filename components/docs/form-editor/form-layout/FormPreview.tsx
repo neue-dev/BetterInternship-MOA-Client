@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FormMetadata,
   type IFormBlock,
@@ -12,12 +12,16 @@ import { FormPreviewRenderer } from "./FormPreviewRenderer";
 import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
-import { getPartyColorByIndex } from "@/lib/party-colors";
-import { cn } from "@/lib/utils";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
+import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
+import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
-import { Switch } from "@/components/ui/switch";
+import { extractPrefillValues } from "./form-layout-utils";
+import { useFormPreviewEditing } from "./useFormPreviewEditing";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
+import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -82,7 +86,196 @@ const FormSortView = ({
 };
 
 /**
- * Preview Content - Main form and PDF preview
+ * Center form panel. Owns the transient block-editing drag state (via
+ * useFormPreviewEditing) so that dragging blocks around re-renders only this
+ * panel — not the sibling PDF previewer, which is expensive to re-render.
+ *
+ * Field rendering and state are handled inside FormPreviewRenderer via the
+ * StaticFormRendererContext + FormFillerContext installed by FormPreviewContent.
+ */
+const FormPreviewFormPanel = ({
+  autoScrollToSelectedField,
+  onFieldClick,
+  generationResult,
+  isGenerating,
+  onGenerate,
+}: {
+  autoScrollToSelectedField: boolean;
+  onFieldClick: (fieldId: string) => void;
+  generationResult: string | null;
+  isGenerating: boolean;
+  onGenerate: () => void;
+}) => {
+  const editing = useFormPreviewEditing();
+
+  return (
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-white">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <FormPreviewRenderer
+          autoScrollToSelectedField={autoScrollToSelectedField}
+          squareFrame
+          editing={editing}
+          hideTitle
+          onFieldClick={onFieldClick}
+        />
+      </div>
+
+      <div className="bg-background flex flex-shrink-0 items-center justify-end gap-2 border-t p-3">
+        {generationResult && (
+          <a
+            href={generationResult}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-green-600 hover:underline"
+          >
+            Download
+          </a>
+        )}
+        <Button onClick={onGenerate} disabled={isGenerating} size="sm" variant="default">
+          {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+          {isGenerating ? "Generating..." : "Generate Test PDF"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+interface FormPreviewContentBodyProps {
+  formMetadata: IFormMetadata;
+  blocks: IFormBlock[];
+  signingParties: IFormSigningParty[];
+  documentUrl?: string | null;
+  selectedPartyId: string;
+  selectedFieldId: string | null;
+  setSelectedFieldId: (id: string | null) => void;
+  selectedFieldSource: "form" | "pdf" | null;
+  setSelectedFieldSource: (s: "form" | "pdf" | null) => void;
+}
+
+/**
+ * Inner consumer: reads values, errors, and field data from the
+ * StaticFormRendererContext + FormFillerContext installed by FormPreviewContent.
+ */
+const FormPreviewContentBody = ({
+  formMetadata,
+  blocks,
+  signingParties,
+  documentUrl,
+  selectedPartyId,
+  selectedFieldId,
+  setSelectedFieldId,
+  selectedFieldSource,
+  setSelectedFieldSource,
+}: FormPreviewContentBodyProps) => {
+  const formFiller = useFormFiller();
+  const { registerPreviewScroller, previewScale, reportPreviewScale } = useEditorViewSync();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationResult, setGenerationResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedFieldId(null);
+    setSelectedFieldSource(null);
+  }, [selectedPartyId]);
+
+  // Hydrate preview values from configured field prefillers/defaults.
+  // Keep existing values so manual edits in preview are not overwritten on party switch.
+  useEffect(() => {
+    try {
+      const metadataClient = new FormMetadata(formMetadata);
+      const partyFields = metadataClient.getFieldsForClientService(selectedPartyId);
+      const prefilled = extractPrefillValues(partyFields, {
+        existing: formFiller.getFinalValues(),
+        skipExisting: true,
+      });
+      if (Object.keys(prefilled).length > 0) formFiller.initializeValues(prefilled);
+    } catch (error) {
+      console.error("Failed to hydrate preview default values:", error);
+    }
+  }, [formMetadata, selectedPartyId]);
+
+  const previewValues = withDerivedFormValues(
+    new FormMetadata(formMetadata),
+    formFiller.getFinalValues()
+  );
+
+  const handleGenerateTestForm = useCallback(async () => {
+    setIsGenerating(true);
+    try {
+      const result = await formsControllerGenerateTestForm({
+        formName: formMetadata.name,
+        values: formFiller.getFinalValues(),
+      });
+      const url = result?.data?.documentUrl || result?.documentUrl;
+      if (url) setGenerationResult(url);
+    } catch (error) {
+      console.error("Failed to generate test form", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [formFiller, formMetadata.name]);
+
+  const handleFormFieldClick = useCallback(
+    (fieldId: string) => {
+      setSelectedFieldSource("form");
+      setSelectedFieldId(fieldId);
+    },
+    [setSelectedFieldId, setSelectedFieldSource]
+  );
+
+  return (
+    <EditorSplitLayout
+      side="preview"
+      left={
+        <FormPreviewFormPanel
+          autoScrollToSelectedField={selectedFieldSource === "pdf"}
+          onFieldClick={handleFormFieldClick}
+          generationResult={generationResult}
+          isGenerating={isGenerating}
+          onGenerate={handleGenerateTestForm}
+        />
+      }
+      right={
+        <div className="bg-secondary/30 flex h-full flex-col overflow-hidden">
+          {documentUrl ? (
+            <FormPreviewPdfDisplay
+              documentUrl={documentUrl}
+              blocks={blocks}
+              values={previewValues}
+              scale={previewScale}
+              onScaleChange={reportPreviewScale}
+              registerScrollContainer={registerPreviewScroller}
+              onFieldClick={(fieldId) => {
+                setSelectedFieldSource("pdf");
+                setSelectedFieldId(fieldId);
+              }}
+              selectedFieldId={selectedFieldId || undefined}
+              autoScrollToSelectedField={selectedFieldSource === "form"}
+              signingParties={signingParties}
+              currentSigningPartyId={selectedPartyId}
+              showOwnership
+              fieldVisibility="all"
+              defaultFieldVisibility="all"
+              prefillMode="dummy"
+              prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
+              squareFrame
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <p className="text-muted-foreground text-sm">Upload a PDF to preview</p>
+              </div>
+            </div>
+          )}
+        </div>
+      }
+    />
+  );
+};
+
+/**
+ * Preview Content - provides the StaticFormRendererContext + FormFillerContext
+ * so both FormPreviewRenderer and FormPreviewContentBody share the same context
+ * interface as the live sign route.
  */
 const FormPreviewContent = ({
   formMetadata,
@@ -95,205 +288,39 @@ const FormPreviewContent = ({
   signingParties: IFormSigningParty[];
   documentUrl?: string | null;
 }) => {
-  const [selectedPartyId, setSelectedPartyId] = useState(signingParties[0]._id);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationResult, setGenerationResult] = useState<string | null>(null);
+  const { selectedPartyId: ctxPartyId } = useEditorSelection();
+  const selectedPartyId = ctxPartyId || signingParties[0]._id;
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf" | null>(null);
-  const [showAllPdfFields, setShowAllPdfFields] = useState(false);
-
-  const filteredBlocks = useMemo(
-    () => blocks.filter((b) => b.signing_party_id === selectedPartyId || !b.signing_party_id),
-    [blocks, selectedPartyId]
-  );
-  const previewValues = useMemo(
-    () => withDerivedFormValues(new FormMetadata(formMetadata), values),
-    [formMetadata, values]
-  );
-
-  // Hydrate preview values from configured field prefillers/defaults.
-  // Keep existing values so manual edits in preview are not overwritten.
-  useEffect(() => {
-    setSelectedFieldId(null);
-    setSelectedFieldSource(null);
-  }, [selectedPartyId]);
-
-  useEffect(() => {
-    try {
-      const metadataClient = new FormMetadata(formMetadata);
-      const partyFields = metadataClient.getFieldsForClientService(selectedPartyId);
-
-      setValues((prev) => {
-        const next = { ...prev };
-
-        for (const field of partyFields) {
-          if (next[field.field] !== undefined && next[field.field] !== "") continue;
-          if (typeof field.prefiller !== "function") continue;
-
-          try {
-            const prefilled = field.prefiller({ signatory: {} });
-            if (prefilled !== undefined && prefilled !== null) {
-              next[field.field] = typeof prefilled === "string" ? prefilled : String(prefilled);
-            }
-          } catch {
-            // Ignore invalid prefiller execution in preview hydration.
-          }
-        }
-
-        return next;
-      });
-    } catch (error) {
-      console.error("Failed to hydrate preview default values:", error);
-    }
-  }, [formMetadata, selectedPartyId]);
-
-  const handleGenerateTestForm = async () => {
-    setIsGenerating(true);
-    try {
-      const result = await formsControllerGenerateTestForm({
-        formName: formMetadata.name,
-        values,
-      });
-      const url = result?.data?.documentUrl || result?.documentUrl;
-      if (url) setGenerationResult(url);
-    } catch (error) {
-      console.error("Failed to generate test form", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Main Content Area with Party Tabs Sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Party Tabs */}
-        <div className="bg-card flex w-64 flex-col overflow-hidden border-r">
-          <div className="border-b p-3">
-            <p className="text-xs font-medium text-slate-600">Recipients</p>
-          </div>
-          <div className="flex-1 space-y-1.5 overflow-y-auto p-2.5">
-            {signingParties.map((party) => {
-              const partyColor = getPartyColorByIndex(Math.max(0, party.order - 1));
-              const isSelected = selectedPartyId === party._id;
-
-              return (
-                <button
-                  key={party._id}
-                  onClick={() => setSelectedPartyId(party._id)}
-                  className={cn(
-                    "flex w-full items-center rounded-[0.33em] border px-2.5 py-2 text-left text-sm transition-all",
-                    isSelected
-                      ? "border-primary/35 bg-primary/5 shadow-sm"
-                      : "border-transparent hover:border-slate-200 hover:bg-slate-50"
-                  )}
-                  title={party.signatory_title}
-                >
-                  <span
-                    className="max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                    style={{ backgroundColor: partyColor.hex }}
-                  >
-                    {party.signatory_title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Content - Form and PDF Preview */}
-        <div className="flex flex-1 gap-4 overflow-hidden p-4">
-          {/* Form */}
-          <div className="flex-1 overflow-auto rounded-lg border bg-white">
-            {filteredBlocks.length > 0 ? (
-              <FormPreviewRenderer
-                formName={formMetadata.name}
-                formLabel={formMetadata.label}
-                blocks={filteredBlocks}
-                values={values}
-                onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))}
-                metadata={formMetadata}
-                selectedFieldId={selectedFieldId}
-                autoScrollToSelectedField={selectedFieldSource === "pdf"}
-                onFieldClick={(fieldId) => {
-                  setSelectedFieldSource("form");
-                  setSelectedFieldId(fieldId);
-                }}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-muted-foreground text-sm">No fields for this party</p>
-              </div>
-            )}
-          </div>
-
-          {/* PDF Preview */}
-          <div className="bg-secondary/30 flex-1 overflow-hidden rounded-lg border">
-            {documentUrl ? (
-              <FormPreviewPdfDisplay
-                documentUrl={documentUrl}
-                blocks={blocks}
-                values={previewValues}
-                headerLeft={
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-                    <span>Show all fields</span>
-                    <Switch checked={showAllPdfFields} onCheckedChange={setShowAllPdfFields} />
-                  </label>
-                }
-                onFieldClick={(fieldId) => {
-                  setSelectedFieldSource("pdf");
-                  setSelectedFieldId(fieldId);
-                }}
-                selectedFieldId={selectedFieldId || undefined}
-                autoScrollToSelectedField={selectedFieldSource === "form"}
-                signingParties={signingParties}
-                currentSigningPartyId={selectedPartyId}
-                showOwnership
-                fieldVisibility={showAllPdfFields ? "all" : "mine"}
-                defaultFieldVisibility="mine"
-                prefillMode="dummy"
-                prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <p className="text-muted-foreground text-sm">Upload a PDF to preview</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="bg-background flex items-center justify-end gap-2 border-t p-3">
-        {generationResult && (
-          <a
-            href={generationResult}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-green-600 hover:underline"
-          >
-            Download
-          </a>
-        )}
-        <Button
-          onClick={handleGenerateTestForm}
-          disabled={isGenerating}
-          size="sm"
-          variant="default"
-        >
-          {isGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-          {isGenerating ? "Generating..." : "Generate Test PDF"}
-        </Button>
-      </div>
-    </div>
+    <StaticFormRendererContextProvider
+      formName={formMetadata.name}
+      formLabel={formMetadata.label}
+      formMetadata={formMetadata}
+      signingPartyId={selectedPartyId}
+      selectedPreviewId={selectedFieldId}
+      onSelectedPreviewId={setSelectedFieldId}
+    >
+      <FormFillerContextProvider>
+        <FormPreviewContentBody
+          formMetadata={formMetadata}
+          blocks={blocks}
+          signingParties={signingParties}
+          documentUrl={documentUrl}
+          selectedPartyId={selectedPartyId}
+          selectedFieldId={selectedFieldId}
+          setSelectedFieldId={setSelectedFieldId}
+          selectedFieldSource={selectedFieldSource}
+          setSelectedFieldSource={setSelectedFieldSource}
+        />
+      </FormFillerContextProvider>
+    </StaticFormRendererContextProvider>
   );
 };
 
 export const FormPreview = ({ metadata, mode = "preview" }: FormPreviewProps) => {
-  const { formMetadata, documentUrl, documentFile } = useFormEditor();
+  const { formMetadata, documentUrl, documentFile } = useFormEditorMetadata();
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
 
   // Convert file to data URL

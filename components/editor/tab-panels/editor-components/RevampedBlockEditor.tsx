@@ -8,9 +8,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
-import { FormInput, FormTextarea, FormDropdown } from "@/components/docs/forms/EditForm";
+import { FormTextarea, FormInput } from "@/components/docs/forms/EditForm";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
 import {
   BiAlignLeft,
   BiAlignMiddle,
@@ -21,6 +20,7 @@ import {
 } from "react-icons/bi";
 import { DefaultValueSection } from "@/components/docs/form-editor/default-value.bundle";
 import type { DefaultValueFieldOption } from "@/components/docs/form-editor/default-value.bundle";
+import { parsePrefillerToCompactState, buildManualPrefiller } from "@/lib/default-value-builder";
 import { ValidationSection } from "@/components/docs/form-editor/validation.bundle";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -75,11 +75,11 @@ export function RevampedBlockEditor() {
   const activeBlock = block || (isPendingDraftSelected ? pendingMissingFieldDraft : null);
 
   const [editedBlock, setEditedBlock] = useState<IFormBlock | null>(activeBlock);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [presetIdOverride, setPresetIdOverride] = useState<string | null>(null);
 
   type IntegerFieldKey = "size";
   const [integerDrafts, setIntegerDrafts] = useState<Partial<Record<IntegerFieldKey, string>>>({});
+  const [placeholderDraft, setPlaceholderDraft] = useState<string | null>(null);
   const INTEGER_FIELD_CONFIG: Record<IntegerFieldKey, { allowNegative: boolean; min?: number }> = {
     size: { allowNegative: false, min: 0 },
   };
@@ -90,7 +90,7 @@ export function RevampedBlockEditor() {
 
   useEffect(() => {
     setIntegerDrafts({});
-    setShowAdvancedSettings(false);
+    setPlaceholderDraft(null);
     setPresetIdOverride(null);
   }, [selectedBlockId]);
 
@@ -251,13 +251,19 @@ export function RevampedBlockEditor() {
   const isChildAuto = childSource === "auto";
   const showChildValidation = !isChildDerived && !isChildPrefill && !isChildAuto;
   const showChildPlaceholder = !isChildDerived && !isChildAuto;
+  const placeholderDisplay = placeholderDraft !== null
+    ? placeholderDraft
+    : (() => {
+        const parsed = parsePrefillerToCompactState((schema?.prefiller || "") as string);
+        return parsed.kind === "manual" ? parsed.manualValue : "";
+      })();
   const childFieldKey = String(schema?.field || "");
   const isDefaultChildField = isDefaultPresetFieldKey(childFieldKey, presetTemplates);
   const matchedChildPreset = findPresetByFieldKey(childFieldKey, presetTemplates);
   const presetMatchingSchema = findPresetMatchingSchema(schema, presetTemplates);
 
   return (
-    <div className="divide-y divide-slate-200">
+    <div>
       {/* Pending draft confirm/cancel */}
       {isPendingDraftSelected && (
         <div className="space-y-2.5 p-3">
@@ -299,9 +305,7 @@ export function RevampedBlockEditor() {
         </div>
       )}
 
-      {/* Label & Type */}
       <div className="space-y-2.5 p-3">
-        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Label & Type</h4>
         <div className="flex h-8 items-center justify-between gap-3">
           <span className="shrink-0 text-xs text-slate-600">Field label</span>
           <input
@@ -332,11 +336,6 @@ export function RevampedBlockEditor() {
             </select>
           </div>
         )}
-      </div>
-
-      {/* Layout & Text (font size, wrap, H alignment, V alignment) */}
-      <div className="space-y-2 p-3">
-        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Layout & Text</h4>
         <div className="flex h-8 items-center justify-between gap-3">
           <span className="shrink-0 text-xs text-slate-600">Font size</span>
           <input
@@ -436,79 +435,70 @@ export function RevampedBlockEditor() {
         </div>
       </div>
 
-      <>
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center justify-between bg-red-900/5 p-3 transition-colors hover:bg-red-50/70"
-          onClick={() => setShowAdvancedSettings((prev) => !prev)}
-        >
-          <h4 className="text-xs font-semibold text-red-700/80 uppercase">Advanced settings</h4>
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 text-slate-400 transition-transform",
-              showAdvancedSettings && "rotate-180"
-            )}
+      <div className="border-t border-slate-200" />
+
+      <div className="space-y-2.5 p-3">
+        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Value &amp; Validation</h4>
+        <div className="flex h-8 items-center justify-between gap-3">
+          <span className="shrink-0 text-xs text-slate-600">Derived value</span>
+          <Switch
+            checked={isChildDerived}
+            onCheckedChange={(checked) =>
+              handleFieldChange("source", checked ? "derived" : "manual")
+            }
           />
-        </button>
-        {showAdvancedSettings && (
-          <div className="space-y-2.5 bg-red-900/5 p-3">
-            <div className="flex h-8 items-center justify-between gap-3">
-              <span className="shrink-0 text-xs text-slate-600">Derived value</span>
-              <Switch
-                checked={isChildDerived}
-                onCheckedChange={(checked) =>
-                  handleFieldChange("source", checked ? "derived" : "manual")
+        </div>
+        {isChildDerived && (
+          <DefaultValueSection
+            title="Default Values"
+            source={childSource}
+            value={(schema?.prefiller || "") as string}
+            fieldOptions={childFieldOptions}
+            onChange={(value) => handleFieldChange("prefiller", value)}
+          />
+        )}
+        {showChildValidation && (
+          <ValidationSection
+            validator={(schema?.validator || "") as string}
+            schemaType={schema?.type}
+            validatorIr={(schema?.validator_ir || null) as any}
+            fieldOptions={childFieldOptions}
+            currentFieldId={childFieldKey}
+            onChange={(next) => {
+              handleFieldPatch({
+                validator: next.validator,
+                validator_ir: next.validator_ir,
+              });
+            }}
+          />
+        )}
+        {showChildPlaceholder && (
+          <div className="space-y-1.5">
+            <span className="text-xs text-gray-600">Placeholder</span>
+            <input
+              type="text"
+              className="h-8 w-full rounded-[0.33em] border border-slate-300 px-2 text-xs"
+              value={placeholderDisplay}
+              onChange={(e) => setPlaceholderDraft(e.target.value)}
+              onBlur={() => handleFieldChange("prefiller", buildManualPrefiller(placeholderDisplay))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleFieldChange("prefiller", buildManualPrefiller(placeholderDisplay));
                 }
-              />
-            </div>
-            {isChildDerived && (
-              <DefaultValueSection
-                title="Default Values"
-                hideTitle
-                source={childSource}
-                value={(schema?.prefiller || "") as string}
-                fieldOptions={childFieldOptions}
-                onChange={(value) => handleFieldChange("prefiller", value)}
-              />
-            )}
-            {showChildValidation && (
-              <ValidationSection
-                validator={(schema?.validator || "") as string}
-                schemaType={schema?.type}
-                validatorIr={(schema?.validator_ir || null) as any}
-                fieldOptions={childFieldOptions}
-                currentFieldId={childFieldKey}
-                hideTitle
-                onChange={(next) => {
-                  handleFieldPatch({
-                    validator: next.validator,
-                    validator_ir: next.validator_ir,
-                  });
-                }}
-              />
-            )}
-            {showChildPlaceholder && (
-              <DefaultValueSection
-                title="Placeholder"
-                hideTitle
-                source={childSource}
-                value={(schema?.prefiller || "") as string}
-                fieldOptions={childFieldOptions}
-                simpleMode="manual-only"
-                onChange={(value) => handleFieldChange("prefiller", value)}
-              />
-            )}
-            <FormTextarea
-              label="Tooltip Label"
-              value={schema?.tooltip_label || ""}
-              setter={(value) => handleFieldChange("tooltip_label", value)}
-              placeholder="Optional helper text shown beside the field"
-              required={false}
-              className="min-h-20"
+              }}
+              placeholder="Type value"
             />
           </div>
         )}
-      </>
+        <FormTextarea
+          label="Tooltip Label"
+          value={schema?.tooltip_label || ""}
+          setter={(value) => handleFieldChange("tooltip_label", value)}
+          placeholder="Optional helper text shown beside the field"
+          required={false}
+          className="min-h-20"
+        />
+      </div>
     </div>
   );
 }

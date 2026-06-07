@@ -214,7 +214,7 @@ export default function DocsLoginPage() {
       }
       // success → go to dashboard
       await queryClient.invalidateQueries({ queryKey: ["my-profile"] });
-      router.push("/docs/dashboard");
+      router.push("/dashboard");
     } catch (error) {
       setOtpErr(error instanceof Error ? error.message : "Verification failed");
     } finally {

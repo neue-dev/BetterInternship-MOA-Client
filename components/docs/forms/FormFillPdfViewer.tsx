@@ -539,7 +539,8 @@ const PdfPageOverlay = ({
                 overflow: "visible",
                 display: "flex",
                 backgroundColor: ownedFillColor,
-                border: isSelected ? `2px solid ${borderColor}` : `1px solid ${borderColor}`,
+                border: "none",
+                boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
                 zIndex: showNonOwnedTooltip ? 30 : isSelected ? 20 : 10,
                 alignItems:
                   align_v === "middle"

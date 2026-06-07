@@ -28,8 +28,15 @@ export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, sc
     setPageReady(false);
     if (!pdf) return;
 
-    pdf
-      .getPage(pageNumber)
+    let getPagePromise;
+    try {
+      getPagePromise = pdf.getPage(pageNumber);
+    } catch {
+      // pdf was destroyed during a re-render — not an error we care about
+      return;
+    }
+
+    getPagePromise
       .then((page: PDFPageProxy) => {
         if (cancelled) return;
         const viewport = page.getViewport({ scale });
@@ -61,6 +68,7 @@ export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, sc
         });
       })
       .catch((err: any) => {
+        if (cancelled) return;
         const errorObj = err as { name?: string };
         if (errorObj?.name === "RenderingCancelledException") return;
         console.error("Failed to render page", err);

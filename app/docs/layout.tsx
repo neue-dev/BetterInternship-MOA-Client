@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSignatoryProfile } from "./auth/provider/signatory.ctx";
-import { Loader } from "@/components/ui/loader";
 import { ChevronDown } from "lucide-react";
 
 const PUBLIC_ROUTE_PREFIXES = ["/login", "/sign-in", "/auth/magic-link"];
@@ -53,7 +52,7 @@ function DocsAuthGate({ children }: { children: React.ReactNode }) {
     if (redirectPath) router.replace(redirectPath);
   }, [redirectPath, router]);
 
-  if (shouldShowLoadingShell) return <Loader>Loading...</Loader>;
+  if (shouldShowLoadingShell) return null;
 
   return shouldBlockRender ? null : <>{children}</>;
 }

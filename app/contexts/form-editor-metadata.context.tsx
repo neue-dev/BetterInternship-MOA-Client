@@ -34,6 +34,8 @@ import {
   IFormSubscriber,
   SCHEMA_VERSION,
 } from "@betterinternship/core/forms";
+import { usePdfDocumentFromFile } from "@/hooks/use-pdf-document";
+import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 
 /**
  * Owns the form editor metadata: the metadata source of truth, the fetched
@@ -197,6 +199,12 @@ interface FormEditorMetadataContextType {
   documentFileReplaced: boolean;
   replaceDocumentFile: (file: File | null) => void;
 
+  // PDF document (loaded from documentFile via pdfjs)
+  pdfDoc: PDFDocumentProxy | null;
+  pageCount: number;
+  isPdfLoading: boolean;
+  pdfError: string | null;
+
   // Persistence
   isSaving: boolean;
   saveForm: () => Promise<void>;
@@ -228,6 +236,11 @@ export function FormEditorMetadataProvider({
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentFileReplaced, setDocumentFileReplaced] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // PDF document loaded from documentFile — exposed so editor page + PDF viewer
+  // share the same pdfjs instance during initial load.
+  const { pdfDoc, pageCount, isLoading: isPdfLoading, error: pdfError } =
+    usePdfDocumentFromFile(documentFile);
 
   const loadFormMetadata = useCallback((metadata: IFormMetadata) => {
     dispatch({ type: "LOAD", payload: metadata });
@@ -347,6 +360,10 @@ export function FormEditorMetadataProvider({
       setDocumentFile,
       documentFileReplaced,
       replaceDocumentFile,
+      pdfDoc,
+      pageCount,
+      isPdfLoading,
+      pdfError,
       isSaving,
       saveForm,
       markSaved,
@@ -372,6 +389,10 @@ export function FormEditorMetadataProvider({
       documentFile,
       documentFileReplaced,
       replaceDocumentFile,
+      pdfDoc,
+      pageCount,
+      isPdfLoading,
+      pdfError,
       isSaving,
       saveForm,
       markSaved,

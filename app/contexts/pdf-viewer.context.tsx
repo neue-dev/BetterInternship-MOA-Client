@@ -11,10 +11,10 @@ import {
 } from "react";
 import type { FieldRegistryEntry } from "@/app/api";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
-import { usePdfDocumentFromFile } from "@/hooks/use-pdf-document";
+import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 
 export interface FormEditorPdfViewerContextType {
-  pdfDoc: import("pdfjs-dist/types/src/display/api").PDFDocumentProxy | null;
+  pdfDoc: PDFDocumentProxy | null;
   pageCount: number;
   selectedPage: number;
   setSelectedPage: (page: number) => void;
@@ -36,8 +36,7 @@ const FormEditorPdfViewerContext = createContext<FormEditorPdfViewerContextType 
 );
 
 export function FormEditorPdfViewerProvider({ children }: { children: ReactNode }) {
-  const { documentFile, setDocumentFile } = useFormEditorMetadata();
-  const { pdfDoc, pageCount, isLoading: isLoadingDoc, error } = usePdfDocumentFromFile(documentFile);
+  const { setDocumentFile, pdfDoc, pageCount, isPdfLoading, pdfError } = useFormEditorMetadata();
 
   const [selectedPage, setSelectedPage] = useState<number>(1);
   const [visiblePage, setVisiblePage] = useState<number>(1);
@@ -64,8 +63,8 @@ export function FormEditorPdfViewerProvider({ children }: { children: ReactNode 
       setVisiblePage,
       scale,
       setScale,
-      isLoadingDoc,
-      error,
+      isLoadingDoc: isPdfLoading,
+      error: pdfError,
       isDragging,
       setIsDragging,
       registry,
@@ -75,11 +74,11 @@ export function FormEditorPdfViewerProvider({ children }: { children: ReactNode 
     [
       pdfDoc,
       pageCount,
+      isPdfLoading,
+      pdfError,
       selectedPage,
       visiblePage,
       scale,
-      isLoadingDoc,
-      error,
       isDragging,
       registry,
       handleFileUpload,

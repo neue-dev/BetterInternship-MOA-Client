@@ -41,13 +41,35 @@ function FormEditorContent() {
     setFormVersion,
     setDocumentUrl,
     setDocumentFile,
+    documentFile,
+    pdfDoc,
+    pageCount,
+    isPdfLoading,
+    pdfError,
     undo,
     redo,
   } = useFormEditorMetadata();
-  const [isLoading, setIsLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [, forceRender] = useState(0);
+  const rerender = useCallback(() => forceRender((n) => n + 1), []);
   const hasBootstrappedRef = useRef(false);
   const activeFormNameRef = useRef<string | null>(null);
   const readySignaledRef = useRef(false);
+
+  // Combined ready check: bootstrap must be done AND (no PDF needed OR PDF loaded)
+  const isReady = initialLoadDone || (
+    hasBootstrappedRef.current &&
+    (!documentFile || pdfDoc !== null || pdfError !== null)
+  );
+
+  // Mark initial load complete once both bootstrap and PDF (if any) are ready
+  useEffect(() => {
+    if (hasBootstrappedRef.current && !initialLoadDone) {
+      if (!documentFile || pdfDoc !== null || pdfError !== null) {
+        setInitialLoadDone(true);
+      }
+    }
+  }, [hasBootstrappedRef.current, documentFile, pdfDoc, pdfError, initialLoadDone]);
 
   // The editor requires a form to edit. Without `form_name` there is nothing to
   // load, so send the user to the create-form wizard before any editor UI mounts.
@@ -67,7 +89,8 @@ function FormEditorContent() {
     if (formChanged) {
       activeFormNameRef.current = formName;
       hasBootstrappedRef.current = false;
-      setIsLoading(true);
+      setInitialLoadDone(false);
+      rerender();
     }
 
     // For existing forms, wait for the first payload before leaving loading state.
@@ -86,7 +109,7 @@ function FormEditorContent() {
           // Freshly created via the wizard: reuse the PDF the user already uploaded
           // instead of re-downloading it. Metadata still comes from the API above.
           setDocumentFile(draft.pdfFile);
-          setIsLoading(false);
+          rerender();
           hasBootstrappedRef.current = true;
         } else if (isInitialBootstrap && fetchedData.documentUrl) {
           fetch(fetchedData.documentUrl)
@@ -104,31 +127,31 @@ function FormEditorContent() {
               console.error("Failed to fetch PDF:", err);
             })
             .finally(() => {
-              setIsLoading(false);
+              rerender();
               hasBootstrappedRef.current = true;
             });
         } else if (isInitialBootstrap) {
           // Metadata-only form (no base document yet).
-          setIsLoading(false);
+          rerender();
           hasBootstrappedRef.current = true;
         }
       }
     } catch (error) {
       console.error("Error loading form:", error);
       toast.error("Failed to load form", toastPresets.destructive);
-      setIsLoading(false);
+      rerender();
       hasBootstrappedRef.current = true;
     }
   }, [formName, fetchedData]);
 
-  // Once the editor has finished its initial bootstrap, signal the create-form overlay
-  // (if any) to fade out, revealing the loaded editor behind it. Fires once.
+  // Once the editor has finished loading (bootstrap + PDF if applicable), signal
+  // the create-form overlay (if any) to fade out. Fires once.
   useEffect(() => {
-    if (!isLoading && hasBootstrappedRef.current && !readySignaledRef.current) {
+    if (isReady && !readySignaledRef.current) {
       readySignaledRef.current = true;
       draft.markEditorReady();
     }
-  }, [isLoading, draft]);
+  }, [isReady, draft]);
 
   // Editor-scoped undo/redo; ignored when focus is inside a text input.
   const handleKeyDown = useCallback(
@@ -158,7 +181,7 @@ function FormEditorContent() {
   }, [handleKeyDown]);
 
   // No form to edit: render only the loader while the redirect to create-form runs.
-  if (!formName || isLoading) {
+  if (!formName || !isReady) {
     return <FormEditorLoadingFallback label="Loading form..." />;
   }
 
@@ -178,7 +201,7 @@ function FormEditorContent() {
 
 export default function FormEditorPage() {
   return (
-    <Suspense fallback={<FormEditorLoadingFallback />}>
+    <Suspense fallback={<FormEditorLoadingFallback label="Loading form..." />}>
       <FormEditorMetadataProvider>
         <FormEditorContent />
       </FormEditorMetadataProvider>

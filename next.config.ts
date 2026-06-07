@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
-const apiUrls = [
-  process.env.NEXT_PUBLIC_DOCS_URL,
-  process.env.NEXT_PUBLIC_API_SERVER_URL,
-].filter(Boolean);
+const apiUrls = [process.env.NEXT_PUBLIC_DOCS_URL, process.env.NEXT_PUBLIC_API_SERVER_URL].filter(
+  Boolean
+);
 
 const connectOrigins = apiUrls
   .map((url) => {
@@ -24,14 +23,25 @@ const connectOrigins = apiUrls
   .filter(Boolean)
   .join(" ");
 
+const imageOrigins = apiUrls
+  .map((url) => {
+    try {
+      return new URL(url).origin;
+    } catch (e) {
+      return "";
+    }
+  })
+  .filter(Boolean)
+  .join(" ");
+
 const cspHeader = `
   default-src 'self';
-  script-src 'self';
-  style-src 'self' 'unsafe-inline';
-  connect-src 'self' http://localhost:* ${connectOrigins};
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com;
   frame-src 'self' http://localhost:* ${connectOrigins};
-  img-src 'self' blob: data:;
-  font-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' blob: data: http://localhost:* ${imageOrigins};
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' http://localhost:* ${connectOrigins};
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -41,11 +51,7 @@ const cspHeader = `
 
 const isDev = process.env.DEVELOPMENT_ENV == "true";
 
-const docsHosts = [
-  "docs.localhost",
-  "docs.betterinternship.com",
-  "dev.docs.betterinternship.com",
-];
+const docsHosts = ["docs.localhost", "docs.betterinternship.com", "dev.docs.betterinternship.com"];
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: isDev,
@@ -96,7 +102,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return {
       beforeFiles: docsHosts.map((host) => ({
-        source: "/:path((?!_next|api|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+        source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt|sitemap\\.xml)(?!.*\\.).*)",
         has: [{ type: "host", value: host }],
         destination: "/docs/:path*",
       })),

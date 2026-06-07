@@ -39,6 +39,7 @@ const imageOrigins = apiUrls
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com;
+  worker-src 'self' blob: https://cdnjs.cloudflare.com;
   frame-src 'self' http://localhost:* ${connectOrigins};
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' blob: data: http://localhost:* ${imageOrigins};

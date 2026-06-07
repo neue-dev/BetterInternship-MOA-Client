@@ -77,14 +77,12 @@ export function usePdfDocumentFromFile(file: File | null | undefined): UsePdfDoc
 
     return () => {
       cancelled = true;
+      loadedRef.current = null;
+      destructorRef.current?.destroy();
+      destructorRef.current = null;
+      setState({ pdfDoc: null, pageCount: 0, isLoading: false, error: null });
     };
   }, [file]);
-
-  useEffect(() => {
-    return () => {
-      destructorRef.current?.destroy();
-    };
-  }, []);
 
   return state;
 }
@@ -134,14 +132,11 @@ export function usePdfDocumentFromUrl(url: string | null | undefined): UsePdfDoc
 
     return () => {
       cancelled = true;
+      destructorRef.current?.destroy();
+      destructorRef.current = null;
+      setState({ pdfDoc: null, pageCount: 0, isLoading: false, error: null });
     };
   }, [url]);
-
-  useEffect(() => {
-    return () => {
-      destructorRef.current?.destroy();
-    };
-  }, []);
 
   return state;
 }

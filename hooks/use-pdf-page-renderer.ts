@@ -25,6 +25,7 @@ export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, sc
   useEffect(() => {
     let renderTask: RenderTask | null = null;
     let cancelled = false;
+    if (!pdf) return;
     setRendering(true);
 
     pdf

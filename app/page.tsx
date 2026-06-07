@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  redirect("/docs/login");
+  redirect(`${process.env.NEXT_PUBLIC_DOCS_URL}/login`);
 }

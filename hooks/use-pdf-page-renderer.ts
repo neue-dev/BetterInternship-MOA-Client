@@ -20,13 +20,13 @@ import type { PageViewport } from "pdfjs-dist/types/src/display/display_utils";
 export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, scale: number) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const viewportRef = useRef<PageViewport | null>(null);
-  const [rendering, setRendering] = useState<boolean>(false);
+  const [pageReady, setPageReady] = useState(false);
 
   useEffect(() => {
     let renderTask: RenderTask | null = null;
     let cancelled = false;
+    setPageReady(false);
     if (!pdf) return;
-    setRendering(true);
 
     pdf
       .getPage(pageNumber)
@@ -56,15 +56,14 @@ export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, sc
         };
 
         renderTask = page.render(renderContext);
-        return renderTask.promise;
+        return renderTask.promise.then(() => {
+          if (!cancelled) setPageReady(true);
+        });
       })
       .catch((err: any) => {
         const errorObj = err as { name?: string };
         if (errorObj?.name === "RenderingCancelledException") return;
         console.error("Failed to render page", err);
-      })
-      .finally(() => {
-        if (!cancelled) setRendering(false);
       });
 
     return () => {
@@ -73,5 +72,5 @@ export function usePdfPageRenderer(pdf: PDFDocumentProxy, pageNumber: number, sc
     };
   }, [pdf, pageNumber, scale]);
 
-  return { canvasRef, viewportRef, rendering };
+  return { canvasRef, viewportRef, pageReady };
 }

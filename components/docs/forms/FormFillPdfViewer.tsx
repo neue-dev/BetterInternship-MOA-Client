@@ -321,7 +321,7 @@ const PdfPageOverlay = ({
   resolveDisplayValue,
 }: PdfPageOverlayProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { canvasRef, rendering } = usePdfPageRenderer(pdf, pageNumber, scale);
+  const { canvasRef, pageReady } = usePdfPageRenderer(pdf, pageNumber, scale);
   const [forceRender, setForceRender] = useState<number>(0);
   const [activeTouchFieldId, setActiveTouchFieldId] = useState<string | null>(null);
   const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
@@ -367,18 +367,15 @@ const PdfPageOverlay = ({
       className="relative mx-auto rounded bg-white shadow"
       style={{
         width: "fit-content",
+        visibility: pageReady ? "visible" : "hidden",
       }}
     >
-      {rendering && (
-        <div className="bg-opacity-50 absolute inset-0 flex items-center justify-center bg-white">
-          <Loader />
-        </div>
-      )}
 
       {/* Canvas - PDF page */}
       <canvas ref={canvasRef} className="block" />
 
       {/* Field boxes overlay */}
+      {pageReady && (
       <div
         className="absolute inset-0"
         key={forceRender}
@@ -602,6 +599,7 @@ const PdfPageOverlay = ({
           );
         })}
       </div>
+      )}
     </div>
   );
 };

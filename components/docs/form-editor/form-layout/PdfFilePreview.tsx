@@ -14,15 +14,13 @@ function PreviewPage({
   pageNumber: number;
   scale: number;
 }) {
-  const { canvasRef, rendering } = usePdfPageRenderer(pdf, pageNumber, scale);
+  const { canvasRef, pageReady } = usePdfPageRenderer(pdf, pageNumber, scale);
   return (
-    <div className="relative inline-block overflow-hidden rounded-[0.33em] border border-slate-200 bg-white shadow-sm">
+    <div
+      className="relative inline-block overflow-hidden rounded-[0.33em] border border-slate-200 bg-white shadow-sm"
+      style={{ visibility: pageReady ? "visible" : "hidden" }}
+    >
       <canvas ref={canvasRef} className="block" />
-      {rendering && (
-        <div className="text-muted-foreground absolute inset-0 flex items-center justify-center bg-white/70 text-xs">
-          Rendering…
-        </div>
-      )}
     </div>
   );
 }

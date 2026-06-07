@@ -87,7 +87,7 @@ export const PdfPageCanvas = memo(
       onVisible,
       registerPageRef
     );
-    const { canvasRef, viewportRef, rendering } = usePdfPageRenderer(pdf, pageNumber, scale);
+    const { canvasRef, viewportRef, pageReady } = usePdfPageRenderer(pdf, pageNumber, scale);
     const { extractLocation, pdfToDisplay, displayDeltaToPdfDelta } = usePdfCoordinateTransform(
       canvasRef,
       viewportRef,
@@ -210,6 +210,7 @@ export const PdfPageCanvas = memo(
           "relative w-fit max-w-none overflow-visible rounded-[0.33em] border bg-white shadow-sm transition-colors",
           isSelected ? "border-primary/80 ring-primary/50 ring-1" : "border-border"
         )}
+        style={{ visibility: pageReady ? "visible" : "hidden" }}
       >
         <PdfPageHeader pageNumber={pageNumber} hover={localHover} />
         <div className="relative flex justify-center bg-slate-50">
@@ -223,12 +224,6 @@ export const PdfPageCanvas = memo(
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           />
-          {rendering && (
-            <div className="text-muted-foreground absolute inset-0 flex items-center justify-center bg-white/70 text-xs">
-              Rendering...
-            </div>
-          )}
-
           {/* Radio group bounding boxes — rendered BEFORE field boxes so field boxes (same z-10, later in DOM) paint on top and receive interior events */}
           <RadioGroupOverlay
             blocks={blocks.filter(

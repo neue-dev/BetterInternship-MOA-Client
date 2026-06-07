@@ -134,6 +134,7 @@ export const PdfPageCanvas = memo(
     };
 
     const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
+      if (event.buttons > 0) return; // skip during drag/resize to prevent re-render feedback loop
       setLocalHover(extractLocation(event));
     };
 

@@ -18,6 +18,57 @@ const SUBPATH_BY_HOST: Record<string, string> = {
 };
 
 export function middleware(req: NextRequest) {
+  // csp allowed connections
+  const apiUrls = [
+    process.env.NEXT_PUBLIC_DOCS_URL,
+    process.env.NEXT_PUBLIC_MOA_URL,
+    process.env.NEXT_PUBLIC_UNI_URL,
+    process.env.NEXT_PUBLIC_API_SERVER_URL,
+  ].filter(Boolean);
+
+  const connectOrigins = apiUrls
+    .map((url) => {
+      try {
+        const parsed = new URL(url!);
+        const origin = parsed.origin;
+        if (origin.startsWith("https://")) {
+          return `${origin} ${origin.replace("https://", "wss://")}`;
+        }
+        if (origin.startsWith("http://")) {
+          return `${origin} ${origin.replace("http://", "ws://")}`;
+        }
+        return origin;
+      } catch (e) {
+        return "";
+      }
+    })
+    .filter(Boolean)
+    .join(" ");
+
+  // csp
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    style-src 'self' 'unsafe-inline';
+    connect-src 'self' http://localhost:* ${connectOrigins};
+    frame-src 'self' http://localhost:* ${connectOrigins};
+    img-src 'self' blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", cspHeader);
+
+  // routing
   const host = getHost(req);
   const subpath = SUBPATH_BY_HOST[host];
 

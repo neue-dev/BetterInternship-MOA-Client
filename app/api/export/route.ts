@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { flattenData } from "@/lib/dataProcessor";
+import { buildCsv } from "@/lib/csv";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,24 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const headers = Object.keys(filteredData[0]);
-    const csvRows = [
-      headers.join(","),
-      ...filteredData.map((row) =>
-        headers
-          .map((header) => {
-            const value = row[header] ?? "";
-            // Escape quotes and wrap in quotes if contains comma/quotes/newlines
-            const stringValue = String(value);
-            if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-              return `"${stringValue.replace(/"/g, '""')}"`;
-            }
-            return stringValue;
-          })
-          .join(",")
-      ),
-    ];
-
-    const csv = csvRows.join("\n");
+    const csv = buildCsv(headers, filteredData);
 
     return new NextResponse(csv, {
       headers: {

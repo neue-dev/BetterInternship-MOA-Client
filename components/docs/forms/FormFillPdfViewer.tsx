@@ -1,21 +1,32 @@
 /**
- * @ Author: BetterInternship
- * @ Create Time: 2025-11-15 14:10:43
- * @ Modified time: 2025-12-08 12:08:41
- * @ Description:
+ * FormFillPdfViewer
  *
- * PDF display component that shows form fields as boxes overlaid on the PDF
+ * Top-level PDF viewer for signatory fill-out.
+ * Extends BasePdfViewer with:
+ *   - URL-based PDF loading (documentUrl prop)
+ *   - Field value boxes overlaid on each page (PdfPageOverlay)
+ *   - Ownership coloring and tooltips (mine/theirs)
+ *   - Field click handling for selection
+ *   - Auto-scroll to first empty required field on mount
+ *   - Scroll-to-field on selection from sidebar
+ *   - Bump animation on selected field
+ *   - Prefill mode for live/dummy/none value display
+ *
+ * Data flow:
+ *   BasePdfViewer ← (scale, visiblePage, pageRefs, onScaleChange, ...)
+ *   PdfPageOverlay ← renderPage() callback
+ *     └─ usePdfPageRenderer(pdf, pageNumber, scale) → canvas
+ *     └─ Field overlay divs positioned via pdfToDisplay()
+ *     └─ fitWrappedText / fitNoWrapText for font sizing
  */
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { GlobalWorkerOptions, getDocument, version as pdfjsVersion } from "pdfjs-dist";
-import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist/types/src/display/api";
+import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 import { type IFormSigningParty } from "@betterinternship/core/forms";
 import { Loader } from "@/components/ui/loader";
-import { ZoomIn, ZoomOut } from "lucide-react";
 import {
   createPreviewDisplayValueResolver,
   groupFieldsByPage,
@@ -34,7 +45,9 @@ import {
   resolvePreviewFont,
 } from "@/lib/form-previewer-rendering";
 import { getSignatureImageFieldKey, parseSignatureImageValue } from "@betterinternship/core/forms";
-import { cn } from "@/lib/utils";
+import { usePdfDocumentFromUrl } from "@/hooks/use-pdf-document";
+import { usePdfPageRenderer } from "@/hooks/use-pdf-page-renderer";
+import { BasePdfViewer } from "@/components/docs/BasePdfViewer";
 
 type DefaultFieldVisibility = "all" | "mine";
 type FieldStatus = "empty" | "filled" | "signed";
@@ -63,7 +76,7 @@ const getSignatureImageSrc = (
   return signatureImage.image.dataUrl;
 };
 
-interface FormPreviewPdfDisplayProps {
+interface FormFillPdfViewerProps {
   documentUrl: string;
   values: Record<string, string>;
   fields?: PreviewFieldLike[];
@@ -92,7 +105,6 @@ interface FormPreviewPdfDisplayProps {
   onScaleChange?: (scale: number) => void;
 }
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const SIGNATURE_IMAGE_OVERFLOW_SCALE = 1.8;
 
 /**
@@ -100,7 +112,7 @@ const SIGNATURE_IMAGE_OVERFLOW_SCALE = 1.8;
  * Similar to PdfViewer but in read-only preview mode
  * Shows field boxes with current filled values
  */
-export const FormPreviewPdfDisplay = ({
+export const FormFillPdfViewer = ({
   documentUrl,
   values,
   fields,
@@ -123,13 +135,11 @@ export const FormPreviewPdfDisplay = ({
   squareFrame = false,
   registerScrollContainer,
   onScaleChange,
-}: FormPreviewPdfDisplayProps) => {
-  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
-  const [pageCount, setPageCount] = useState<number>(0);
+  }: FormFillPdfViewerProps) => {
+  const { pdfDoc, pageCount, isLoading: isLoadingDoc, error } =
+    usePdfDocumentFromUrl(documentUrl);
   const [scale, setScale] = useState<number>(initialScale);
   const [visiblePage, setVisiblePage] = useState<number>(1);
-  const [isLoadingDoc, setIsLoadingDoc] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [animatingFieldId, setAnimatingFieldId] = useState<string | null>(null);
 
   const pageRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
@@ -220,66 +230,9 @@ export const FormPreviewPdfDisplay = ({
     return () => clearTimeout(timeout);
   }, [selectedFieldId, selectionTick, normalizedFields, autoScrollToSelectedField]);
 
-  // Initialize PDF.js worker
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const workerFile = pdfjsVersion.startsWith("4") ? "pdf.worker.min.mjs" : "pdf.worker.min.js";
-    GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/${workerFile}`;
-  }, []);
-
   useEffect(() => {
     ensurePreviewFontsLoaded();
   }, []);
-
-  // Load PDF document
-  useEffect(() => {
-    if (!documentUrl) return;
-
-    setIsLoadingDoc(true);
-    let cancelled = false;
-    const loadingTask = getDocument({ url: documentUrl });
-
-    loadingTask.promise
-      .then((doc) => {
-        if (!cancelled) {
-          setPdfDoc(doc);
-          setPageCount(doc.numPages);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          const message =
-            err && typeof err === "object" && "message" in err
-              ? String((err as { message?: string }).message || "Failed to load PDF")
-              : "Failed to load PDF";
-          setError(message);
-          setPdfDoc(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingDoc(false);
-      });
-
-    return () => {
-      cancelled = true;
-      void loadingTask.destroy();
-    };
-  }, [documentUrl]);
-
-  const registerPageRef = useCallback((page: number, node: HTMLDivElement | null) => {
-    pageRefs.current.set(page, node);
-  }, []);
-
-  const handleZoom = (direction: "in" | "out") => {
-    const delta = direction === "in" ? 0.1 : -0.1;
-    setScale((prev) => clamp(parseFloat((prev + delta).toFixed(2)), 0.5, 3));
-  };
-
-  const pagesArray = useMemo(
-    () => Array.from({ length: pageCount }, (_, idx) => idx + 1),
-    [pageCount]
-  );
 
   if (error) {
     return (
@@ -301,105 +254,38 @@ export const FormPreviewPdfDisplay = ({
   }
 
   return (
-    <div
-      className={cn(
-        "flex h-full w-full flex-col overflow-hidden border border-slate-300",
-        squareFrame ? "rounded-none" : "rounded-[0.33em]"
-      )}
-    >
-      {showToolbar && (
-        <PreviewToolbar
-          headerLeft={headerLeft}
-          visiblePage={visiblePage}
-          pageCount={pageCount}
+    <BasePdfViewer
+      pdfDoc={pdfDoc}
+      pageCount={pageCount}
+      scale={scale}
+      visiblePage={visiblePage}
+      onVisiblePageChange={setVisiblePage}
+      onScaleChange={(s) => { setScale(s); onScaleChange?.(s); }}
+      showToolbar={showToolbar}
+      squareFrame={squareFrame}
+      registerScrollContainer={registerScrollContainer}
+      pageRefs={pageRefs}
+      renderPage={(pageNumber) => (
+        <PdfPageOverlay
+          key={pageNumber}
+          pdf={pdfDoc}
+          pageNumber={pageNumber}
           scale={scale}
-          onZoom={handleZoom}
+          fields={fieldsByPage.get(pageNumber) || []}
+          values={values}
+          onFieldClick={onFieldClick}
+          animatingFieldId={animatingFieldId}
+          selectedFieldId={selectedFieldId}
+          ownerMetaByFieldId={ownerMetaByFieldId}
+          showOwnership={showOwnership}
+          fieldVisibility={effectiveFieldVisibility}
+          fieldErrors={fieldErrors}
+          resolveDisplayValue={resolveDisplayValue}
         />
       )}
-
-      {/* Pages container */}
-      <div
-        ref={registerScrollContainer}
-        className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain bg-slate-100 p-2 sm:p-4"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        <div className="mx-auto space-y-6">
-          {pagesArray.map((pageNumber) => (
-            <PdfPageOverlay
-              key={pageNumber}
-              pdf={pdfDoc}
-              pageNumber={pageNumber}
-              scale={scale}
-              isVisible={Math.abs(visiblePage - pageNumber) <= 1}
-              onVisible={() => setVisiblePage(pageNumber)}
-              registerPageRef={registerPageRef}
-              fields={fieldsByPage.get(pageNumber) || []}
-              values={values}
-              onFieldClick={onFieldClick}
-              animatingFieldId={animatingFieldId}
-              selectedFieldId={selectedFieldId}
-              ownerMetaByFieldId={ownerMetaByFieldId}
-              showOwnership={showOwnership}
-              fieldVisibility={effectiveFieldVisibility}
-              fieldErrors={fieldErrors}
-              resolveDisplayValue={resolveDisplayValue}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface PreviewToolbarProps {
-  headerLeft?: ReactNode;
-  visiblePage: number;
-  pageCount: number;
-  scale: number;
-  onZoom: (direction: "in" | "out") => void;
-}
-
-const PreviewToolbar = ({
-  headerLeft,
-  visiblePage,
-  pageCount,
-  scale,
-  onZoom,
-}: PreviewToolbarProps) => {
-  return (
-    <div className="relative flex h-12 flex-shrink-0 items-center border-b border-slate-300 bg-white px-3">
-      <div className="flex w-full items-center gap-3">
-        {headerLeft ? <div className="min-w-0">{headerLeft}</div> : null}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-xs font-medium text-slate-700">
-            {visiblePage}/{pageCount}
-          </span>
-          <div className="ml-1 inline-flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onZoom("out")}
-              className="rounded p-1.5 hover:bg-slate-100"
-              title="Zoom out"
-              aria-label="Zoom out"
-            >
-              <ZoomOut className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onZoom("in")}
-              className="rounded p-1.5 hover:bg-slate-100"
-              title="Zoom in"
-              aria-label="Zoom in"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <span className="w-10 text-center text-[11px] font-medium text-slate-700">
-            {Math.round(scale * 100)}%
-          </span>
-        </div>
-      </div>
-    </div>
+    >
+      {headerLeft}
+    </BasePdfViewer>
   );
 };
 
@@ -407,9 +293,6 @@ interface PdfPageOverlayProps {
   pdf: PDFDocumentProxy;
   pageNumber: number;
   scale: number;
-  isVisible: boolean;
-  onVisible: (page: number) => void;
-  registerPageRef: (page: number, node: HTMLDivElement | null) => void;
   fields: PreviewField[];
   values: Record<string, string>;
   onFieldClick?: (fieldName: string) => void;
@@ -426,9 +309,6 @@ const PdfPageOverlay = ({
   pdf,
   pageNumber,
   scale,
-  isVisible: _isVisible,
-  onVisible,
-  registerPageRef,
   fields,
   values,
   onFieldClick,
@@ -441,40 +321,17 @@ const PdfPageOverlay = ({
   resolveDisplayValue,
 }: PdfPageOverlayProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [rendering, setRendering] = useState<boolean>(false);
+  const { canvasRef, rendering } = usePdfPageRenderer(pdf, pageNumber, scale);
   const [forceRender, setForceRender] = useState<number>(0);
   const [activeTouchFieldId, setActiveTouchFieldId] = useState<string | null>(null);
   const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
   const [isTouchInteraction, setIsTouchInteraction] = useState(false);
   const [clickedHighlightFieldId, setClickedHighlightFieldId] = useState<string | null>(null);
 
-  // offscreen canvas for text measurement
-
-  useEffect(() => registerPageRef(pageNumber, containerRef.current), [pageNumber, registerPageRef]);
-
   // Force re-render of field positions when scale changes
   useEffect(() => {
     setForceRender((prev) => prev + 1);
   }, [scale]);
-
-  // Setup intersection observer for visibility
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          onVisible(pageNumber);
-        }
-      },
-      { threshold: 0.6 }
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [onVisible, pageNumber]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -484,52 +341,6 @@ const PdfPageOverlay = ({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
-
-  // Render PDF page
-  useEffect(() => {
-    let renderTask: RenderTask | null = null;
-    let cancelled = false;
-    setRendering(true);
-
-    pdf
-      .getPage(pageNumber)
-      .then((page: PDFPageProxy) => {
-        // Account for device pixel ratio for crisp rendering on high-DPI displays
-        const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-        const viewport = page.getViewport({ scale: scale * dpr });
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        // Set CSS pixel size to match logical size (divided by dpr)
-        canvas.style.width = `${viewport.width / dpr}px`;
-        canvas.style.height = `${viewport.height / dpr}px`;
-
-        const canvasContext = canvas.getContext("2d");
-        if (!canvasContext) return;
-
-        renderTask = page.render({
-          canvasContext,
-          viewport,
-        });
-
-        return renderTask.promise;
-      })
-      .catch((err) => {
-        if (!cancelled) console.error(`Failed to render page ${pageNumber}:`, err);
-      })
-      .finally(() => {
-        if (!cancelled) setRendering(false);
-      });
-
-    return () => {
-      cancelled = true;
-      renderTask?.cancel();
-    };
-  }, [pdf, pageNumber, scale]);
 
   // Convert PDF coordinates to display coordinates, accounting for zoom-aware rendering
   const pdfToDisplay = (

@@ -1,10 +1,23 @@
+/**
+ * FormDefaultValueCapture
+ *
+ * Split-pane view for admins/coordinators to fill and save default values
+ * for a form before it's sent to signatories.
+ *
+ * Left pane: form fields to fill (FormPreviewRenderer via FormFillerContext)
+ * Right pane: PDF preview with values rendered (FormFillPdfViewer)
+ * Bottom: "Save Default Values" button
+ *
+ * Used on /docs/forms for per-party default value configuration.
+ */
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { type IFormBlock, type IFormMetadata } from "@betterinternship/core/forms";
 import { Button } from "@/components/ui/button";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@/components/docs/forms/FormFillPdfViewer";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
@@ -166,7 +179,7 @@ const FormDefaultValueCaptureContent = ({
         {(!isMobile || mobileFieldsTab === "preview") && (
           <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-slate-100">
             {documentUrl && hasRenderablePreviewField ? (
-              <FormPreviewPdfDisplay
+              <FormFillPdfViewer
                 documentUrl={documentUrl}
                 blocks={filteredBlocks}
                 values={previewValues}

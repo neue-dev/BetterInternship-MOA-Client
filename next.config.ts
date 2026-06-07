@@ -1,5 +1,51 @@
 import type { NextConfig } from "next";
+
+const apiUrls = [
+  process.env.NEXT_PUBLIC_DOCS_URL,
+  process.env.NEXT_PUBLIC_API_SERVER_URL,
+].filter(Boolean);
+
+const connectOrigins = apiUrls
+  .map((url) => {
+    try {
+      const parsed = new URL(url);
+      const origin = parsed.origin;
+      if (origin.startsWith("https://")) {
+        return `${origin} ${origin.replace("https://", "wss://")}`;
+      }
+      if (origin.startsWith("http://")) {
+        return `${origin} ${origin.replace("http://", "ws://")}`;
+      }
+      return origin;
+    } catch {
+      return "";
+    }
+  })
+  .filter(Boolean)
+  .join(" ");
+
+const cspHeader = `
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline';
+  connect-src 'self' http://localhost:* ${connectOrigins};
+  frame-src 'self' http://localhost:* ${connectOrigins};
+  img-src 'self' blob: data:;
+  font-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  upgrade-insecure-requests;
+`.replace(/\n/g, "");
+
 const isDev = process.env.DEVELOPMENT_ENV == "true";
+
+const docsHosts = [
+  "docs.localhost",
+  "docs.betterinternship.com",
+  "dev.docs.betterinternship.com",
+];
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: isDev,
@@ -18,6 +64,10 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
+          {
+            key: "Content-Security-Policy",
+            value: cspHeader,
+          },
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
@@ -41,6 +91,16 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+
+  async rewrites() {
+    return {
+      beforeFiles: docsHosts.map((host) => ({
+        source: "/:path((?!_next|api|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+        has: [{ type: "host", value: host }],
+        destination: "/docs/:path*",
+      })),
+    };
   },
 };
 

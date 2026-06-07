@@ -34,14 +34,14 @@ export type FormField = {
 type ResizeHandle = "n" | "e" | "s" | "w" | "nw" | "ne" | "sw" | "se";
 
 const RESIZE_HANDLE_CLASSES: Record<ResizeHandle, string> = {
-  n:  "absolute -top-1 left-1/2 -translate-x-1/2 cursor-ns-resize",
-  e:  "absolute top-1/2 -right-1 -translate-y-1/2 cursor-ew-resize",
-  s:  "absolute -bottom-1 left-1/2 -translate-x-1/2 cursor-ns-resize",
-  w:  "absolute top-1/2 -left-1 -translate-y-1/2 cursor-ew-resize",
-  nw: "absolute -top-1 -left-1 cursor-nwse-resize",
-  ne: "absolute -top-1 -right-1 cursor-nesw-resize",
-  sw: "absolute -bottom-1 -left-1 cursor-nesw-resize",
-  se: "absolute -right-1 -bottom-1 cursor-nwse-resize",
+  n:  "absolute -top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize",
+  e:  "absolute top-1/2 -right-1.5 -translate-y-1/2 cursor-ew-resize",
+  s:  "absolute -bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize",
+  w:  "absolute top-1/2 -left-1.5 -translate-y-1/2 cursor-ew-resize",
+  nw: "absolute -top-1.5 -left-1.5 cursor-nwse-resize",
+  ne: "absolute -top-1.5 -right-1.5 cursor-nesw-resize",
+  sw: "absolute -bottom-1.5 -left-1.5 cursor-nesw-resize",
+  se: "absolute -right-1.5 -bottom-1.5 cursor-nwse-resize",
 };
 
 const DRAG_THRESHOLD = 5;
@@ -58,7 +58,7 @@ function ResizeHandleDot({
 }) {
   return (
     <div
-      className={cn("hidden h-1.5 w-1.5 rounded-full opacity-60 group-hover:block", RESIZE_HANDLE_CLASSES[handle])}
+      className={cn("h-2.5 w-2.5 rounded-full", RESIZE_HANDLE_CLASSES[handle])}
       onMouseDown={onMouseDown}
       style={{ backgroundColor: colorHex, pointerEvents: "auto" }}
     />

@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
-const apiUrls = [process.env.NEXT_PUBLIC_DOCS_URL, process.env.NEXT_PUBLIC_API_SERVER_URL].filter(
-  Boolean
-);
+const apiUrls = [
+  process.env.NEXT_PUBLIC_DOCS_URL,
+  process.env.NEXT_PUBLIC_API_SERVER_URL,
+  "https://storage.googleapis.com/better-internship-public-bucket",
+].filter(Boolean);
 
 const connectOrigins = apiUrls
   .map((url) => {

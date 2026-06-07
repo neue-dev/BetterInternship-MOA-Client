@@ -1,3 +1,18 @@
+/**
+ * Shared React hook for rendering a single PDF page to a canvas element.
+ *
+ * Used by the editor (PdfPageCanvas), the create-form PDF preview, and the
+ * read-only form previewer. Replaces the duplicated inline render logic.
+ *
+ * To use:
+ *   const { canvasRef, rendering } = usePdfPageRenderer(pdfDoc, pageNumber, scale)
+ *   // ... <canvas ref={canvasRef} /> ...
+ *   // {rendering && <LoadingOverlay />}
+ *
+ * Also exports viewportRef for coordinate transforms (used by use-pdf-coordinate-transform
+ * in the editor). The `previewer.tsx` does NOT need viewport transforms — its fields are
+ * positioned with simple `pdfX * scale` multiplication.
+ */
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist/types/src/display/api";
 import type { PageViewport } from "pdfjs-dist/types/src/display/display_utils";

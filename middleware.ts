@@ -21,8 +21,6 @@ export function middleware(req: NextRequest) {
   // csp allowed connections
   const apiUrls = [
     process.env.NEXT_PUBLIC_DOCS_URL,
-    process.env.NEXT_PUBLIC_MOA_URL,
-    process.env.NEXT_PUBLIC_UNI_URL,
     process.env.NEXT_PUBLIC_API_SERVER_URL,
   ].filter(Boolean);
 

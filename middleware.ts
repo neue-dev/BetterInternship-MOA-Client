@@ -12,11 +12,8 @@ function getHost(req: NextRequest) {
 
 // ! to fix: make sure these are env variable mappings instead
 const SUBPATH_BY_HOST: Record<string, string> = {
-  "moa.betterinternship.com": "moa",
-  "dev.moa.betterinternship.com": "moa",
   "uni.moa.betterinternship.com": "univ",
   "dev.uni.moa.betterinternship.com": "univ",
-  "moa.localhost": "moa",
   "univ.localhost": "univ",
   "docs.localhost": "docs",
   "docs.betterinternship.com": "docs",

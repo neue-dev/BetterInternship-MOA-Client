@@ -39,6 +39,7 @@ import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
+import { useSignedUrl } from "@/lib/signed-url";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -355,10 +356,11 @@ export const FormPreview = ({ metadata, mode = "preview" }: FormPreviewProps) =>
     reader.readAsDataURL(documentFile);
   }, [documentFile]);
 
+  const { url: resolvedDocumentUrl } = useSignedUrl(documentUrl ?? "");
   const actualMetadata = metadata || formMetadata;
   const actualBlocks = (actualMetadata?.schema as any)?.blocks || [];
   const actualSigningParties = actualMetadata?.signing_parties || [];
-  const actualDocumentUrl = documentUrl || fileDataUrl;
+  const actualDocumentUrl = resolvedDocumentUrl || fileDataUrl;
 
   if (!actualMetadata) {
     return (

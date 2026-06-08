@@ -15,6 +15,7 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
+import { useSignedUrl } from "@/lib/signed-url";
 
 export function OfficialCopyPreview({
   title,
@@ -27,6 +28,7 @@ export function OfficialCopyPreview({
 }) {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
+  const { url: resolvedViewUrl } = useSignedUrl(viewUrl);
 
   async function downloadPdf(url: string, filename: string = "document.pdf") {
     setLoading(true);
@@ -81,7 +83,7 @@ export function OfficialCopyPreview({
             <Button
               className="w-full"
               disabled={loading}
-              onClick={() => void downloadPdf(viewUrl, `${title}.pdf`)}
+              onClick={() => void downloadPdf(resolvedViewUrl, `${title}.pdf`)}
             >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -94,7 +96,7 @@ export function OfficialCopyPreview({
         )}
         <div className="h-[68vh] w-full overflow-hidden rounded border bg-slate-100 sm:h-[80vh]">
           <FormFillPdfViewer
-            documentUrl={viewUrl}
+            documentUrl={resolvedViewUrl}
             blocks={[]}
             values={{}}
             scale={isMobile ? 0.5 : 0.9}

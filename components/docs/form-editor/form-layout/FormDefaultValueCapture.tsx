@@ -30,6 +30,7 @@ import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@betterinternship/core/pdf-v
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 import { MobileStepTabs } from "@/app/docs/sign/components/MobileStepTabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSignedUrl } from "@/lib/signed-url";
 
 interface FormDefaultValueCaptureProps {
   formName: string;
@@ -49,6 +50,7 @@ const FormDefaultValueCaptureContent = ({
   onSave,
   selectedPartyId,
 }: FormDefaultValueCaptureProps) => {
+  const { url: resolvedDocumentUrl } = useSignedUrl(documentUrl ?? "");
   const formFiller = useFormFiller();
   const autofillValues = useMyAutofill();
   const [isSaving, setIsSaving] = useState(false);
@@ -178,9 +180,9 @@ const FormDefaultValueCaptureContent = ({
         {/* Right side - PDF Preview */}
         {(!isMobile || mobileFieldsTab === "preview") && (
           <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-slate-100">
-            {documentUrl && hasRenderablePreviewField ? (
+            {resolvedDocumentUrl && hasRenderablePreviewField ? (
               <FormFillPdfViewer
-                documentUrl={documentUrl}
+                documentUrl={resolvedDocumentUrl}
                 blocks={filteredBlocks}
                 values={previewValues}
                 onFieldClick={(fieldName) => setSelectedFieldId(fieldName)}
@@ -191,7 +193,7 @@ const FormDefaultValueCaptureContent = ({
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <div className="text-center">
-                  {!documentUrl ? (
+                  {!resolvedDocumentUrl ? (
                     <>
                       <p className="text-sm text-slate-500">No document to preview</p>
                       <p className="mt-2 text-xs text-slate-400">

@@ -27,6 +27,7 @@ import { DelegateEmailScreen } from "./components/DelegateEmailScreen";
 import { MobileStepTabs } from "./components/MobileStepTabs";
 import { SignIntentGate } from "./components/SignIntentGate";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSignedUrl } from "@/lib/signed-url";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -79,6 +80,7 @@ function PageContent() {
   const formProcess = useFormProcess();
   const formFiller = useFormFiller();
   const autofillValues = useMyAutofill();
+  const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
   const finalValues = useMemo(
     () => formFiller.getFinalValues(autofillValues),
@@ -523,7 +525,7 @@ function PageContent() {
                             {formProcess.latest_document_url ? (
                               <FormFillPdfViewer
                                 key="mobile-preview-fields"
-                                documentUrl={formProcess.latest_document_url}
+                                documentUrl={resolvedDocumentUrl}
                                 blocks={previewBlocks}
                                 values={previewValues}
                                 fieldErrors={formFiller.errors}
@@ -606,7 +608,7 @@ function PageContent() {
                           {formProcess.latest_document_url ? (
                             <FormFillPdfViewer
                               key="mobile-preview-review"
-                              documentUrl={formProcess.latest_document_url}
+                              documentUrl={resolvedDocumentUrl}
                               blocks={previewBlocks}
                               values={previewValues}
                               fieldErrors={formFiller.errors}
@@ -716,7 +718,7 @@ function PageContent() {
                       {formProcess.latest_document_url ? (
                         <div className="h-full [&>div]:rounded-none [&>div]:border-0">
                           <FormFillPdfViewer
-                            documentUrl={formProcess.latest_document_url}
+                            documentUrl={resolvedDocumentUrl}
                             blocks={previewBlocks}
                             values={previewValues}
                             fieldErrors={formFiller.errors}

@@ -9,6 +9,7 @@ import { ArrowRight, Download, Hourglass, ChevronDown, Sheet, ExternalLink } fro
 import { IMyForm, useMyForms } from "../forms/myforms.ctx";
 import { IFormSignatory } from "@betterinternship/core/forms";
 import { useSignatoryProfile } from "@/app/docs/auth/provider/signatory.ctx";
+import { resolveSignedUrl } from "@/lib/signed-url";
 import { useFormsControllerGetBulkFormProcesses } from "@/app/api";
 import { toast } from "sonner";
 import {
@@ -136,7 +137,10 @@ const createActionColumns = (
         return (
           <Button
             size="sm"
-            onClick={() => window.open(myForm.latest_document_url!, "_blank")}
+            onClick={async () => {
+              const url = await resolveSignedUrl(myForm.latest_document_url!);
+              window.open(url, "_blank");
+            }}
             className="flex items-center gap-2"
           >
             Download

@@ -3,7 +3,7 @@
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
-import { PdfViewer } from "@/components/docs/form-editor/form-pdf-editor/PdfViewer";
+import { FormEditorPdfViewer } from "@/components/docs/form-editor/form-pdf-editor/FormEditorPdfViewer";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
 import { BlocksPanel } from "./editor-components/BlocksPanel";
 import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
@@ -36,7 +36,7 @@ function FormEditorTabContent() {
         side="editor"
         left={<BlocksPanel />}
         right={
-          <PdfViewer showRecipientTabBar={false} registerScrollContainer={registerEditorScroller} />
+          <FormEditorPdfViewer showRecipientTabBar={false} registerScrollContainer={registerEditorScroller} />
         }
       />
     </div>

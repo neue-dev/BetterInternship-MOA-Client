@@ -1,3 +1,20 @@
+/**
+ * FormPreview
+ *
+ * Preview tab inside the form editor. Two modes:
+ *
+ * "preview" (default):
+ *   Split-pane: form fields with dummy prefill on the left, PDF preview on the right.
+ *   Has a "Generate Test Form" button to create a test document.
+ *   Field state is isolated from the editor PDF via useFormPreviewEditing
+ *   so that dragging blocks re-renders only this panel.
+ *
+ * "sort":
+ *   Lists all fields organized by signing party — no PDF.
+ *
+ * Wraps everything in StaticFormRendererContextProvider + FormFillerContextProvider.
+ */
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -9,7 +26,7 @@ import {
 } from "@betterinternship/core/forms";
 import { Button } from "@/components/ui/button";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
@@ -17,7 +34,7 @@ import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
 import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
-import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@betterinternship/core/pdf-viewer";
 import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
@@ -237,7 +254,7 @@ const FormPreviewContentBody = ({
       right={
         <div className="bg-secondary/30 flex h-full flex-col overflow-hidden">
           {documentUrl ? (
-            <FormPreviewPdfDisplay
+            <FormFillPdfViewer
               documentUrl={documentUrl}
               blocks={blocks}
               values={previewValues}

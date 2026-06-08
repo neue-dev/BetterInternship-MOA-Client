@@ -1,4 +1,11 @@
-// components/docs/PdfViewerPanel.tsx
+/**
+ * OfficialCopyPreview
+ *
+ * Card wrapper displaying the final signed PDF for download.
+ * Renders FormFillPdfViewer inside a fixed-height container with
+ * an "Official Copy Preview" header and a download button.
+ */
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +14,9 @@ import { File as FileIcon, Loader2 } from "lucide-react";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 
-export function PdfViewerPanel({
+export function OfficialCopyPreview({
   title,
   viewUrl,
   downloadUrl,
@@ -86,7 +93,7 @@ export function PdfViewerPanel({
           </div>
         )}
         <div className="h-[68vh] w-full overflow-hidden rounded border bg-slate-100 sm:h-[80vh]">
-          <FormPreviewPdfDisplay
+          <FormFillPdfViewer
             documentUrl={viewUrl}
             blocks={[]}
             values={{}}

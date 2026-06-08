@@ -8,7 +8,7 @@ import { RejectFormButton, SubmitFormButton } from "@/components/docs/forms/Form
 import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
 import { useFormProcess } from "@/components/docs/forms/form-process.ctx";
 import { useFormFiller } from "@/components/docs/forms/form-filler.ctx";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
@@ -521,7 +521,7 @@ function PageContent() {
                           {renderMobileFieldsTabs()}
                           <div className="min-h-0 flex-1">
                             {formProcess.latest_document_url ? (
-                              <FormPreviewPdfDisplay
+                              <FormFillPdfViewer
                                 key="mobile-preview-fields"
                                 documentUrl={formProcess.latest_document_url}
                                 blocks={previewBlocks}
@@ -604,7 +604,7 @@ function PageContent() {
                       <div className="flex h-full min-h-0 flex-col">
                         <div className="min-h-0 flex-1">
                           {formProcess.latest_document_url ? (
-                            <FormPreviewPdfDisplay
+                            <FormFillPdfViewer
                               key="mobile-preview-review"
                               documentUrl={formProcess.latest_document_url}
                               blocks={previewBlocks}
@@ -715,7 +715,7 @@ function PageContent() {
                     <div className="min-h-0 rounded-r-none border-r border-gray-300 bg-white transition-[transform] duration-500 ease-in-out">
                       {formProcess.latest_document_url ? (
                         <div className="h-full [&>div]:rounded-none [&>div]:border-0">
-                          <FormPreviewPdfDisplay
+                          <FormFillPdfViewer
                             documentUrl={formProcess.latest_document_url}
                             blocks={previewBlocks}
                             values={previewValues}

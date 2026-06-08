@@ -7,7 +7,7 @@ import { Search, SearchCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VerificationDetailsCard } from "@/components/docs/VerificationDetailsCard";
-import { PdfViewerPanel } from "@/components/docs/PdfViewerPanel";
+import { OfficialCopyPreview } from "@/components/docs/OfficialCopyPreview";
 import { SignedOrExternalDocumentInfo, useDocsControllerGetByVerificationCode } from "../api";
 import { useSearchParams } from "next/navigation";
 import { HeaderIcon, HeaderText } from "@/components/ui/text";
@@ -149,7 +149,7 @@ function VerifyDocsPageContent() {
               {/* Right: PDF viewer */}
               <div className="w-full max-w-full min-w-0 xl:sticky xl:top-24 xl:self-start">
                 <div className="w-full max-w-full">
-                  <PdfViewerPanel
+                  <OfficialCopyPreview
                     title={result.form_label ?? "Signed Document"}
                     viewUrl={result.url}
                     downloadUrl={result.url}

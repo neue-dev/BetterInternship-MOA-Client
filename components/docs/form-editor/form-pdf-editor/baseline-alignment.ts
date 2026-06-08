@@ -1,5 +1,5 @@
 import { IFormBlock } from "@betterinternship/core/forms";
-import { computePreviewBaselineOffset } from "@/lib/form-previewer-rendering";
+import { computePreviewBaselineOffset } from "@betterinternship/core/pdf-viewer";
 import {
   getDetectedRegionBaselineY,
   type MissingFieldSuggestion,

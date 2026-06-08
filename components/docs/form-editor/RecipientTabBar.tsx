@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getPartyColorByIndex } from "@/lib/party-colors";
+import { getPartyColorByIndex } from "@betterinternship/core/pdf-viewer";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { IFormSigningParty } from "@betterinternship/core/forms";
 

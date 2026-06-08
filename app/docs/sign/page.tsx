@@ -8,7 +8,7 @@ import { RejectFormButton, SubmitFormButton } from "@/components/docs/forms/Form
 import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
 import { useFormProcess } from "@/components/docs/forms/form-process.ctx";
 import { useFormFiller } from "@/components/docs/forms/form-filler.ctx";
-import { FormFillPdfViewer } from "@/components/docs/forms/FormFillPdfViewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { useMyAutofill } from "@/hooks/use-my-autofill";

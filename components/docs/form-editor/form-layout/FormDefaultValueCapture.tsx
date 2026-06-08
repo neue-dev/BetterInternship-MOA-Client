@@ -17,7 +17,7 @@ import { useState, useEffect, useMemo } from "react";
 import { type IFormBlock, type IFormMetadata } from "@betterinternship/core/forms";
 import { Button } from "@/components/ui/button";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { FormFillPdfViewer } from "@/components/docs/forms/FormFillPdfViewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
@@ -26,7 +26,7 @@ import { FormFillerContextProvider, useFormFiller } from "@/components/docs/form
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
-import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@betterinternship/core/pdf-viewer";
 import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
 import { MobileStepTabs } from "@/app/docs/sign/components/MobileStepTabs";
 import { useIsMobile } from "@/hooks/use-mobile";

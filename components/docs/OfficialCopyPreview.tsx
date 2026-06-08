@@ -14,7 +14,7 @@ import { File as FileIcon, Loader2 } from "lucide-react";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { FormFillPdfViewer } from "@/components/docs/forms/FormFillPdfViewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 
 export function OfficialCopyPreview({
   title,

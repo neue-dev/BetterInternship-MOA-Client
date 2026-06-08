@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getPartyColorByIndex, getPartyColorByOrder } from "@/lib/party-colors";
+import { getPartyColorByIndex, getPartyColorByOrder } from "@betterinternship/core/pdf-viewer";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
 import {
   DropdownMenu,

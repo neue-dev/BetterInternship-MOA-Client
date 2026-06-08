@@ -17,7 +17,7 @@ import {
   buildDroppedFieldBlock,
   type DraggedFieldPayload,
 } from "./dropped-field-block-factory";
-import { usePdfPageRenderer } from "@/hooks/use-pdf-page-renderer";
+import { usePdfPageRenderer } from "@betterinternship/core/pdf-viewer";
 import { usePageObservers } from "./use-page-observers";
 import { useFieldInteractions } from "./use-field-interactions";
 import { useRadioGroup } from "./use-radio-group";

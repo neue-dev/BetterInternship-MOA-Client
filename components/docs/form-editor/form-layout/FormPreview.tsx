@@ -26,7 +26,7 @@ import {
 } from "@betterinternship/core/forms";
 import { Button } from "@/components/ui/button";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { FormFillPdfViewer } from "@/components/docs/forms/FormFillPdfViewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader2 } from "lucide-react";
 import { formsControllerGenerateTestForm } from "@/app/api";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
@@ -34,7 +34,7 @@ import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
 import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
-import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@betterinternship/core/pdf-viewer";
 import { extractPrefillValues } from "./form-layout-utils";
 import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";

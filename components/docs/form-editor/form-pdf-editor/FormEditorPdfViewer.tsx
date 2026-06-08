@@ -25,7 +25,7 @@ import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.conte
 import { useFormEditorPdfViewer } from "@/app/contexts/pdf-viewer.context";
 import { resolveSystemPresetTemplates } from "@/lib/system-preset-resolver";
 import { SIGNATURE_PRINTED_NAME_TEMPLATE } from "@/lib/composite-field-templates";
-import { ensurePreviewFontsLoaded } from "@/lib/form-previewer-rendering";
+import { ensurePreviewFontsLoaded } from "@betterinternship/core/pdf-viewer";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
@@ -51,7 +51,7 @@ import { useMissingFields } from "./use-missing-fields";
 import { useBaselineAlignment } from "./use-baseline-alignment";
 import { PdfViewerStatus } from "./PdfViewerStatus";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
-import { BasePdfViewer } from "@/components/docs/BasePdfViewer";
+import { BasePdfViewer } from "@betterinternship/core/pdf-viewer";
 
 type FormEditorPdfViewerProps = {
   showRecipientTabBar?: boolean;

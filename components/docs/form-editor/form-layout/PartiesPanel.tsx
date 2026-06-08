@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { type IFormSigningParty } from "@betterinternship/core/forms";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getPartyColorByOrder, getPartyDisplayTitle } from "@/lib/party-colors";
+import { getPartyColorByOrder, getPartyDisplayTitle } from "@betterinternship/core/pdf-viewer";
 import { Plus, Trash2, GripVertical, ChevronDown } from "lucide-react";
 
 interface PartiesPanelProps {

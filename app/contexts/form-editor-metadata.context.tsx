@@ -34,7 +34,7 @@ import {
   IFormSubscriber,
   SCHEMA_VERSION,
 } from "@betterinternship/core/forms";
-import { usePdfDocumentFromFile } from "@/hooks/use-pdf-document";
+import { usePdfDocumentFromFile } from "@betterinternship/core/pdf-viewer";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 
 /**

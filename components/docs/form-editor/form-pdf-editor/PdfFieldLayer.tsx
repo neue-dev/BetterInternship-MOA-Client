@@ -1,5 +1,5 @@
 import { IFormBlock, IFormMetadata } from "@betterinternship/core/forms";
-import { computePreviewBaselineOffset } from "@/lib/form-previewer-rendering";
+import { computePreviewBaselineOffset } from "@betterinternship/core/pdf-viewer";
 import { RevampedBlockEditor } from "@/components/editor/tab-panels/editor-components/RevampedBlockEditor";
 import { FieldBox, type FormField } from "./FieldBox";
 import { normalizeVerticalAlign } from "./pdf-editor-utils";

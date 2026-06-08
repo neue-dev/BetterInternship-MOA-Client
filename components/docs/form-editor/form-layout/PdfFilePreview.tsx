@@ -1,8 +1,7 @@
 "use client";
 
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
-import { usePdfPageRenderer } from "@/hooks/use-pdf-page-renderer";
-import { usePdfDocumentFromFile } from "@/hooks/use-pdf-document";
+import { usePdfPageRenderer, usePdfDocumentFromFile } from "@betterinternship/core/pdf-viewer";
 import { Loader } from "@/components/ui/loader";
 
 function PreviewPage({

@@ -214,7 +214,7 @@ export default function DocsLoginPage() {
       }
       // success → go to dashboard
       await queryClient.invalidateQueries({ queryKey: ["my-profile"] });
-      router.push("/docs/dashboard");
+      router.push("/dashboard");
     } catch (error) {
       setOtpErr(error instanceof Error ? error.message : "Verification failed");
     } finally {
@@ -281,7 +281,7 @@ export default function DocsLoginPage() {
               {busy ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking…
+                  Checking...
                 </span>
               ) : (
                 "Continue"
@@ -332,7 +332,7 @@ export default function DocsLoginPage() {
               {busy ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Verifying…
+                  Verifying...
                 </span>
               ) : (
                 "Verify & Continue"

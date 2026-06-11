@@ -62,23 +62,28 @@ export default function DocsFormsPage() {
 
       const formItems = await Promise.all(
         formNames.map(async (name) => {
-          const settings = await formSettings.getFormSettings(name);
-          const formData = await getFormFields(name);
+          try {
+            const settings = await formSettings.getFormSettings(name);
+            const formData = await getFormFields(name);
 
-          const firstPartyId = Object.keys(settings || {})[0];
-          const partySettings = firstPartyId ? settings[firstPartyId] : {};
+            const firstPartyId = Object.keys(settings || {})[0];
+            const partySettings = firstPartyId ? settings[firstPartyId] : {};
 
-          return {
-            name,
-            label: formData.formMetadata?.label || name,
-            enabledAutosign: !!partySettings?.autosign,
-            party: firstPartyId ?? "",
-            date: partySettings?.autosign_last_update ?? "",
-          };
+            return {
+              name,
+              label: formData.formMetadata?.label || name,
+              enabledAutosign: !!partySettings?.autosign,
+              party: firstPartyId ?? "",
+              date: partySettings?.autosign_last_update ?? "",
+            };
+          } catch (error) {
+            console.warn(`[Form Automation] Skipping unavailable form ${name}:`, error);
+            return null;
+          }
         })
       );
 
-      return formItems;
+      return formItems.filter((item): item is FormItem => Boolean(item));
     },
     staleTime: 60_000,
     enabled: isLoggedIn,
@@ -114,7 +119,7 @@ export default function DocsFormsPage() {
   const renderModalContent = () => {
     if (isLoadingForm) {
       return (
-        <div className="flex h-[80dvh] w-full items-center justify-center transition-opacity">
+        <div className="flex h-screen w-full items-center justify-center transition-opacity">
           <Loader2 className="text-primary h-12 w-12 animate-spin" />
         </div>
       );
@@ -158,7 +163,7 @@ export default function DocsFormsPage() {
     };
 
     return (
-      <div className="h-[80dvh] w-full">
+      <div className="flex h-full min-h-0 w-full">
         <FormDefaultValueCapture
           formName={openFormName!}
           documentUrl={formData.documentUrl || ""}
@@ -175,9 +180,10 @@ export default function DocsFormsPage() {
     if (!openFormName) return;
 
     openModal(`form-default-values:${openFormName}`, renderModalContent(), {
-      title: `My Default Values`,
+      title: `My default values`,
       panelClassName: "sm:min-w-[95vw] sm:max-w-[95vw] sm:w-[95vw] sm:h-[90vh] sm:flex sm:flex-col",
-      contentClassName: "flex-1 overflow-hidden p-4",
+      contentClassName:
+        "flex min-h-0 flex-col overflow-hidden px-4 pb-4 h-[calc(var(--vh,1vh)*100-4rem)] sm:h-[calc(90vh-4rem)]",
       showHeaderDivider: true,
       onClose: () => {
         setOpenFormName(null);

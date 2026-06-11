@@ -1,51 +1,28 @@
 "use client";
 
-import Link from "next/link";
-import { useFormEditor } from "@/app/contexts/form-editor.context";
+import { useState } from "react";
+import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
+import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Save, Eye, Settings, ArrowLeft, Menu } from "lucide-react";
+import { Save, Settings, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatWhen } from "@/lib/format";
+import { SaveConfirmDialog } from "@/components/editor/SaveConfirmDialog";
 
 /**
  * Header toolbar for editor page:
- * - global navigation
  * - quick mode switches (settings/preview)
- * - save action bound to FormEditor context
+ * - save action (opens confirmation dialog)
  */
 export function EditorToolbar() {
-  const { formMetadata, formDocument, formVersion, isSaving, saveForm, activeTab, setActiveTab } =
-    useFormEditor();
-  const isPreviewMode = activeTab === "preview";
+  const { formMetadata, formDocument, formVersion, isSaving } =
+    useFormEditorMetadata();
+  const { activeTab, setActiveTab } = useEditorSelection();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   return (
     <div className="bg-card flex items-center justify-between border-b px-6 py-3">
       <div className="flex items-center gap-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-8 w-8" title="Navigation">
-              <Menu className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard">My Signed Forms</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/forms">Form Automation</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/">Home</Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <div className="flex flex-col gap-0.5">
           <h1 className="text-sm font-semibold">{formMetadata?.label || "New Form"}</h1>
           <div className="flex items-center gap-2">
@@ -95,19 +72,16 @@ export function EditorToolbar() {
         )}
 
         <Button
-          variant="outline"
+          onClick={() => setShowSaveDialog(true)}
+          disabled={isSaving}
           size="sm"
-          onClick={() => setActiveTab(isPreviewMode ? "editor" : "preview")}
-          className={cn("gap-2", activeTab === "preview" && "border-primary text-primary")}
+          className="gap-2"
         >
-          {isPreviewMode ? <ArrowLeft className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          {isPreviewMode ? "Back" : "Preview"}
+          <Save className="h-4 w-4" />
+          {isSaving ? "Saving…" : "Save Form"}
         </Button>
 
-        <Button onClick={() => void saveForm()} disabled={isSaving} size="sm" className="gap-2">
-          <Save className="h-4 w-4" />
-          {isSaving ? "Saving..." : "Save Form"}
-        </Button>
+        <SaveConfirmDialog open={showSaveDialog} onOpenChange={setShowSaveDialog} />
       </div>
     </div>
   );

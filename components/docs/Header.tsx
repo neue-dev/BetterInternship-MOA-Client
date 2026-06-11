@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown,
@@ -21,7 +22,6 @@ import {
   Newspaper,
   Settings,
   SearchCheck,
-  LucideArrowRightCircle,
   Users2,
 } from "lucide-react";
 import { logoutSignatory } from "@/app/api/docs.api";
@@ -254,7 +254,7 @@ export default function DocsTopbarUser() {
         {profile.god && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="flex items-center gap-1 mt-0.5">
+              <Button size="sm" className="mt-0.5 flex items-center gap-1">
                 Admin
                 <ChevronDown size={14} className="mt-0.5" />
               </Button>
@@ -276,7 +276,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/dashboard"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -290,7 +290,7 @@ export default function DocsTopbarUser() {
               <Button
                 variant="ghost"
                 className={cn(
-                  "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                  "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                   docsPathname === "/students"
                     ? "text-primary"
                     : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -304,7 +304,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/forms"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -317,7 +317,7 @@ export default function DocsTopbarUser() {
             <Button
               variant="ghost"
               className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
+                "h-auto w-[88px] flex-col items-center justify-center gap-1 rounded-[0.33em] px-2 py-1",
                 docsPathname === "/"
                   ? "text-primary"
                   : "opacity-80 hover:bg-gray-100 hover:opacity-100"
@@ -327,34 +327,45 @@ export default function DocsTopbarUser() {
               <SearchCheck className="!h-6 !w-6" strokeWidth={1.7} />
               <span className="text-xs">Verifier</span>
             </Button>
-            <Button
-              variant="outline"
-              scheme="destructive"
-              className={cn(
-                "h-auto w-20 flex-col items-center justify-center gap-1 rounded-[0.33em] border-0 px-2 py-1"
-              )}
-              onClick={() => logoutMutation.mutate()}
-            >
-              <LucideArrowRightCircle className="!h-6 !w-6" strokeWidth={1.7} />
-              <span className="text-xs">
-                {logoutMutation.isPending ? "Logging out..." : "Logout"}
-              </span>
-            </Button>
-            <div className="relative flex h-full flex-col justify-center">
-              {profile.coordinatorId && (
-                <div className="bg-supportive/90 w-full rounded-t-[0.33em] px-3 text-center text-[9px] text-white">
-                  <span className="opacity-75">Coordinator Account</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="group h-auto min-w-36 flex-col items-stretch justify-center gap-0 rounded-[0.33em] p-0 hover:bg-gray-100"
+                >
+                  {profile.coordinatorId && (
+                    <div className="bg-supportive/90 w-full rounded-t-[0.33em] px-3 text-center text-[9px] text-white">
+                      <span className="opacity-75">Coordinator Account</span>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-[0.33em] border border-gray-300 p-2 px-3 text-xs",
+                      profile.coordinatorId ? "rounded-t-none border-t-0" : ""
+                    )}
+                  >
+                    <span className="font-mono font-medium whitespace-nowrap">{profile.email}</span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-max min-w-56">
+                <div className="px-2 py-1.5">
+                  <div className="text-center font-mono text-sm font-medium whitespace-nowrap">
+                    {profile.email}
+                  </div>
                 </div>
-              )}
-              <div
-                className={cn(
-                  "rounded-[0.33em] border border-gray-300 p-2 px-3 text-xs",
-                  profile.coordinatorId ? "rounded-t-none" : ""
-                )}
-              >
-                {profile.name?.trim() || profile.email || "User"}
-              </div>
-            </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={logoutMutation.isPending}
+                  onClick={() => logoutMutation.mutate()}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {logoutMutation.isPending ? "Logging out..." : "Sign Out"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         ) : (
           <Link href="/login">

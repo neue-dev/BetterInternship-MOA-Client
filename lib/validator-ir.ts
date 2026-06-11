@@ -59,6 +59,7 @@ const BASE_RULE_MAP: Record<ValidatorBaseType, ValidatorRuleType[]> = {
   url: ["required"],
   signature: ["required"],
   image: ["required"],
+  radio: ["required"],
 };
 
 const RULE_KIND_TO_ENGINE: Record<string, ValidatorRuleType> = {
@@ -94,6 +95,7 @@ export function isRuleCompatible(
 
 function inferBaseTypeFromZod(zodCode: string): ValidatorBaseType {
   const c = zodCode || "";
+  if (c.includes('describe("radio")')) return "radio";
   if (c.includes('describe("multiselect")') || c.includes("z.array(")) return "array";
   if (c.includes("z.enum(") || c.includes('describe("dropdown")')) return "enum";
   if (c.includes('describe("checkbox")') || c.includes("z.boolean(")) return "checkbox";

@@ -8,7 +8,7 @@ import { RejectFormButton, SubmitFormButton } from "@/components/docs/forms/Form
 import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
 import { useFormProcess } from "@/components/docs/forms/form-process.ctx";
 import { useFormFiller } from "@/components/docs/forms/form-filler.ctx";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
@@ -27,6 +27,7 @@ import { DelegateEmailScreen } from "./components/DelegateEmailScreen";
 import { MobileStepTabs } from "./components/MobileStepTabs";
 import { SignIntentGate } from "./components/SignIntentGate";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSignedUrl } from "@/lib/signed-url";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -64,7 +65,7 @@ function PageContent() {
   const [view, setView] = useState<"choice" | "form" | "delegate">("choice");
   const [mobileStep, setMobileStep] = useState<MobileSigningStep>("fields");
   const [desktopStep, setDesktopStep] = useState<MobileSigningStep>("fields");
-  const [mobileFieldsTab, setMobileFieldsTab] = useState<"form" | "preview">("form");
+  const [mobileFieldsTab, setMobileFieldsTab] = useState<"template" | "preview">("form");
   const [mobilePreviewNeedsAttention, setMobilePreviewNeedsAttention] = useState(false);
   const [selectedFieldSource, setSelectedFieldSource] = useState<"form" | "pdf">("form");
   const [selectionTick, setSelectionTick] = useState(0);
@@ -79,6 +80,7 @@ function PageContent() {
   const formProcess = useFormProcess();
   const formFiller = useFormFiller();
   const autofillValues = useMyAutofill();
+  const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
   const finalValues = useMemo(
     () => formFiller.getFinalValues(autofillValues),
@@ -299,7 +301,7 @@ function PageContent() {
     setMobileStep(nextStep);
   };
 
-  const handleMobileFieldsTabChange = useCallback((nextTab: "form" | "preview") => {
+  const handleMobileFieldsTabChange = useCallback((nextTab: "template" | "preview") => {
     setMobileFieldsTab(nextTab);
 
     if (nextTab === "preview") {
@@ -311,7 +313,7 @@ function PageContent() {
     setSelectedFieldSource("pdf");
     setSelectionTick((prev) => prev + 1);
     form.setSelectedPreviewId(fieldName);
-    handleMobileFieldsTabChange("form");
+    handleMobileFieldsTabChange("template");
   };
 
   const handleFormFieldSelect = (fieldName: string) => {
@@ -341,7 +343,7 @@ function PageContent() {
       <MobileStepTabs
         tabs={mobileFieldsTabs}
         activeTab={mobileFieldsTab}
-        onTabChange={(tabId) => handleMobileFieldsTabChange(tabId as "form" | "preview")}
+        onTabChange={(tabId) => handleMobileFieldsTabChange(tabId as "template" | "preview")}
       />
     ) : null;
 
@@ -521,9 +523,9 @@ function PageContent() {
                           {renderMobileFieldsTabs()}
                           <div className="min-h-0 flex-1">
                             {formProcess.latest_document_url ? (
-                              <FormPreviewPdfDisplay
+                              <FormFillPdfViewer
                                 key="mobile-preview-fields"
-                                documentUrl={formProcess.latest_document_url}
+                                documentUrl={resolvedDocumentUrl}
                                 blocks={previewBlocks}
                                 values={previewValues}
                                 fieldErrors={formFiller.errors}
@@ -604,9 +606,9 @@ function PageContent() {
                       <div className="flex h-full min-h-0 flex-col">
                         <div className="min-h-0 flex-1">
                           {formProcess.latest_document_url ? (
-                            <FormPreviewPdfDisplay
+                            <FormFillPdfViewer
                               key="mobile-preview-review"
-                              documentUrl={formProcess.latest_document_url}
+                              documentUrl={resolvedDocumentUrl}
                               blocks={previewBlocks}
                               values={previewValues}
                               fieldErrors={formFiller.errors}
@@ -640,7 +642,7 @@ function PageContent() {
                               variant="outline"
                               className="h-11 w-11 shrink-0"
                               onClick={() => {
-                                handleMobileFieldsTabChange("form");
+                                handleMobileFieldsTabChange("template");
                                 goToMobileStep("fields");
                               }}
                               aria-label="Back to form fields"
@@ -715,8 +717,8 @@ function PageContent() {
                     <div className="min-h-0 rounded-r-none border-r border-gray-300 bg-white transition-[transform] duration-500 ease-in-out">
                       {formProcess.latest_document_url ? (
                         <div className="h-full [&>div]:rounded-none [&>div]:border-0">
-                          <FormPreviewPdfDisplay
-                            documentUrl={formProcess.latest_document_url}
+                          <FormFillPdfViewer
+                            documentUrl={resolvedDocumentUrl}
                             blocks={previewBlocks}
                             values={previewValues}
                             fieldErrors={formFiller.errors}

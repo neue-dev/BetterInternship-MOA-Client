@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { type IFormSigningParty } from "@betterinternship/core/forms";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getPartyColorByIndex } from "@/lib/party-colors";
+import { getPartyColorByOrder, getPartyDisplayTitle } from "@betterinternship/core/pdf-viewer";
 import { Plus, Trash2, GripVertical, ChevronDown } from "lucide-react";
 
 interface PartiesPanelProps {
@@ -49,11 +49,6 @@ export const PartiesPanel = ({ parties, onPartiesChange }: PartiesPanelProps) =>
     if (override !== undefined) return override;
     const hasEmail = !!values?.signatory_account?.email?.trim();
     return hasEmail || !!emailModes[partyId];
-  };
-
-  const getPartyDisplayTitle = (party: IFormSigningParty | undefined) => {
-    if (!party) return "";
-    return party._id === "initiator" ? "Student" : party.signatory_title || "Party";
   };
 
   useEffect(() => {
@@ -335,7 +330,7 @@ export const PartiesPanel = ({ parties, onPartiesChange }: PartiesPanelProps) =>
               const sourceParty = orderedParties.find(
                 (p) => p._id === values.signatory_source?._id
               );
-              const partyColor = getPartyColorByIndex(Math.max(0, (party.order || 1) - 1));
+              const partyColor = getPartyColorByOrder(party.order || 1);
 
               return (
                 <Card
@@ -442,9 +437,7 @@ export const PartiesPanel = ({ parties, onPartiesChange }: PartiesPanelProps) =>
                               <span
                                 className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold text-white"
                                 style={{
-                                  backgroundColor: getPartyColorByIndex(
-                                    Math.max(0, (sourceParty.order || 1) - 1)
-                                  ).hex,
+                                  backgroundColor: getPartyColorByOrder(sourceParty.order || 1).hex,
                                 }}
                               >
                                 {getPartyDisplayTitle(sourceParty)}
@@ -499,9 +492,7 @@ export const PartiesPanel = ({ parties, onPartiesChange }: PartiesPanelProps) =>
                                     <span
                                       className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold text-white"
                                       style={{
-                                        backgroundColor: getPartyColorByIndex(
-                                          Math.max(0, (p.order || 1) - 1)
-                                        ).hex,
+                                        backgroundColor: getPartyColorByOrder(p.order || 1).hex,
                                       }}
                                     >
                                       {getPartyDisplayTitle(p)}

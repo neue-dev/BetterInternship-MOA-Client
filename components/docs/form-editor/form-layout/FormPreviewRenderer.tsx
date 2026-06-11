@@ -1,263 +1,117 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
-import { type IFormBlock, type IFormMetadata, FormMetadata } from "@betterinternship/core/forms";
-import { FieldRenderer } from "@/components/docs/forms/FieldRenderer";
-import { HeaderRenderer, ParagraphRenderer } from "@/components/docs/forms/BlockrRenderer";
-import { getBlockField, isBlockField } from "@/components/docs/forms/utils";
+import { useMemo, useRef, useEffect } from "react";
+import { type ClientBlock, type ClientField } from "@betterinternship/core/forms";
+import { BlocksRenderer, type BlocksRendererEditing } from "@/components/docs/forms/FormFillerRenderer";
+import { isBlockField, getBlockField } from "@/components/docs/forms/utils";
+import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
+import { useFormFiller } from "@/components/docs/forms/form-filler.ctx";
+import { cn } from "@/lib/utils";
 
 interface FormPreviewRendererProps {
-  formName: string;
-  formLabel: string;
-  blocks: IFormBlock[];
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
-  metadata?: IFormMetadata;
-  selectedFieldId?: string | null;
   onFieldClick?: (fieldId: string) => void;
   autoScrollToSelectedField?: boolean;
+  squareFrame?: boolean;
+  editing?: BlocksRendererEditing;
+  hideTitle?: boolean;
 }
 
 /**
- * Simple form preview renderer that replicates FormFillerRenderer
- * but without context, validation, or autofill dependencies
+ * Prop-driven adapter over FormFillerRenderer's canonical BlocksRenderer.
  *
- * // ! todo: use contexts to access field and block data instead of passing them in
- * // ! todo: use ClientField and ClientBlock instead of IFormField and IFormBlock
+ * Reads blocks, values, errors, and selected-field state from the
+ * StaticFormRendererContextProvider + FormFillerContextProvider that
+ * FormPreviewContent installs, giving the editor preview the same context
+ * interface as the live sign route — so future context additions are
+ * inherited automatically by both paths.
+ *
+ * The editing prop (drag handles, inline adders) is passed directly to
+ * BlocksRenderer so FormPreviewFormPanel can supply editor chrome without
+ * requiring changes to FormFillerRenderer.
  */
 export const FormPreviewRenderer = ({
-  formName,
-  formLabel,
-  blocks,
-  values,
-  onChange,
-  metadata,
-  selectedFieldId,
   onFieldClick,
   autoScrollToSelectedField = true,
+  squareFrame = false,
+  editing,
+  hideTitle = false,
 }: FormPreviewRendererProps) => {
+  const form = useFormRendererContext();
+  const formFiller = useFormFiller();
+
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const metadataClient = useMemo(() => {
-    if (!metadata) return null;
-    try {
-      return new FormMetadata(metadata);
-    } catch {
-      return null;
-    }
-  }, [metadata]);
 
-  // Extract actual fields from metadata for proper validation and field types
-  const metadataFields = useMemo(() => {
-    if (!metadataClient) return [];
-    return metadataClient.getFieldsForClientService();
-  }, [metadataClient]);
+  const values = formFiller.getFinalValues();
+  const errors = formFiller.errors;
+  const selectedFieldId = form.selectedPreviewId;
 
-  // Create a map of field name to field object for easy lookup
-  const fieldMap = useMemo(() => {
-    const map = new Map();
-    metadataFields.forEach((field) => {
-      map.set(field.field, field);
-    });
-    return map;
-  }, [metadataFields]);
-
-  // Deduplicate blocks: only keep first instance of each field ID
+  // Deduplicate: keep first occurrence of each field ID (same logic as FormFillerRenderer)
   const deduplicatedBlocks = useMemo(() => {
-    const seenFieldIds = new Set<string>();
-    return blocks.filter((block) => {
-      if (!isBlockField(block)) return true; // Always include non-field blocks
+    const seen = new Set<string>();
+    return (form.blocks as ClientBlock<any>[]).filter((block) => {
+      if (!isBlockField(block)) return true;
       const field = getBlockField(block);
       if (!field) return true;
-
-      // Only include if this is the first time we see this field ID
-      if (seenFieldIds.has(field.field)) return false;
-      seenFieldIds.add(field.field);
+      if (seen.has(field.field)) return false;
+      seen.add(field.field);
       return true;
     });
-  }, [blocks]);
-
-  // Use values prop directly without merging with local state
-  // Parent component handles initialization
-  const displayValues = useMemo(() => {
-    return values;
-  }, [values]);
-
-  // Scroll to selected field only when requested (e.g. selection came from PDF).
-  useEffect(() => {
-    if (!autoScrollToSelectedField || !selectedFieldId || !scrollContainerRef.current) return;
-    const element = fieldRefs.current[selectedFieldId];
-    if (!element) return;
-
-    const containerRect = scrollContainerRef.current.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    const isVisible =
-      elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
-
-    if (!isVisible) {
-      element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [autoScrollToSelectedField, selectedFieldId]);
-
-  const handleChange = (key: string, value: string) => {
-    onChange(key, value);
-  };
+  }, [form.blocks]);
 
   const sortedBlocks = useMemo(
     () => [...deduplicatedBlocks].sort((a, b) => a.order - b.order),
     [deduplicatedBlocks]
   );
 
-  if (!sortedBlocks.length) {
+  useEffect(() => {
+    if (!autoScrollToSelectedField || !selectedFieldId || !scrollContainerRef.current) return;
+    const element = fieldRefs.current[selectedFieldId];
+    if (!element) return;
+    const containerRect = scrollContainerRef.current.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const isInView =
+      elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
+    if (!isInView) element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [autoScrollToSelectedField, selectedFieldId]);
+
+  if (!sortedBlocks.length && !editing) {
     return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
   }
 
-  const handleBlurValidate = (fieldKey: string, nextValue?: unknown) => {
-    const currentField = fieldMap.get(fieldKey);
-    if (!currentField || currentField.source !== "manual") return;
-
-    const nextFieldValue = nextValue === undefined ? displayValues[fieldKey] : String(nextValue ?? "");
-    const valuesForParams: Record<string, string> =
-      nextValue === undefined
-        ? displayValues
-        : {
-            ...displayValues,
-            [fieldKey]: nextFieldValue,
-          };
-
-    // Rebuild fields using merged params so cross-field validators can see latest values.
-    const hydratedField =
-      metadataClient
-        ?.getFieldsForClientService(undefined, valuesForParams)
-        .find((field) => field.field === fieldKey) || currentField;
-
-    const coerced = hydratedField.coerce(nextFieldValue);
-    const result = hydratedField.validator?.safeParse(coerced);
-
-    if (result?.error) {
-      // ! todo: import zod at the top, not here (dynamic imports bad)
-      // ! todo: import zod at the top, not here (dynamic imports bad)
-      const z = require("zod");
-      const errorString = z
-        .treeifyError(result.error)
-        .errors.map((e: string) => e.split(" ").slice(0).join(" "))
-        .join("\n");
-      setErrors((prev) => ({
-        ...prev,
-        [fieldKey]: `${hydratedField.label}: ${errorString}`,
-      }));
-    } else {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[fieldKey];
-        return newErrors;
-      });
-    }
-  };
-
   return (
-    <div className="relative flex h-full flex-col rounded-[0.33em] border border-gray-300">
+    <div
+      className={cn(
+        "relative flex h-full flex-col border border-gray-300",
+        squareFrame ? "rounded-none" : "rounded-[0.33em]"
+      )}
+    >
       <div ref={scrollContainerRef} className="relative flex flex-1 flex-col overflow-auto">
-        <div className="px-7 py-5">
-          <h2 className="text-primary text-2xl font-bold">{formLabel || formName}</h2>
-        </div>
-        <div className="mt-7 flex-1 space-y-2 border-r border-gray-300 px-7">
+        {!hideTitle && (
+          <div className="px-6 pt-8">
+            <h2 className="text-primary text-2xl font-bold">{form.formLabel || form.formName}</h2>
+          </div>
+        )}
+        <div className={cn("flex-1 space-y-2", editing ? "py-4 pr-6 pl-12" : "px-6")}>
           <BlocksRenderer
-            formKey={formName}
+            formKey={form.formName}
             blocks={sortedBlocks}
-            values={displayValues}
-            onChange={handleChange}
+            values={values}
+            onChange={(key, value) => formFiller.setValue(key, value)}
             errors={errors}
-            onBlurValidate={handleBlurValidate}
+            setSelected={(fieldId) => {
+              form.setSelectedPreviewId(fieldId);
+              onFieldClick?.(fieldId);
+            }}
+            onBlurValidate={(fieldKey, field: ClientField<any>, nextValue) =>
+              formFiller.validateField(fieldKey, field, undefined, nextValue)
+            }
             fieldRefs={fieldRefs.current}
-            fieldMap={fieldMap}
             selectedFieldId={selectedFieldId}
-            onFieldClick={onFieldClick}
+            editing={editing}
           />
         </div>
       </div>
     </div>
   );
-};
-
-const BlocksRenderer = ({
-  formKey,
-  blocks,
-  values,
-  onChange,
-  errors,
-  onBlurValidate,
-  fieldRefs,
-  fieldMap,
-  selectedFieldId,
-  onFieldClick,
-}: {
-  formKey: string;
-  // ! TODO: make this use ClientBlock<[any]>[] instead of IFormBlock[]
-  // ! TODO: make this use ClientBlock<[any]>[] instead of IFormBlock[]
-  blocks: IFormBlock[];
-  values: Record<string, string>;
-  onChange: (key: string, value: any) => void;
-  errors: Record<string, string>;
-  onBlurValidate?: (fieldKey: string, nextValue?: unknown) => void;
-  fieldRefs: Record<string, HTMLDivElement | null>;
-  fieldMap: Map<string, any>;
-  selectedFieldId?: string | null;
-  onFieldClick?: (fieldId: string) => void;
-}) => {
-  if (!blocks.length) return null;
-
-  return blocks.map((block, i) => {
-    const isForm = isBlockField(block);
-    const blockField = isForm ? getBlockField(block) : null;
-
-    // Get the actual field from metadata (has validators and proper type info)
-    const metadataField = blockField ? fieldMap.get(blockField.field) : null;
-
-    return (
-      <>
-        {isForm && blockField?.source === "manual" && metadataField && (
-          <div className="space-between flex flex-row" key={`${formKey}:${i}`}>
-            <div
-              ref={(el) => {
-                if (el && blockField) fieldRefs[blockField.field] = el;
-              }}
-              onClick={() => {
-                if (blockField) onFieldClick?.(blockField.field);
-              }}
-              className={`flex-1 cursor-pointer px-1 py-2 transition-all ${
-                blockField && selectedFieldId === blockField.field
-                  ? "rounded-[0.33em] ring-2 ring-blue-500 ring-offset-2"
-                  : ""
-              }`}
-              onFocus={() => {
-                if (blockField) onFieldClick?.(blockField.field);
-              }}
-            >
-              <FieldRenderer
-                field={metadataField}
-                value={values[blockField.field] ?? ""}
-                onChange={(v) => onChange(blockField.field, v)}
-                onAuxValueChange={onChange}
-                onBlur={(nextValue) => onBlurValidate?.(blockField.field, nextValue)}
-                error={errors[blockField.field]}
-                allValues={values}
-              />
-            </div>
-          </div>
-        )}
-        {block.block_type === "header" && block.text_content && (
-          <div className="flex flex-row">
-            <HeaderRenderer content={block.text_content} />
-          </div>
-        )}
-        {block.block_type === "paragraph" && block.text_content && (
-          <div className="flex flex-row">
-            <ParagraphRenderer content={block.text_content} />
-          </div>
-        )}
-      </>
-    );
-  });
 };

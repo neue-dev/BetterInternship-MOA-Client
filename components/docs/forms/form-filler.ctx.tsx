@@ -92,12 +92,32 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
     autofillValues?: FormValues
   ) => {
     const errors: Record<string, string> = {};
+    const finalValues = { ...(autofillValues ?? {}), ...valuesRef.current };
+
+    type WithRadioGroupId = { radio_group_id?: string };
+    const radioGroups = new Map<string, { fields: typeof fields; label: string }>();
+
     for (const field of fields) {
+      const radioGroupId = (field as ClientField<any> & WithRadioGroupId).radio_group_id;
+      if (radioGroupId) {
+        if (!radioGroups.has(radioGroupId)) {
+          radioGroups.set(radioGroupId, { fields: [], label: field.label ?? field.field });
+        }
+        radioGroups.get(radioGroupId)!.fields.push(field);
+        continue;
+      }
       const error = validateFieldHelper(field, valuesRef.current, autofillValues ?? {});
       if (error) errors[field.field] = error;
     }
 
-    // If any errors, disallow proceed
+    // Radio group passes if any option has a value; otherwise one error on the first field
+    for (const [, group] of radioGroups) {
+      const hasValue = group.fields.some((f) => !!finalValues[f.field]?.trim());
+      if (!hasValue && group.fields[0]) {
+        errors[group.fields[0].field] = `${group.label}: Required`;
+      }
+    }
+
     _setErrors(errors);
     return errors;
   };

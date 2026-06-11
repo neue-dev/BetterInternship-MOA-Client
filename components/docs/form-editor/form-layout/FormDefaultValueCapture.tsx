@@ -1,18 +1,36 @@
+/**
+ * FormDefaultValueCapture
+ *
+ * Split-pane view for admins/coordinators to fill and save default values
+ * for a form before it's sent to signatories.
+ *
+ * Left pane: form fields to fill (FormPreviewRenderer via FormFillerContext)
+ * Right pane: PDF preview with values rendered (FormFillPdfViewer)
+ * Bottom: "Save Default Values" button
+ *
+ * Used on /docs/forms for per-party default value configuration.
+ */
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { type IFormBlock, type IFormMetadata } from "@betterinternship/core/forms";
 import { Button } from "@/components/ui/button";
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
-import { FormPreviewPdfDisplay } from "@/components/docs/forms/previewer";
+import { FormFillPdfViewer } from "@betterinternship/core/pdf-viewer";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastPresets } from "@/components/sonner-toaster";
 import { FormMetadata } from "@betterinternship/core/forms";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
+import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { useMyAutofill } from "@/hooks/use-my-autofill";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
-import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@/lib/form-previewer-model";
+import { DEFAULT_PREVIEW_DUMMY_STUDENT_USER } from "@betterinternship/core/pdf-viewer";
+import { filterBlocksByParty, extractPrefillValues } from "./form-layout-utils";
+import { MobileStepTabs } from "@/app/docs/sign/components/MobileStepTabs";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSignedUrl } from "@/lib/signed-url";
 
 interface FormDefaultValueCaptureProps {
   formName: string;
@@ -32,10 +50,12 @@ const FormDefaultValueCaptureContent = ({
   onSave,
   selectedPartyId,
 }: FormDefaultValueCaptureProps) => {
+  const { url: resolvedDocumentUrl } = useSignedUrl(documentUrl ?? "");
   const formFiller = useFormFiller();
   const autofillValues = useMyAutofill();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [mobileFieldsTab, setMobileFieldsTab] = useState<"template" | "preview">("template");
 
   // Get blocks from metadata
   const blocks = (metadata?.schema?.blocks || []) as IFormBlock[];
@@ -72,16 +92,7 @@ const FormDefaultValueCaptureContent = ({
     }
 
     // Then, add values from prefiller (prefiller takes precedence)
-    fields.forEach((field) => {
-      if (field.prefiller && field.source !== "prefill") {
-        try {
-          const value = field.prefiller({ signatory: {} });
-          initialValues[field.field] = typeof value === "string" ? value.trim() : String(value);
-        } catch (error) {
-          // Silently skip if prefiller fails
-        }
-      }
-    });
+    Object.assign(initialValues, extractPrefillValues(fields, { trim: true }));
 
     // Finally, add autofill values (autofill takes highest precedence)
     if (autofillValues) {
@@ -94,10 +105,7 @@ const FormDefaultValueCaptureContent = ({
     }
   }, [selectedPartyId, metadata]);
 
-  // Filter blocks for the selected party
-  const filteredBlocks = blocks.filter(
-    (block) => block.signing_party_id === selectedPartyId || !block.signing_party_id
-  );
+  const filteredBlocks = filterBlocksByParty(blocks, selectedPartyId);
 
   const hasRenderablePreviewField = filteredBlocks.some(
     (block) => !!block.field_schema?.field || !!block.phantom_field_schema?.field
@@ -127,66 +135,83 @@ const FormDefaultValueCaptureContent = ({
     }
   };
 
+  const mobileFieldsTabs = [
+    { id: "template", label: "Fill Template" },
+    { id: "preview", label: "Template Preview" },
+  ];
+
+  const isMobile = useIsMobile();
+
   return (
-    <div className="relative flex h-full w-full flex-col gap-5 overflow-hidden">
-      {/* Main content with split layout - Form on left, PDF on right */}
-      <div className="flex flex-1 gap-5 overflow-hidden">
+    <div className="relative flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
+      {isMobile && (
+        <MobileStepTabs
+          tabs={mobileFieldsTabs}
+          activeTab={mobileFieldsTab}
+          onTabChange={(tabId) => {
+            setMobileFieldsTab(tabId as "template" | "preview");
+          }}
+        />
+      )}
+
+      <div className="flex flex-1 flex-col gap-4 overflow-hidden px-4 md:flex-row">
         {/* Left side - Form */}
-        <div className="relative flex-1 overflow-y-auto bg-white">
-          {filteredBlocks.length > 0 ? (
-            <FormPreviewRenderer
-              formName={formName}
-              formLabel={metadata?.label || ""}
-              blocks={filteredBlocks}
-              values={formFiller.getFinalValues()}
-              onChange={(key, value) => formFiller.setValue(key, value)}
-              metadata={metadata}
-              selectedFieldId={selectedFieldId}
-              onFieldClick={setSelectedFieldId}
-            />
-          ) : (
-            <div className="rounded bg-slate-50 p-8 text-center">
-              <p className="text-sm text-slate-500">No form fields to fill out.</p>
-            </div>
-          )}
-        </div>
+        {(!isMobile || mobileFieldsTab === "template") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-y-auto bg-white">
+            {filteredBlocks.length > 0 && metadata ? (
+              <StaticFormRendererContextProvider
+                formName={formName}
+                formLabel={metadata.label || ""}
+                formMetadata={metadata}
+                signingPartyId={selectedPartyId}
+                selectedPreviewId={selectedFieldId}
+                onSelectedPreviewId={setSelectedFieldId}
+              >
+                <FormPreviewRenderer onFieldClick={setSelectedFieldId} />
+              </StaticFormRendererContextProvider>
+            ) : (
+              <div className="rounded bg-slate-50 p-8 text-center">
+                <p className="text-sm text-slate-500">No form fields to fill out.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Right side - PDF Preview */}
-        <div className="relative flex-1 overflow-hidden bg-slate-100">
-          {documentUrl && hasRenderablePreviewField ? (
-            <FormPreviewPdfDisplay
-              documentUrl={documentUrl}
-              blocks={filteredBlocks}
-              values={previewValues}
-              onFieldClick={(fieldName) => setSelectedFieldId(fieldName)}
-              selectedFieldId={selectedFieldId}
-              prefillMode="dummy"
-              prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <div className="text-center">
-                {!documentUrl ? (
-                  <>
-                    <p className="text-sm text-slate-500">No document to preview</p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      PDF will appear here when available
-                    </p>
-                  </>
-                ) : (
-                  <>
+        {(!isMobile || mobileFieldsTab === "preview") && (
+          <div className="relative h-full min-h-0 flex-1 overflow-hidden bg-slate-100">
+            {resolvedDocumentUrl && hasRenderablePreviewField ? (
+              <FormFillPdfViewer
+                documentUrl={resolvedDocumentUrl}
+                blocks={filteredBlocks}
+                values={previewValues}
+                onFieldClick={(fieldName) => setSelectedFieldId(fieldName)}
+                selectedFieldId={selectedFieldId}
+                prefillMode="dummy"
+                prefillUser={DEFAULT_PREVIEW_DUMMY_STUDENT_USER}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="text-center">
+                  {!resolvedDocumentUrl ? (
+                    <>
+                      <p className="text-sm text-slate-500">No document to preview</p>
+                      <p className="mt-2 text-xs text-slate-400">
+                        PDF will appear here when available
+                      </p>
+                    </>
+                  ) : (
                     <p className="text-sm text-slate-500">No form fields in this section</p>
-                  </>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Save Button */}
       {onSave && (
-        <div className="flex items-center justify-end border-t border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-end border-t border-slate-200 bg-white pt-2">
           <Button onClick={handleSave} disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
             {isSaving ? "Saving..." : "Save Default Values"}

@@ -10,7 +10,7 @@ import {
   serializeSignatureImageValue,
   type SignatureImageValue,
 } from "@betterinternship/core/forms";
-import { ImageUp, PenLine, Trash2, Type, UploadCloud } from "lucide-react";
+import { Trash2, Type, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormCheckbox, FormInput, LabelWithTooltip } from "./EditForm";
 
@@ -46,13 +46,7 @@ export const SignatureFieldRenderer = <T extends any[]>({
     () => parseSignatureImageValue(rawSignatureImageValue),
     [rawSignatureImageValue]
   );
-  const [mode, setMode] = useState<SignatureMode>(
-    signatureImage?.source === "draw"
-      ? "draw"
-      : signatureImage?.source === "upload"
-        ? "upload"
-        : "type"
-  );
+  const [mode, setMode] = useState<SignatureMode>("type");
   const [typedName, setTypedName] = useState(value || "");
   const [uploadError, setUploadError] = useState("");
   const [isUploadDragging, setIsUploadDragging] = useState(false);
@@ -67,11 +61,12 @@ export const SignatureFieldRenderer = <T extends any[]>({
     setTypedName(value || "");
   }, [value]);
 
+  // Clear any existing draw/upload signature image on mount
   useEffect(() => {
-    if (signatureImage) {
-      setMode(signatureImage.source);
+    if (signatureImage?.source) {
+      onAuxValueChange?.(imageFieldKey, "");
     }
-  }, [signatureImage]);
+  }, []);
 
   const emitSignatureImage = (nextImage: SignatureImageValue) => {
     onAuxValueChange?.(imageFieldKey, serializeSignatureImageValue(nextImage));
@@ -243,22 +238,6 @@ export const SignatureFieldRenderer = <T extends any[]>({
       icon: Type,
       onSelect: () => {
         changeSignatureMode("type");
-      },
-    },
-    {
-      id: "upload" as const,
-      title: "Upload",
-      icon: ImageUp,
-      onSelect: () => {
-        changeSignatureMode("upload");
-      },
-    },
-    {
-      id: "draw" as const,
-      title: "Draw",
-      icon: PenLine,
-      onSelect: () => {
-        changeSignatureMode("draw");
       },
     },
   ];

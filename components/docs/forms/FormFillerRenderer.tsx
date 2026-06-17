@@ -78,6 +78,26 @@ export function FormFillerRenderer({
     [formFiller, autofillValues]
   );
 
+  // Strip signature image data — only text signatures are allowed
+  const sanitizedValues = useMemo(() => {
+    const cleaned = { ...finalValues };
+    for (const key of Object.keys(cleaned)) {
+      if (key.startsWith("__signatureImage:")) {
+        delete cleaned[key];
+      }
+    }
+    return cleaned;
+  }, [finalValues]);
+
+  // Clear any persisted signature image data from formFiller state on mount
+  useEffect(() => {
+    for (const key of Object.keys(formFiller.getFinalValues())) {
+      if (key.startsWith("__signatureImage:")) {
+        formFiller.setValue(key, "");
+      }
+    }
+  }, []);
+
   // Scroll to selected field
   useEffect(() => {
     if (
@@ -110,7 +130,7 @@ export function FormFillerRenderer({
           <BlocksRenderer
             formKey={form.formName}
             blocks={deduplicatedBlocks}
-            values={finalValues}
+            values={sanitizedValues}
             onChange={formFiller.setValue}
             errors={formFiller.errors}
             setSelected={(fieldId) => {

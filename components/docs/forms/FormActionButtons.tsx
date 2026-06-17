@@ -52,7 +52,14 @@ function useFormActionController() {
     }
 
     try {
-      const finalValuesWithSignatures = await withSubmittedSignatureImages(finalValues);
+      // Strip signature image data before submission — only text signatures allowed
+      const cleanedValues = { ...finalValues };
+      for (const key of Object.keys(cleanedValues)) {
+        if (key.startsWith("__signatureImage:")) {
+          delete cleanedValues[key];
+        }
+      }
+      const finalValuesWithSignatures = await withSubmittedSignatureImages(cleanedValues);
       await updateAutofill(form.formName, form.fields, finalValuesWithSignatures);
 
       if (signingPartyBlocks.length) {

@@ -158,10 +158,13 @@ function PageContent() {
       profile.name,
       formProcess.my_signing_party_id
     );
+    const signatureImagePreference = autofillValues.__signature_image_enabled;
+    const effectiveSignatureImage =
+      signatureImagePreference === "false" ? null : profile.signatureImage;
     const valuesWithSavedSignatureImages = withSavedSignatureImagesForFields({
       values: valuesWithPrefilledSignatures,
       signatureFields,
-      signatureImage: profile.signatureImage,
+      signatureImage: effectiveSignatureImage,
     });
 
     formFiller.initializeValues(valuesWithSavedSignatureImages);

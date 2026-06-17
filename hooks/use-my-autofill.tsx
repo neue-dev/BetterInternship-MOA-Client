@@ -1,7 +1,13 @@
 import { useSignatoryAccountActions } from "@/app/api/signatory.api";
 import { useSignatoryProfile } from "@/app/docs/auth/provider/signatory.ctx";
 import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
-import { ClientField, ClientPhantomField, FormValues } from "@betterinternship/core/forms";
+import {
+  parseSignatureImageValue,
+  SIGNATURE_IMAGE_FIELD_PREFIX,
+  type ClientField,
+  type ClientPhantomField,
+  type FormValues,
+} from "@betterinternship/core/forms";
 import { useCallback, useMemo } from "react";
 import type { IFormField } from "@betterinternship/core/forms";
 
@@ -76,6 +82,16 @@ export const useMyAutofillUpdate = () => {
           if (!autofillToSave[formName]) autofillToSave[formName] = {};
           autofillToSave[formName][field.field] = finalValues[field.field];
         }
+      }
+
+      const signatureImageKeys = Object.keys(finalValues).filter((key) =>
+        key.startsWith(SIGNATURE_IMAGE_FIELD_PREFIX)
+      );
+      if (signatureImageKeys.length > 0) {
+        const usedSignatureImage = signatureImageKeys.some((key) =>
+          parseSignatureImageValue(finalValues[key])
+        );
+        autofillToSave.shared.__signature_image_enabled = usedSignatureImage ? "true" : "false";
       }
 
       // Save for future use

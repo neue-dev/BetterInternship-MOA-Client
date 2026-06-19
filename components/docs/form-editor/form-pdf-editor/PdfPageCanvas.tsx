@@ -24,7 +24,6 @@ import { useRadioGroup } from "./use-radio-group";
 import { PdfPageHeader } from "./PdfPageHeader";
 import { PdfFieldLayer } from "./PdfFieldLayer";
 import { MissingFieldSuggestionsOverlay } from "./MissingFieldSuggestionsOverlay";
-import { CrosshairOverlay } from "./CrosshairOverlay";
 
 export type PdfPageCanvasProps = {
   pdf: PDFDocumentProxy;
@@ -260,8 +259,6 @@ export const PdfPageCanvas = memo(
             onSelectNextSameField={handleSelectNextSameField}
             onClearSelection={clearSelection}
           />
-
-          <CrosshairOverlay hover={localHover} />
 
           <MissingFieldSuggestionsOverlay
             show={showMissingFieldSuggestions}

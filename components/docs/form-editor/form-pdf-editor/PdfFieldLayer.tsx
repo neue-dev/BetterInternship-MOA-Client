@@ -1,6 +1,5 @@
 import { IFormBlock, IFormMetadata } from "@betterinternship/core/forms";
 import { computePreviewBaselineOffset } from "@betterinternship/core/pdf-viewer";
-import { RevampedBlockEditor } from "@/components/editor/tab-panels/editor-components/RevampedBlockEditor";
 import { FieldBox, type FormField } from "./FieldBox";
 import { normalizeVerticalAlign } from "./pdf-editor-utils";
 import { type ActiveGroupDrag } from "./use-radio-group";
@@ -127,7 +126,6 @@ export function PdfFieldLayer({
               onSelect={() => {
                 onFieldSelect?.(fieldId);
               }}
-              settingsContent={isFieldSelected ? <RevampedBlockEditor /> : undefined}
               onDrag={(deltaX, deltaY) => onFieldDrag(fieldId, deltaX, deltaY)}
               onDragEnd={() => {}}
               onResize={(handle, deltaX, deltaY) => onFieldResize(fieldId, handle, deltaX, deltaY)}

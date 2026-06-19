@@ -334,8 +334,10 @@ export const FieldBox = ({
   useEffect(() => {
     if (!isSelected || !onDeselect) return;
     const handleMouseDown = (e: MouseEvent) => {
-      if (elementRef.current?.contains(e.target as Node)) return;
-      if (toolbarRef.current?.contains(e.target as Node)) return;
+      const target = e.target as HTMLElement;
+      if (elementRef.current?.contains(target)) return;
+      if (toolbarRef.current?.contains(target)) return;
+      if (target.closest("[data-editor-left-panel]")) return;
       onDeselect();
     };
     document.addEventListener("mousedown", handleMouseDown);

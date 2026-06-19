@@ -107,7 +107,6 @@ export function EditorSelectionProvider({ children }: { children: ReactNode }) {
       if (!formMetadata) return;
       const result = appendBlock(formMetadata, block);
       setFormMetadata(result.metadata);
-      setSelectedBlockId(result.block._id);
       setSelectedBlockGroup(null);
       setPendingMissingFieldDraft(null);
     },
@@ -119,7 +118,6 @@ export function EditorSelectionProvider({ children }: { children: ReactNode }) {
       if (!formMetadata || !newBlocks.length) return;
       const result = appendBlocks(formMetadata, newBlocks);
       setFormMetadata(result.metadata);
-      setSelectedBlockId(result.blocks[0]?._id || null);
       setSelectedBlockGroup(null);
       setPendingMissingFieldDraft(null);
     },

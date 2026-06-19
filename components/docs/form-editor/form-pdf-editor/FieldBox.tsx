@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getPartyColorByIndex, getPartyColorByOrder } from "@betterinternship/core/pdf-viewer";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
+import { computeSnapToGrid, type FieldRect } from "@/lib/snap-to-grid";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +88,8 @@ export type FieldBoxProps = {
   onInlineDelete?: () => void;
   settingsContent?: React.ReactNode;
   onDeselect?: () => void;
+  snapTargets?: FieldRect[];
+  onSnapGuides?: (guideX: number | null, guideY: number | null) => void;
 };
 
 export const FieldBox = ({
@@ -111,6 +114,8 @@ export const FieldBox = ({
   onInlineDelete,
   settingsContent,
   onDeselect,
+  snapTargets,
+  onSnapGuides,
 }: FieldBoxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -167,8 +172,38 @@ export const FieldBox = ({
       }
 
       if (hasDraggedRef.current) {
-        dragOffsetRef.current = { x: deltaX, y: deltaY };
-        elementRef.current.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        let finalDx = deltaX;
+        let finalDy = deltaY;
+
+        if (snapTargets?.length) {
+          const parentEl = elementRef.current.parentElement;
+          if (parentEl) {
+            const initLeft = parseFloat(parentEl.style.left) || 0;
+            const initTop = parseFloat(parentEl.style.top) || 0;
+            const fieldW = parentEl.offsetWidth || 100;
+            const fieldH = parentEl.offsetHeight || 12;
+
+            const proposed: FieldRect = {
+              id: field.id,
+              x: initLeft + deltaX,
+              y: initTop + deltaY,
+              w: fieldW,
+              h: fieldH,
+            };
+
+            const snap = computeSnapToGrid(proposed, snapTargets, 5);
+            if (snap.x !== null) {
+              finalDx = snap.x - initLeft;
+            }
+            if (snap.y !== null) {
+              finalDy = snap.y - initTop;
+            }
+            onSnapGuides?.(snap.guideX, snap.guideY);
+          }
+        }
+
+        dragOffsetRef.current = { x: finalDx, y: finalDy };
+        elementRef.current.style.transform = `translate(${finalDx}px, ${finalDy}px)`;
       }
     };
 
@@ -176,6 +211,7 @@ export const FieldBox = ({
       if (onDrag && hasDraggedRef.current) {
         onDrag(dragOffsetRef.current.x, dragOffsetRef.current.y);
       }
+      onSnapGuides?.(null, null);
       dragState.current = null;
       hasDraggedRef.current = false;
       setIsDragging(false);

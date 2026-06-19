@@ -237,6 +237,8 @@ export const BlocksRenderer = <T extends any[]>({
       }
     };
     const handleAuxValueChange = (key: string, value: any) => {
+      console.debug("[FormFillerRenderer] handleAuxValueChange", { key, valueLength: String(value).length, signatureFieldsForRecipient: signatureFieldsForRecipient.length });
+
       if (!signatureFieldsForRecipient.length) {
         onChange(key, value);
         return;
@@ -248,10 +250,12 @@ export const BlocksRenderer = <T extends any[]>({
         )
       );
       if (!signatureImageKeys.has(key)) {
+        console.debug("[FormFillerRenderer] aux key not in sig set, passing through", { key });
         onChange(key, value);
         return;
       }
 
+      console.debug("[FormFillerRenderer] broadcasting signature image to all sig keys", { key, targetKeys: Array.from(signatureImageKeys) });
       for (const signatureImageKey of signatureImageKeys) {
         onChange(signatureImageKey, value);
       }

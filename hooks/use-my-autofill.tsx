@@ -87,12 +87,23 @@ export const useMyAutofillUpdate = () => {
       const signatureImageKeys = Object.keys(finalValues).filter((key) =>
         key.startsWith(SIGNATURE_IMAGE_FIELD_PREFIX)
       );
+      console.debug("[useMyAutofillUpdate] checking signature image keys", {
+        signatureImageKeys,
+        parsedResults: Object.fromEntries(
+          signatureImageKeys.map((k) => [k, !!parseSignatureImageValue(finalValues[k])])
+        ),
+      });
       if (signatureImageKeys.length > 0) {
         const usedSignatureImage = signatureImageKeys.some((key) =>
           parseSignatureImageValue(finalValues[key])
         );
         autofillToSave.shared.__signature_image_enabled = usedSignatureImage ? "true" : "false";
       }
+      console.debug("[useMyAutofillUpdate] autofillToSave", {
+        autofillToSave,
+        hasEnabled: "__signature_image_enabled" in (autofillToSave.shared ?? {}),
+        enabledValue: autofillToSave.shared?.__signature_image_enabled,
+      });
 
       // Save for future use
       await update.mutateAsync({

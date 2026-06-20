@@ -214,7 +214,7 @@ export const PdfPageCanvas = memo(
         )}
         style={{ visibility: pageReady ? "visible" : "hidden" }}
       >
-        <PdfPageHeader pageNumber={pageNumber} hover={localHover} />
+        <PdfPageHeader pageNumber={pageNumber} />
         <div className="relative flex justify-center bg-slate-50">
           <canvas
             ref={canvasRef}

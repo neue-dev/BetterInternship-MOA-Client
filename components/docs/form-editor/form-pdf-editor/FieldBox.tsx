@@ -388,8 +388,12 @@ export const FieldBox = ({
       const target = e.target as HTMLElement;
       if (elementRef.current?.contains(target)) return;
       if (toolbarRef.current?.contains(target)) return;
-      if (target.closest("[data-editor-left-panel]")) return;
-      onDeselect();
+      // Only deselect when clicking directly on the PDF page area.
+      // Clicks on toolbars, panels, dialogs, portals, or any other
+      // editor chrome are ignored — they should not clear selection.
+      if (target.closest("[data-page]")) {
+        onDeselect();
+      }
     };
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);

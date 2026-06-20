@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getPartyColorByIndex, getPartyColorByOrder } from "@betterinternship/core/pdf-viewer";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
-import { computeSnapToGrid, type FieldRect } from "@/lib/snap-to-grid";
+import { computeSnapToGrid, snapResizeEdge, type FieldRect } from "@/lib/snap-to-grid";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -274,6 +274,15 @@ export const FieldBox = ({
       else if (handle === "sw") { newLeft = rs.initialLeft + deltaX; newW = Math.max(minPx, rs.initialW - deltaX); newH = Math.max(minPx, rs.initialH + deltaY); }
       else if (handle === "se") { newW = Math.max(minPx, rs.initialW + deltaX); newH = Math.max(minPx, rs.initialH + deltaY); }
 
+      if (snapTargets?.length) {
+        const snapped = snapResizeEdge(handle, newLeft, newTop, newW, newH, field.id, snapTargets, 5);
+        newLeft = snapped.left;
+        newTop = snapped.top;
+        newW = snapped.w;
+        newH = snapped.h;
+        onSnapGuides?.(snapped.guideX, snapped.guideY);
+      }
+
       parentEl.style.left = `${newLeft}px`;
       parentEl.style.top = `${newTop}px`;
       parentEl.style.width = `${newW}px`;
@@ -281,6 +290,7 @@ export const FieldBox = ({
     };
 
     const handleUp = () => {
+      onSnapGuides?.(null, null);
       const rs = resizeState.current;
       resizeState.current = null;
       setIsResizing(false);

@@ -79,3 +79,100 @@ export function computeSnapToGrid(
 
   return { x: bestSnapX, y: bestSnapY, guideX: bestGuideX, guideY: bestGuideY };
 }
+
+export interface ResizeSnapResult {
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+  guideX: number | null;
+  guideY: number | null;
+}
+
+export function snapResizeEdge(
+  handle: string,
+  left: number,
+  top: number,
+  w: number,
+  h: number,
+  fieldId: string,
+  targets: FieldRect[],
+  threshold: number,
+): ResizeSnapResult {
+  const right = left + w;
+  const bottom = top + h;
+
+  let outLeft = left;
+  let outTop = top;
+  let outW = w;
+  let outH = h;
+  let guideX: number | null = null;
+  let guideY: number | null = null;
+
+  const movesLeft = handle === "w" || handle === "nw" || handle === "sw";
+  const movesRight = handle === "e" || handle === "ne" || handle === "se";
+  const movesTop = handle === "n" || handle === "nw" || handle === "ne";
+  const movesBottom = handle === "s" || handle === "sw" || handle === "se";
+
+  let bestDistX = threshold;
+  let bestDistY = threshold;
+
+  for (const t of targets) {
+    if (t.id === fieldId) continue;
+
+    const tl = t.x;
+    const tr = t.x + t.w;
+    const tt = t.y;
+    const tb = t.y + t.h;
+
+    if (movesLeft) {
+      for (const tEdge of [tl, tr]) {
+        const dist = Math.abs(left - tEdge);
+        if (dist < bestDistX) {
+          bestDistX = dist;
+          const snapCorrection = tEdge - left;
+          outLeft += snapCorrection;
+          outW -= snapCorrection;
+          guideX = tEdge;
+        }
+      }
+    }
+
+    if (movesRight) {
+      for (const tEdge of [tl, tr]) {
+        const dist = Math.abs(right - tEdge);
+        if (dist < bestDistX) {
+          bestDistX = dist;
+          outW = tEdge - left;
+          guideX = tEdge;
+        }
+      }
+    }
+
+    if (movesTop) {
+      for (const tEdge of [tt, tb]) {
+        const dist = Math.abs(top - tEdge);
+        if (dist < bestDistY) {
+          bestDistY = dist;
+          const snapCorrection = tEdge - top;
+          outTop += snapCorrection;
+          outH -= snapCorrection;
+          guideY = tEdge;
+        }
+      }
+    }
+
+    if (movesBottom) {
+      for (const tEdge of [tt, tb]) {
+        const dist = Math.abs(bottom - tEdge);
+        if (dist < bestDistY) {
+          bestDistY = dist;
+          outH = tEdge - top;
+          guideY = tEdge;
+        }
+      }
+    }
+  }
+
+  return { left: outLeft, top: outTop, w: outW, h: outH, guideX, guideY };
+}

@@ -180,6 +180,7 @@ export function FormEditorPdfViewer({
   });
 
   const [showBaselineGuides, setShowBaselineGuides] = useState(false);
+  const [snapToGridEnabled, setSnapToGridEnabled] = useState(true);
 
   const scrollToSelectedField = useCallback(() => {
     if (!selectedFieldId) return;
@@ -306,6 +307,7 @@ export function FormEditorPdfViewer({
         _registry={registry}
         formMetadata={formMetadata}
         showBaselineGuides={showBaselineGuides}
+        snapToGridEnabled={snapToGridEnabled}
         showMissingFieldSuggestions={showMissingFieldSuggestions}
         suggestions={visibleMissingSuggestions}
         selectedSuggestionId={selectedMissingSuggestionId}
@@ -325,6 +327,7 @@ export function FormEditorPdfViewer({
       selectedPartyId,
       setVisiblePage,
       showBaselineGuides,
+      snapToGridEnabled,
       showMissingFieldSuggestions,
       visibleMissingSuggestions,
       visiblePage,
@@ -411,6 +414,12 @@ export function FormEditorPdfViewer({
                 onCheckedChange={(checked) => setShowBaselineGuides(Boolean(checked))}
               >
                 Show baselines
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={snapToGridEnabled}
+                onCheckedChange={(checked) => setSnapToGridEnabled(Boolean(checked))}
+              >
+                Snap to grid
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>

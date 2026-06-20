@@ -41,6 +41,7 @@ export type PdfPageCanvasProps = {
   _registry: FieldRegistryEntry[];
   formMetadata: IFormMetadata | null;
   showBaselineGuides: boolean;
+  snapToGridEnabled?: boolean;
   showMissingFieldSuggestions: boolean;
   suggestions: MissingFieldSuggestion[];
   selectedSuggestionId: string | null;
@@ -64,6 +65,7 @@ export const PdfPageCanvas = memo(
     _registry,
     formMetadata,
     showBaselineGuides,
+    snapToGridEnabled = true,
     showMissingFieldSuggestions,
     suggestions,
     selectedSuggestionId,
@@ -246,6 +248,7 @@ export const PdfPageCanvas = memo(
             selectedFieldId={selectedFieldId}
             formMetadata={formMetadata}
             showBaselineGuides={showBaselineGuides}
+            snapToGridEnabled={snapToGridEnabled}
             containerResizeVersion={containerResizeVersion}
             activeGroupDrag={activeGroupDrag}
             findSameFieldIds={findSameFieldIds}

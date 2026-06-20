@@ -14,6 +14,7 @@ export function PdfFieldLayer({
   selectedFieldId,
   formMetadata,
   showBaselineGuides,
+  snapToGridEnabled = true,
   containerResizeVersion,
   activeGroupDrag,
   findSameFieldIds,
@@ -34,6 +35,7 @@ export function PdfFieldLayer({
   selectedFieldId: string | null | undefined;
   formMetadata: IFormMetadata | null;
   showBaselineGuides: boolean;
+  snapToGridEnabled?: boolean;
   containerResizeVersion: number;
   activeGroupDrag: ActiveGroupDrag;
   findSameFieldIds: (fieldId: string) => string[];
@@ -74,6 +76,7 @@ export function PdfFieldLayer({
   }, []);
 
   const snapTargets = useMemo<FieldRect[]>(() => {
+    if (!snapToGridEnabled) return [];
     const rects: FieldRect[] = [];
     for (const b of blocks) {
       if (b.block_type !== "form_field" || !b.field_schema || b.field_schema.page !== pageNumber)
@@ -89,7 +92,7 @@ export function PdfFieldLayer({
       });
     }
     return rects;
-  }, [blocks, pageNumber, scale, pdfToDisplay]);
+  }, [blocks, pageNumber, scale, pdfToDisplay, snapToGridEnabled]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10" key={containerResizeVersion}>

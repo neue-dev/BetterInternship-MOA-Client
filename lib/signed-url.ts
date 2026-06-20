@@ -15,6 +15,11 @@ export const BUCKET_PREFIX =
 export const isBucketUrl = (url: string): boolean =>
   typeof url === "string" && url.startsWith(BUCKET_PREFIX);
 
+export const stripUrlParams = (url: string): string => {
+  const qIndex = url.indexOf("?");
+  return qIndex > -1 ? url.slice(0, qIndex) : url;
+};
+
 type CacheEntry = { signedUrl: string; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<string>>();
@@ -43,35 +48,37 @@ export const resolveSignedUrl = (url: string): Promise<string> => {
     return Promise.resolve(url);
   }
 
-  const cached = cache.get(url);
+  const baseUrl = stripUrlParams(url);
+
+  const cached = cache.get(baseUrl);
   if (cached && cached.expiresAt > Date.now()) {
-    console.debug("[resolveSignedUrl] cache hit", { url, expiresAt: new Date(cached.expiresAt).toISOString() });
+    console.debug("[resolveSignedUrl] cache hit", { baseUrl, expiresAt: new Date(cached.expiresAt).toISOString() });
     return Promise.resolve(cached.signedUrl);
   }
 
   if (cached) {
-    console.debug("[resolveSignedUrl] cache expired", { url, expiredAt: new Date(cached.expiresAt).toISOString() });
+    console.debug("[resolveSignedUrl] cache expired", { baseUrl, expiredAt: new Date(cached.expiresAt).toISOString() });
   } else {
-    console.debug("[resolveSignedUrl] not in cache", { url });
+    console.debug("[resolveSignedUrl] not in cache", { baseUrl });
   }
 
-  const existing = inflight.get(url);
+  const existing = inflight.get(baseUrl);
   if (existing) return existing;
 
-  const promise = resolveFromServer([url])
+  const promise = resolveFromServer([baseUrl])
     .then((result) => {
-      const signedUrl = result[url] ?? url;
-      cache.set(url, { signedUrl, expiresAt: Date.now() + TTL_MS });
-      inflight.delete(url);
-      console.debug("[resolveSignedUrl] server resolved", { url, signedUrl });
+      const signedUrl = result[baseUrl] ?? url;
+      cache.set(baseUrl, { signedUrl, expiresAt: Date.now() + TTL_MS });
+      inflight.delete(baseUrl);
+      console.debug("[resolveSignedUrl] server resolved", { baseUrl, signedUrl });
       return signedUrl;
     })
     .catch(() => {
-      inflight.delete(url);
+      inflight.delete(baseUrl);
       console.debug("[resolveSignedUrl] server fetch failed, returning original", { url });
       return url;
     });
-  inflight.set(url, promise);
+  inflight.set(baseUrl, promise);
   return promise;
 };
 
@@ -87,20 +94,21 @@ export const resolveSignedUrls = async (
       result[url] = url;
       continue;
     }
-    const cached = cache.get(url);
+    const baseUrl = stripUrlParams(url);
+    const cached = cache.get(baseUrl);
     if (cached && cached.expiresAt > now) {
       result[url] = cached.signedUrl;
     } else {
-      toFetch.push(url);
+      toFetch.push(baseUrl);
     }
   }
 
   if (toFetch.length) {
-    const serverResults = await resolveFromServer(toFetch).catch(() => ({}));
-    for (const url of toFetch) {
-      const signed = serverResults[url] ?? url;
-      cache.set(url, { signedUrl: signed, expiresAt: now + TTL_MS });
-      result[url] = signed;
+    const serverResults = await resolveFromServer(toFetch).catch<Record<string, string>>(() => ({}));
+    for (const baseUrl of toFetch) {
+      const signed = serverResults[baseUrl] ?? baseUrl;
+      cache.set(baseUrl, { signedUrl: signed, expiresAt: now + TTL_MS });
+      result[baseUrl] = signed;
     }
   }
 

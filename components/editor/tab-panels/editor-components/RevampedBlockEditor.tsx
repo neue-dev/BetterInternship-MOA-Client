@@ -5,6 +5,7 @@
 import { IFormBlock } from "@betterinternship/core/forms";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useFieldTemplateContext } from "@/app/contexts/field-template.ctx";
@@ -76,6 +77,7 @@ export function RevampedBlockEditor() {
 
   const [editedBlock, setEditedBlock] = useState<IFormBlock | null>(activeBlock);
   const [presetIdOverride, setPresetIdOverride] = useState<string | null>(null);
+  const [positionOpen, setPositionOpen] = useState(false);
 
   type IntegerFieldKey = "size";
   const [integerDrafts, setIntegerDrafts] = useState<Partial<Record<IntegerFieldKey, string>>>({});
@@ -433,6 +435,64 @@ export function RevampedBlockEditor() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="border-t border-slate-200" />
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setPositionOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase text-muted-foreground"
+        >
+          Position &amp; Size
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 rounded transition-colors hover:bg-slate-100",
+              positionOpen && "rotate-180",
+            )}
+          />
+        </button>
+        {positionOpen && (
+          <div className="grid grid-cols-2 gap-2 px-3 pb-3">
+            <FormInput
+              type="number"
+              label="X"
+              step="0.01"
+              value={schema?.x?.toFixed(2) ?? "0.00"}
+              setter={(v) => handleFieldChange("x", Number(v))}
+              required={false}
+              className="h-8 text-xs"
+            />
+            <FormInput
+              type="number"
+              label="Y"
+              step="0.01"
+              value={schema?.y?.toFixed(2) ?? "0.00"}
+              setter={(v) => handleFieldChange("y", Number(v))}
+              required={false}
+              className="h-8 text-xs"
+            />
+            <FormInput
+              type="number"
+              label="W"
+              step="0.01"
+              value={schema?.w?.toFixed(2) ?? "100.00"}
+              setter={(v) => handleFieldChange("w", Number(v))}
+              required={false}
+              className="h-8 text-xs"
+            />
+            <FormInput
+              type="number"
+              label="H"
+              step="0.01"
+              value={schema?.h?.toFixed(2) ?? "12.00"}
+              setter={(v) => handleFieldChange("h", Number(v))}
+              required={false}
+              className="h-8 text-xs"
+            />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-slate-200" />

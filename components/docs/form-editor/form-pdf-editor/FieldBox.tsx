@@ -57,11 +57,16 @@ function ResizeHandleDot({
   colorHex: string;
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
+  const invisible = colorHex === "transparent";
   return (
     <div
-      className={cn("h-2.5 w-2.5 rounded-full", RESIZE_HANDLE_CLASSES[handle])}
+      className={cn(invisible ? "h-4 w-4" : "h-2.5 w-2.5 rounded-full border-2 shadow-sm", RESIZE_HANDLE_CLASSES[handle])}
       onMouseDown={onMouseDown}
-      style={{ backgroundColor: colorHex, pointerEvents: "auto" }}
+      style={{
+        backgroundColor: invisible ? "transparent" : "white",
+        borderColor: invisible ? "transparent" : colorHex,
+        pointerEvents: "auto",
+      }}
     />
   );
 }
@@ -562,11 +567,19 @@ export const FieldBox = ({
 
       {isSelected && (
         <>
-          {(["n", "e", "s", "w", "nw", "ne", "sw", "se"] as ResizeHandle[]).map((handle) => (
+          {(["n", "e", "s", "w"] as ResizeHandle[]).map((handle) => (
             <ResizeHandleDot
               key={handle}
               handle={handle}
               colorHex={partyColor.hex}
+              onMouseDown={(e) => handleResizeStart(e, handle)}
+            />
+          ))}
+          {(["nw", "ne", "sw", "se"] as ResizeHandle[]).map((handle) => (
+            <ResizeHandleDot
+              key={handle}
+              handle={handle}
+              colorHex="transparent"
               onMouseDown={(e) => handleResizeStart(e, handle)}
             />
           ))}

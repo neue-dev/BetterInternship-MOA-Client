@@ -13,6 +13,20 @@ import type { FieldRegistryEntry } from "@/app/api";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 
+const ZOOM_STORAGE_KEY = "form-editor-zoom";
+
+function loadZoom(): number {
+  if (typeof window === "undefined") return 1.1;
+  try {
+    const saved = localStorage.getItem(ZOOM_STORAGE_KEY);
+    if (saved) {
+      const parsed = Number.parseFloat(saved);
+      if (Number.isFinite(parsed) && parsed >= 0.3 && parsed <= 3) return parsed;
+    }
+  } catch {}
+  return 1.1;
+}
+
 export interface FormEditorPdfViewerContextType {
   pdfDoc: PDFDocumentProxy | null;
   pageCount: number;
@@ -40,7 +54,7 @@ export function FormEditorPdfViewerProvider({ children }: { children: ReactNode 
 
   const [selectedPage, setSelectedPage] = useState<number>(1);
   const [visiblePage, setVisiblePage] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.1);
+  const [scale, setScale] = useState<number>(loadZoom);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [registry, setRegistry] = useState<FieldRegistryEntry[]>([]);
 
@@ -52,6 +66,12 @@ export function FormEditorPdfViewerProvider({ children }: { children: ReactNode 
       setVisiblePage(1);
     }
   }, [pdfDoc]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ZOOM_STORAGE_KEY, String(scale));
+    } catch {}
+  }, [scale]);
 
   const value = useMemo(
     () => ({

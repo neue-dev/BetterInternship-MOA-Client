@@ -99,7 +99,6 @@ function PageContent() {
       k.startsWith("__signatureImage"),
     );
     if (sigEntries.length)
-      console.debug("[sign/page.tsx] signature image values", sigEntries);
   }, [previewValues]);
   const previewPrefillUser = useMemo(
     () => ({
@@ -167,39 +166,18 @@ function PageContent() {
         formProcess.my_signing_party_id
       );
       const signatureImagePreference = autofillValues.__signature_image_enabled;
-      console.debug("[sign/page.tsx] initForm", {
-        formName: form.formName,
-        signatureImagePreference,
-        hasProfileSignatureImage: !!profile.signatureImage,
-        profileSigImagePreview: profile.signatureImage?.slice(0, 100),
-      });
+    
       let effectiveSignatureImage =
         signatureImagePreference === "false" ? null : profile.signatureImage;
 
       if (effectiveSignatureImage) {
         effectiveSignatureImage = await resolveSignatureImageValue(effectiveSignatureImage);
-        console.debug("[sign/page.tsx] resolved signature image", {
-          effectiveSignatureImagePreview: effectiveSignatureImage?.slice(0, 100),
-        });
       }
 
       const valuesWithSavedSignatureImages = withSavedSignatureImagesForFields({
         values: valuesWithPrefilledSignatures,
         signatureFields,
         signatureImage: effectiveSignatureImage,
-      });
-
-      console.debug("[sign/page.tsx] initialized values with signature image", {
-        hasSigImage: !!effectiveSignatureImage,
-        valuesKeys: Object.keys(valuesWithSavedSignatureImages),
-        sigImageKeys: Object.keys(valuesWithSavedSignatureImages).filter((k) =>
-          k.startsWith("__signatureImage")
-        ),
-        sigImageValues: Object.fromEntries(
-          Object.keys(valuesWithSavedSignatureImages)
-            .filter((k) => k.startsWith("__signatureImage"))
-            .map((k) => [k, String(valuesWithSavedSignatureImages[k]).slice(0, 100)])
-        ),
       });
 
       formFiller.initializeValues(valuesWithSavedSignatureImages);

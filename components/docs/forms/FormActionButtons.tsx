@@ -44,13 +44,6 @@ function useFormActionController() {
     if (!profile.id) return;
 
     const finalValues = formFiller.getFinalValues(autofillValues);
-    const sigKeys = Object.keys(finalValues).filter((k) => k.startsWith("__signatureImage"));
-    console.debug("[FormActionButtons] handleSubmit", {
-      formName: form.formName,
-      finalValuesKeys: Object.keys(finalValues),
-      signatureImageKeys: sigKeys,
-      sigKeyValues: Object.fromEntries(sigKeys.map((k) => [k, finalValues[k]?.slice(0, 100)])),
-    });
 
     const errors = formFiller.validate(form.fields, autofillValues);
     if (Object.keys(errors).length) {
@@ -61,13 +54,7 @@ function useFormActionController() {
 
     try {
       const finalValuesWithSignatures = await withSubmittedSignatureImages(finalValues);
-      console.debug("[FormActionButtons] after withSubmittedSignatureImages", {
-        sigKeyValues: Object.fromEntries(
-          Object.entries(finalValuesWithSignatures)
-            .filter(([k]) => k.startsWith("__signatureImage"))
-            .map(([k, v]) => [k, String(v).slice(0, 100)])
-        ),
-      });
+
       await updateAutofill(form.formName, form.fields, finalValuesWithSignatures);
 
       if (signingPartyBlocks.length) {

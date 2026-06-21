@@ -94,12 +94,7 @@ function PageContent() {
       ),
     [form.formMetadata, finalValues]
   );
-  useEffect(() => {
-    const sigEntries = Object.entries(previewValues).filter(([k]) =>
-      k.startsWith("__signatureImage"),
-    );
-    if (sigEntries.length)
-  }, [previewValues]);
+
   const previewPrefillUser = useMemo(
     () => ({
       ...(profile as unknown as Record<string, unknown>),
@@ -166,7 +161,7 @@ function PageContent() {
         formProcess.my_signing_party_id
       );
       const signatureImagePreference = autofillValues.__signature_image_enabled;
-    
+
       let effectiveSignatureImage =
         signatureImagePreference === "false" ? null : profile.signatureImage;
 

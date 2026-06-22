@@ -86,19 +86,14 @@ function PageContent() {
     () => formFiller.getFinalValues(autofillValues),
     [formFiller, form, autofillValues]
   );
-  const previewValues = useMemo(() => {
-    const derived = withDerivedFormValues(
-      form.formMetadata as Parameters<typeof withDerivedFormValues>[0],
-      finalValues
-    );
-    // Strip signature image data — only text signatures allowed
-    for (const key of Object.keys(derived)) {
-      if (key.startsWith("__signatureImage:")) {
-        delete derived[key];
-      }
-    }
-    return derived;
-  }, [form.formMetadata, finalValues]);
+  const previewValues = useMemo(
+    () =>
+      withDerivedFormValues(
+        form.formMetadata as Parameters<typeof withDerivedFormValues>[0],
+        finalValues
+      ),
+    [form.formMetadata, finalValues]
+  );
   const previewPrefillUser = useMemo(
     () => ({
       ...(profile as unknown as Record<string, unknown>),
@@ -169,15 +164,7 @@ function PageContent() {
       signatureImage: profile.signatureImage,
     });
 
-    // Strip signature image keys — only text signatures are allowed
-    const valuesToInitialize = { ...valuesWithSavedSignatureImages };
-    for (const key of Object.keys(valuesToInitialize)) {
-      if (key.startsWith("__signatureImage:")) {
-        delete valuesToInitialize[key];
-      }
-    }
-
-    formFiller.initializeValues(valuesToInitialize);
+    formFiller.initializeValues(valuesWithSavedSignatureImages);
     signContext.setRequiredSignatures(
       getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
     );

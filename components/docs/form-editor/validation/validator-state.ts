@@ -273,7 +273,7 @@ export function setToggleValidatorValue(
     const key = id === "minItems" ? "minItems" : "maxItems";
     const messageKey = id === "minItems" ? "minMessage" : "maxMessage";
     const previousValue = id === "minItems" ? arrayRule.params?.minItems : arrayRule.params?.maxItems;
-    const nextValue = toNumberOrUndefined(value) ?? undefined;
+    const nextValue = value === "" ? 0 : (toNumberOrUndefined(value) ?? 0);
     const nextParams: ValidatorRule["params"] = {
       ...arrayRule.params,
       [key]: nextValue,
@@ -290,10 +290,10 @@ export function setToggleValidatorValue(
   const existing = getRule(config, mapped);
   const nextParams = {
     ...(existing?.params || {}),
-    value,
+    value: value === "" ? 0 : value,
   };
   if (shouldRefreshGeneratedMessage(id, existing?.params?.message, existing?.params?.value as string | number | undefined)) {
-    nextParams.message = getDefaultToggleMessage(id, value);
+    nextParams.message = getDefaultToggleMessage(id, nextParams.value);
   }
   return upsertRule(config, mapped, {
     ...nextParams,

@@ -1,9 +1,10 @@
+import { useCallback, useMemo, useRef } from "react";
 import { IFormBlock, IFormMetadata } from "@betterinternship/core/forms";
 import { computePreviewBaselineOffset } from "@betterinternship/core/pdf-viewer";
-import { RevampedBlockEditor } from "@/components/editor/tab-panels/editor-components/RevampedBlockEditor";
 import { FieldBox, type FormField } from "./FieldBox";
 import { normalizeVerticalAlign } from "./pdf-editor-utils";
 import { type ActiveGroupDrag } from "./use-radio-group";
+import { computeSnapToGrid, type FieldRect } from "@/lib/snap-to-grid";
 
 export function PdfFieldLayer({
   blocks,
@@ -13,6 +14,7 @@ export function PdfFieldLayer({
   selectedFieldId,
   formMetadata,
   showBaselineGuides,
+  snapToGridEnabled = true,
   containerResizeVersion,
   activeGroupDrag,
   findSameFieldIds,
@@ -33,6 +35,7 @@ export function PdfFieldLayer({
   selectedFieldId: string | null | undefined;
   formMetadata: IFormMetadata | null;
   showBaselineGuides: boolean;
+  snapToGridEnabled?: boolean;
   containerResizeVersion: number;
   activeGroupDrag: ActiveGroupDrag;
   findSameFieldIds: (fieldId: string) => string[];
@@ -51,8 +54,52 @@ export function PdfFieldLayer({
   onSelectNextSameField: (fieldId: string) => void;
   onClearSelection: () => void;
 }) {
+  const guidesRef = useRef<HTMLDivElement>(null);
+
+  const handleSnapGuides = useCallback((guideX: number | null, guideY: number | null) => {
+    const el = guidesRef.current;
+    if (!el || el.children.length < 2) return;
+    const vGuide = el.children[0] as HTMLElement;
+    const hGuide = el.children[1] as HTMLElement;
+    if (guideX != null) {
+      vGuide.style.display = "block";
+      vGuide.style.left = `${guideX}px`;
+    } else {
+      vGuide.style.display = "none";
+    }
+    if (guideY != null) {
+      hGuide.style.display = "block";
+      hGuide.style.top = `${guideY}px`;
+    } else {
+      hGuide.style.display = "none";
+    }
+  }, []);
+
+  const snapTargets = useMemo<FieldRect[]>(() => {
+    if (!snapToGridEnabled) return [];
+    const rects: FieldRect[] = [];
+    for (const b of blocks) {
+      if (b.block_type !== "form_field" || !b.field_schema || b.field_schema.page !== pageNumber)
+        continue;
+      const pos = pdfToDisplay(b.field_schema.x, b.field_schema.y);
+      if (!pos) continue;
+      rects.push({
+        id: b._id,
+        x: pos.displayX,
+        y: pos.displayY,
+        w: b.field_schema.w * scale,
+        h: b.field_schema.h * scale,
+      });
+    }
+    return rects;
+  }, [blocks, pageNumber, scale, pdfToDisplay, snapToGridEnabled]);
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10" key={containerResizeVersion}>
+      <div ref={guidesRef} className="pointer-events-none absolute inset-0 z-[200]">
+        <div className="absolute top-0 hidden h-full w-[2px] bg-[#0099FF] shadow-[0_0_8px_rgba(0,153,255,0.7)]" />
+        <div className="absolute left-0 hidden h-[2px] w-full bg-[#0099FF] shadow-[0_0_8px_rgba(0,153,255,0.7)]" />
+      </div>
       {blocks.map((block) => {
         const schema = block.field_schema;
         if (!schema || schema.page !== pageNumber || block.block_type !== "form_field") return null;
@@ -127,7 +174,6 @@ export function PdfFieldLayer({
               onSelect={() => {
                 onFieldSelect?.(fieldId);
               }}
-              settingsContent={isFieldSelected ? <RevampedBlockEditor /> : undefined}
               onDrag={(deltaX, deltaY) => onFieldDrag(fieldId, deltaX, deltaY)}
               onDragEnd={() => {}}
               onResize={(handle, deltaX, deltaY) => onFieldResize(fieldId, handle, deltaX, deltaY)}
@@ -148,6 +194,8 @@ export function PdfFieldLayer({
               showInlineDelete={!!schema.radio_group_id}
               onInlineDelete={() => onDeleteBlock(fieldId)}
               onDeselect={onClearSelection}
+              snapTargets={snapTargets}
+              onSnapGuides={handleSnapGuides}
             />
           </div>
         );

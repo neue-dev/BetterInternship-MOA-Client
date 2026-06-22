@@ -5,8 +5,8 @@ import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useEditorViewSync } from "@/components/editor/tabs/editor-view-sync.context";
 import { FormEditorPdfViewer } from "@/components/docs/form-editor/form-pdf-editor/FormEditorPdfViewer";
 import { RecipientTabBar } from "@/components/docs/form-editor/RecipientTabBar";
-import { BlocksPanel } from "./editor-components/BlocksPanel";
 import { EditorSplitLayout } from "@/components/editor/tabs/EditorSplitLayout";
+import { EditorLeftPanel } from "./EditorLeftPanel";
 
 /**
  * Main builder surface (left palette + right PDF). Shares its column geometry
@@ -34,7 +34,7 @@ function FormEditorTabContent() {
       />
       <EditorSplitLayout
         side="editor"
-        left={<BlocksPanel />}
+        left={<EditorLeftPanel />}
         right={
           <FormEditorPdfViewer showRecipientTabBar={false} registerScrollContainer={registerEditorScroller} />
         }

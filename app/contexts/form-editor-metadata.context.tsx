@@ -19,6 +19,7 @@ import {
   type RegisterFormSchemaDto,
 } from "@/app/api";
 import { normalizeBlocksForSave } from "@/lib/form-schema-normalizer";
+import { applySaveRules } from "@/lib/form-save-rules";
 import {
   computeDelta,
   applyDelta,
@@ -310,7 +311,7 @@ export function FormEditorMetadataProvider({
     if (!state.present) return;
     setIsSaving(true);
     try {
-      const normalizedMetadata = normalizeMetadataForSave(state.present);
+      const normalizedMetadata = normalizeMetadataForSave(applySaveRules(state.present));
       const payload: RegisterFormSchemaDto = {
         ...(normalizedMetadata as unknown as RegisterFormSchemaDto),
         base_document: documentFile ?? undefined,

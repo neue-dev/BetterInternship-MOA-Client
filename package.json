@@ -17,7 +17,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.4",
     "@betterinternship/components": "^1.5.28",
-    "@betterinternship/core": "^2.13.0",
+    "@betterinternship/core": "2.16.6",
     "@betterinternship/schema": "^0.0.0",
     "@hookform/resolvers": "^5.2.1",
     "@marsidev/react-turnstile": "^1.4.0",

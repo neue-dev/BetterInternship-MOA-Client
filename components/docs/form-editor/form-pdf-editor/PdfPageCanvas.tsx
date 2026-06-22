@@ -24,7 +24,6 @@ import { useRadioGroup } from "./use-radio-group";
 import { PdfPageHeader } from "./PdfPageHeader";
 import { PdfFieldLayer } from "./PdfFieldLayer";
 import { MissingFieldSuggestionsOverlay } from "./MissingFieldSuggestionsOverlay";
-import { CrosshairOverlay } from "./CrosshairOverlay";
 
 export type PdfPageCanvasProps = {
   pdf: PDFDocumentProxy;
@@ -42,6 +41,7 @@ export type PdfPageCanvasProps = {
   _registry: FieldRegistryEntry[];
   formMetadata: IFormMetadata | null;
   showBaselineGuides: boolean;
+  snapToGridEnabled?: boolean;
   showMissingFieldSuggestions: boolean;
   suggestions: MissingFieldSuggestion[];
   selectedSuggestionId: string | null;
@@ -65,6 +65,7 @@ export const PdfPageCanvas = memo(
     _registry,
     formMetadata,
     showBaselineGuides,
+    snapToGridEnabled = true,
     showMissingFieldSuggestions,
     suggestions,
     selectedSuggestionId,
@@ -213,7 +214,7 @@ export const PdfPageCanvas = memo(
         )}
         style={{ visibility: pageReady ? "visible" : "hidden" }}
       >
-        <PdfPageHeader pageNumber={pageNumber} hover={localHover} />
+        <PdfPageHeader pageNumber={pageNumber} />
         <div className="relative flex justify-center bg-slate-50">
           <canvas
             ref={canvasRef}
@@ -247,6 +248,7 @@ export const PdfPageCanvas = memo(
             selectedFieldId={selectedFieldId}
             formMetadata={formMetadata}
             showBaselineGuides={showBaselineGuides}
+            snapToGridEnabled={snapToGridEnabled}
             containerResizeVersion={containerResizeVersion}
             activeGroupDrag={activeGroupDrag}
             findSameFieldIds={findSameFieldIds}
@@ -260,8 +262,6 @@ export const PdfPageCanvas = memo(
             onSelectNextSameField={handleSelectNextSameField}
             onClearSelection={clearSelection}
           />
-
-          <CrosshairOverlay hover={localHover} />
 
           <MissingFieldSuggestionsOverlay
             show={showMissingFieldSuggestions}

@@ -27,7 +27,7 @@ import { DelegateEmailScreen } from "./components/DelegateEmailScreen";
 import { MobileStepTabs } from "./components/MobileStepTabs";
 import { SignIntentGate } from "./components/SignIntentGate";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSignedUrl } from "@/lib/signed-url";
+import { resolveSignatureImageValue, useSignedUrl } from "@/lib/signed-url";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -94,6 +94,7 @@ function PageContent() {
       ),
     [form.formMetadata, finalValues]
   );
+
   const previewPrefillUser = useMemo(
     () => ({
       ...(profile as unknown as Record<string, unknown>),
@@ -150,31 +151,44 @@ function PageContent() {
   useEffect(() => {
     if (!formProcess.my_signing_party_id || !form.formName) return;
 
-    const signatureFields = form.formMetadata.getSignatureFieldsForClientService(
-      formProcess.my_signing_party_id
-    );
-    const valuesWithPrefilledSignatures = form.formMetadata.setSignatureValueForSigningParty(
-      formFiller.getFinalValues(autofillValues),
-      profile.name,
-      formProcess.my_signing_party_id
-    );
-    const valuesWithSavedSignatureImages = withSavedSignatureImagesForFields({
-      values: valuesWithPrefilledSignatures,
-      signatureFields,
-      signatureImage: profile.signatureImage,
-    });
+    const initForm = async () => {
+      const signatureFields = form.formMetadata.getSignatureFieldsForClientService(
+        formProcess.my_signing_party_id
+      );
+      const valuesWithPrefilledSignatures = form.formMetadata.setSignatureValueForSigningParty(
+        formFiller.getFinalValues(autofillValues),
+        profile.name,
+        formProcess.my_signing_party_id
+      );
+      const signatureImagePreference = autofillValues.__signature_image_enabled;
 
-    formFiller.initializeValues(valuesWithSavedSignatureImages);
-    signContext.setRequiredSignatures(
-      getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
-    );
+      let effectiveSignatureImage =
+        signatureImagePreference === "false" ? null : profile.signatureImage;
 
-    for (const signatureField of signatureFields) {
-      const signatureValue = valuesWithSavedSignatureImages[signatureField.field];
-      if (signatureValue?.trim()) {
-        signContext.setHasAgreedForSignature(signatureField.field, signatureValue, true);
+      if (effectiveSignatureImage) {
+        effectiveSignatureImage = await resolveSignatureImageValue(effectiveSignatureImage);
       }
-    }
+
+      const valuesWithSavedSignatureImages = withSavedSignatureImagesForFields({
+        values: valuesWithPrefilledSignatures,
+        signatureFields,
+        signatureImage: effectiveSignatureImage,
+      });
+
+      formFiller.initializeValues(valuesWithSavedSignatureImages);
+      signContext.setRequiredSignatures(
+        getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
+      );
+
+      for (const signatureField of signatureFields) {
+        const signatureValue = valuesWithSavedSignatureImages[signatureField.field];
+        if (signatureValue?.trim()) {
+          signContext.setHasAgreedForSignature(signatureField.field, signatureValue, true);
+        }
+      }
+    };
+
+    initForm();
   }, [formProcess, form, profile.signatureImage]);
 
   useEffect(() => {

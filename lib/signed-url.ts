@@ -1,12 +1,23 @@
 "use client";
 
+import {
+  isBucketSignatureImagePayload,
+  parseSignatureImageValue,
+  serializeSignatureImageValue,
+  type FormValues,
+} from "@betterinternship/core/forms";
 import { useEffect, useState } from "react";
 
-const BUCKET_PREFIX =
-  "https://storage.googleapis.com/better-internship-public-bucket/";
+// ? Lets put this inside an env lol
+export const BUCKET_PREFIX = "https://storage.googleapis.com/better-internship-public-bucket/";
 
 export const isBucketUrl = (url: string): boolean =>
   typeof url === "string" && url.startsWith(BUCKET_PREFIX);
+
+export const stripUrlParams = (url: string): string => {
+  const qIndex = url.indexOf("?");
+  return qIndex > -1 ? url.slice(0, qIndex) : url;
+};
 
 type CacheEntry = { signedUrl: string; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
@@ -14,11 +25,8 @@ const inflight = new Map<string, Promise<string>>();
 
 const TTL_MS = 28 * 60 * 1000; // 28 min (server signs for 30 min)
 
-const resolveFromServer = async (
-  urls: string[]
-): Promise<Record<string, string>> => {
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_SERVER_URL || "http://localhost:5500";
+const resolveFromServer = async (urls: string[]): Promise<Record<string, string>> => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_SERVER_URL || "http://localhost:5500";
   const res = await fetch(`${apiUrl}/api/docs/resolve-url`, {
     method: "POST",
     credentials: "include",
@@ -31,32 +39,36 @@ const resolveFromServer = async (
 };
 
 export const resolveSignedUrl = (url: string): Promise<string> => {
-  if (!isBucketUrl(url)) return Promise.resolve(url);
+  if (!isBucketUrl(url)) {
+    return Promise.resolve(url);
+  }
 
-  const cached = cache.get(url);
-  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.signedUrl);
+  const baseUrl = stripUrlParams(url);
 
-  const existing = inflight.get(url);
+  const cached = cache.get(baseUrl);
+  if (cached && cached.expiresAt > Date.now()) {
+    return Promise.resolve(cached.signedUrl);
+  }
+
+  const existing = inflight.get(baseUrl);
   if (existing) return existing;
 
-  const promise = resolveFromServer([url])
+  const promise = resolveFromServer([baseUrl])
     .then((result) => {
-      const signedUrl = result[url] ?? url;
-      cache.set(url, { signedUrl, expiresAt: Date.now() + TTL_MS });
-      inflight.delete(url);
+      const signedUrl = result[baseUrl] ?? url;
+      cache.set(baseUrl, { signedUrl, expiresAt: Date.now() + TTL_MS });
+      inflight.delete(baseUrl);
       return signedUrl;
     })
     .catch(() => {
-      inflight.delete(url);
+      inflight.delete(baseUrl);
       return url;
     });
-  inflight.set(url, promise);
+  inflight.set(baseUrl, promise);
   return promise;
 };
 
-export const resolveSignedUrls = async (
-  urls: string[]
-): Promise<Record<string, string>> => {
+export const resolveSignedUrls = async (urls: string[]): Promise<Record<string, string>> => {
   const now = Date.now();
   const result: Record<string, string> = {};
 
@@ -66,20 +78,23 @@ export const resolveSignedUrls = async (
       result[url] = url;
       continue;
     }
-    const cached = cache.get(url);
+    const baseUrl = stripUrlParams(url);
+    const cached = cache.get(baseUrl);
     if (cached && cached.expiresAt > now) {
       result[url] = cached.signedUrl;
     } else {
-      toFetch.push(url);
+      toFetch.push(baseUrl);
     }
   }
 
   if (toFetch.length) {
-    const serverResults = await resolveFromServer(toFetch).catch(() => ({}));
-    for (const url of toFetch) {
-      const signed = serverResults[url] ?? url;
-      cache.set(url, { signedUrl: signed, expiresAt: now + TTL_MS });
-      result[url] = signed;
+    const serverResults = await resolveFromServer(toFetch).catch<Record<string, string>>(
+      () => ({})
+    );
+    for (const baseUrl of toFetch) {
+      const signed = serverResults[baseUrl] ?? baseUrl;
+      cache.set(baseUrl, { signedUrl: signed, expiresAt: now + TTL_MS });
+      result[baseUrl] = signed;
     }
   }
 
@@ -123,4 +138,29 @@ export const useSignedUrls = (urls: string[]) => {
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { urls: resolved, loading };
+};
+
+export const resolveSignatureImageValue = async (value: string): Promise<string> => {
+  const parsed = parseSignatureImageValue(value);
+  if (!parsed || !isBucketSignatureImagePayload(parsed.image)) {
+    return value;
+  }
+  if (parsed.image.signedUrl) {
+    return value;
+  }
+  const bucketUrl = `${BUCKET_PREFIX}${parsed.image.path}`;
+  parsed.image.signedUrl = await resolveSignedUrl(bucketUrl);
+
+  return serializeSignatureImageValue(parsed);
+};
+
+export const resolveSignatureImageValues = async (values: FormValues): Promise<FormValues> => {
+  const next = { ...values };
+  await Promise.all(
+    Object.entries(values).map(async ([key, value]) => {
+      if (!key.startsWith("__signatureImage:")) return;
+      next[key] = await resolveSignatureImageValue(value);
+    })
+  );
+  return next;
 };

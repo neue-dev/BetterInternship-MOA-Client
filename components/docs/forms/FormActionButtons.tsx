@@ -44,6 +44,7 @@ function useFormActionController() {
     if (!profile.id) return;
 
     const finalValues = formFiller.getFinalValues(autofillValues);
+
     const errors = formFiller.validate(form.fields, autofillValues);
     if (Object.keys(errors).length) {
       toast.error("Some information is missing or incorrect", toastPresets.destructive);
@@ -53,6 +54,7 @@ function useFormActionController() {
 
     try {
       const finalValuesWithSignatures = await withSubmittedSignatureImages(finalValues);
+
       await updateAutofill(form.formName, form.fields, finalValuesWithSignatures);
 
       if (signingPartyBlocks.length) {

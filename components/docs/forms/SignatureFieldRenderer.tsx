@@ -2,10 +2,12 @@
 
 import { useSignContext } from "@/app/docs/auth/provider/sign.ctx";
 import { removeSignatureImageBackground } from "@/lib/signature-image-cleanup";
+import { BUCKET_PREFIX, useSignedUrl } from "@/lib/signed-url";
 import { ClientField } from "@betterinternship/core/forms";
 import {
   createSignatureImageValue,
   getSignatureImageFieldKey,
+  isInlineSignatureImagePayload,
   parseSignatureImageValue,
   serializeSignatureImageValue,
   type SignatureImageValue,
@@ -46,6 +48,13 @@ export const SignatureFieldRenderer = <T extends any[]>({
     () => parseSignatureImageValue(rawSignatureImageValue),
     [rawSignatureImageValue]
   );
+  const bucketUrl = useMemo(() => {
+    const image = signatureImage?.image;
+    if (!image || "dataUrl" in image || !("path" in image) || !image.path) return "";
+    if ("signedUrl" in image && image.signedUrl) return "";
+    return `${BUCKET_PREFIX}${image.path}`;
+  }, [signatureImage]);
+  const { url: resolvedSignedUrl } = useSignedUrl(bucketUrl);
   const [mode, setMode] = useState<SignatureMode>(
     signatureImage?.source === "draw"
       ? "draw"
@@ -58,6 +67,7 @@ export const SignatureFieldRenderer = <T extends any[]>({
   const [isUploadDragging, setIsUploadDragging] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
+  const savedUploadSignatureRef = useRef("");
 
   useEffect(() => {
     setHasAgreedForSignature(field.field, value, checked);
@@ -79,10 +89,8 @@ export const SignatureFieldRenderer = <T extends any[]>({
 
   const getSignatureImageSrc = (signature: SignatureImageValue | null) => {
     if (!signature) return "";
-    if (signature.image.storage === "bucket") {
-      return signature.image.signedUrl || signature.image.publicUrl || "";
-    }
-    return signature.image.dataUrl;
+    if (isInlineSignatureImagePayload(signature.image)) return signature.image.dataUrl;
+    return signature.image.signedUrl ?? resolvedSignedUrl ?? "";
   };
 
   const clearCanvas = () => {
@@ -140,9 +148,27 @@ export const SignatureFieldRenderer = <T extends any[]>({
 
   const changeSignatureMode = (nextMode: SignatureMode) => {
     if (nextMode === mode) return;
+    if (mode === "upload") savedUploadSignatureRef.current = rawSignatureImageValue;
+    if (nextMode === "draw") {
+      clearCanvas();
+      const offscreen = document.createElement("canvas");
+      offscreen.width = 720;
+      offscreen.height = 220;
+      emitSignatureImage(
+        createSignatureImageValue({
+          source: "draw",
+          dataUrl: offscreen.toDataURL("image/png"),
+          mimeType: "image/png",
+        })
+      );
+    }
     setMode(nextMode);
     setUploadError("");
-    clearSignatureImage();
+    if (nextMode === "type") {
+      onAuxValueChange?.(imageFieldKey, "");
+    } else if (nextMode === "upload" && savedUploadSignatureRef.current) {
+      onAuxValueChange?.(imageFieldKey, savedUploadSignatureRef.current);
+    }
   };
 
   const handleUpload = (file: File | undefined) => {
@@ -289,7 +315,7 @@ export const SignatureFieldRenderer = <T extends any[]>({
       >
         <span
           className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
-            active ? "border-primary" : "border-slate-300 group-hover:border-primary/60"
+            active ? "border-primary" : "group-hover:border-primary/60 border-slate-300"
           }`}
         >
           <span

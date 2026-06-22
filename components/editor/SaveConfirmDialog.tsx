@@ -1,98 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import type { BlockChange, FieldDelta, ListChange } from "@/lib/form-editor-metadata/diff";
+import type { BlockChange, ListChange } from "@/lib/form-editor-metadata/diff";
 
 interface SaveConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function KindBadge({ kind }: { kind: "added" | "removed" | "modified" }) {
-  if (kind === "added") return <span className="font-medium text-green-600">+ Added</span>;
-  if (kind === "removed") return <span className="font-medium text-red-600">− Removed</span>;
-  return <span className="font-medium text-blue-600">~ Modified</span>;
+function Badge({ kind }: { kind: "added" | "removed" | "modified" }) {
+  if (kind === "added")
+    return <span className="mr-1.5 inline-block text-green-600">+</span>;
+  if (kind === "removed")
+    return <span className="mr-1.5 inline-block text-red-500">−</span>;
+  return <span className="mr-1.5 inline-block text-blue-500">~</span>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-sm font-semibold">{title}</p>
-      <div className="space-y-1 text-sm text-muted-foreground">{children}</div>
-    </div>
-  );
+function Row({ children }: { children: React.ReactNode }) {
+  return <div className="text-sm leading-relaxed text-muted-foreground">{children}</div>;
 }
 
-function FieldDeltaRow({ delta }: { delta: FieldDelta }) {
-  const [open, setOpen] = useState(false);
-
-  if (delta.children?.length) {
-    return (
-      <div>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronRight
-            className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-90")}
-          />
-          {delta.label}
-        </button>
-        {open && (
-          <div className="pl-4 pt-0.5 space-y-0.5">
-            {delta.children.map((child) => (
-              <div key={child.key} className="text-xs text-muted-foreground">
-                {child.label}: {String(child.before)} → {String(child.after)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
+function ListRow({ change }: { change: ListChange }) {
   return (
-    <div className="pl-4 text-xs text-muted-foreground">
-      {delta.label}: {String(delta.before)} → {String(delta.after)}
-    </div>
-  );
-}
-
-function BlockChangeRow({ change }: { change: BlockChange }) {
-  return (
-    <div className="space-y-0.5">
-      <div className="flex items-center gap-1.5">
-        <KindBadge kind={change.kind} />
-        <span className="font-medium">{change.label}</span>
-        {change.partyLabel && (
-          <span className="text-xs text-muted-foreground/70">({change.partyLabel})</span>
-        )}
-      </div>
-      {change.fieldDeltas?.map((fd) => (
-        <FieldDeltaRow key={fd.key} delta={fd} />
-      ))}
-    </div>
-  );
-}
-
-function ListChangeRow({ change }: { change: ListChange }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <KindBadge kind={change.kind} />
-      <span>{change.label}</span>
-    </div>
+    <Row>
+      <Badge kind={change.kind} />
+      {change.label}
+    </Row>
   );
 }
 
@@ -110,7 +53,6 @@ export function SaveConfirmDialog({ open, onOpenChange }: SaveConfirmDialogProps
       markSaved();
       onOpenChange(false);
     } catch {
-      // saveForm already shows an error toast; keep dialog open
     } finally {
       setConfirming(false);
     }
@@ -121,57 +63,80 @@ export function SaveConfirmDialog({ open, onOpenChange }: SaveConfirmDialogProps
       <DialogContent className="flex max-h-[80vh] max-w-lg flex-col">
         <DialogHeader>
           <DialogTitle>Save Form</DialogTitle>
-          <DialogDescription>
-            {hasChanges ? "Review your pending changes before saving." : "Nothing changed."}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          {!hasChanges && (
+            <p className="text-sm text-muted-foreground">No changes to save.</p>
+          )}
+
           {documentFileReplaced && (
-            <Section title="Base Document">
-              <div>Base document replaced</div>
-            </Section>
+            <div className="text-sm text-muted-foreground">
+              <span className="mr-1.5 inline-block">📄</span>
+              Base document replaced
+            </div>
           )}
 
           {pendingDiff.metaDeltas.length > 0 && (
-            <Section title="Form Details">
+            <div className="space-y-1">
               {pendingDiff.metaDeltas.map((d) => (
-                <div key={d.key}>
-                  <span className="capitalize">{d.label}</span>: {String(d.before)} →{" "}
-                  {String(d.after)}
+                <div key={d.key} className="text-sm text-muted-foreground">
+                  <span className="mr-1.5 inline-block">✏️</span>
+                  {d.label} changed
                 </div>
               ))}
-            </Section>
+            </div>
           )}
 
           {pendingDiff.parties.length > 0 && (
-            <Section title="Signing Parties">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/60">
+                Signing Parties
+              </p>
               {pendingDiff.parties.map((p) => (
-                <ListChangeRow key={p.id} change={p} />
+                <ListRow key={p.id} change={p} />
               ))}
-            </Section>
+            </div>
           )}
 
           {pendingDiff.subscribers.length > 0 && (
-            <Section title="Subscribers">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/60">
+                Subscribers
+              </p>
               {pendingDiff.subscribers.map((s) => (
-                <ListChangeRow key={s.id} change={s} />
+                <ListRow key={s.id} change={s} />
               ))}
-            </Section>
+            </div>
           )}
 
-          {pendingDiff.blocks.length > 0 && (
-            <Section title="Fields">
-              {pendingDiff.blocks.map((b) => (
-                <BlockChangeRow key={b.blockId} change={b} />
-              ))}
-            </Section>
-          )}
+          {pendingDiff.blocks.length > 0 && (() => {
+            const groups = new Map<string, BlockChange[]>();
+            for (const b of pendingDiff.blocks) {
+              const key = b.partyLabel || "General";
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(b);
+            }
+            return Array.from(groups.entries()).map(([party, changes]) => (
+              <div key={party} className="space-y-0.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/60">
+                  {party}
+                </p>
+                {changes.map((b) => (
+                  <Row key={b.blockId}>
+                    <Badge kind={b.kind} />
+                    {b.label}
+                  </Row>
+                ))}
+              </div>
+            ));
+          })()}
 
           {pendingDiff.reordered && (
-            <Section title="Order">
-              <div>Fields reordered</div>
-            </Section>
+            <div className="text-sm text-muted-foreground">
+              <span className="mr-1.5 inline-block">↕️</span>
+              Fields reordered
+            </div>
           )}
         </div>
 

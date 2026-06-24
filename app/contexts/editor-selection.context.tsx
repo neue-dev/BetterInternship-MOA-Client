@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useMemo, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from "react";
 import type { IFormBlock } from "@betterinternship/core/forms";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
 import {
@@ -89,6 +89,16 @@ export function EditorSelectionProvider({ children }: { children: ReactNode }) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [selectedBlockGroup, setSelectedBlockGroup] = useState<BlockGroup | null>(null);
   const [pendingMissingFieldDraft, setPendingMissingFieldDraft] = useState<IFormBlock | null>(null);
+
+  // If the currently selected party id no longer exists, reset to the first remaining party.
+  useEffect(() => {
+    const parties = formMetadata?.signing_parties;
+    setSelectedPartyId((prev) => {
+      if (!parties?.length) return null;
+      if (!prev || !parties.some((p) => p._id === prev)) return parties[0]._id;
+      return prev;
+    });
+  }, [formMetadata?.signing_parties]);
 
   // The party whose blocks drive the form-view (units, add/reorder, preview).
   // Tracks the party selected in the top-bar selector, falling back to the first.

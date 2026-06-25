@@ -14,6 +14,7 @@ interface FormPreviewRendererProps {
   squareFrame?: boolean;
   editing?: BlocksRendererEditing;
   hideTitle?: boolean;
+  selectedPartyId: string;
 }
 
 /**
@@ -35,6 +36,7 @@ export const FormPreviewRenderer = ({
   squareFrame = false,
   editing,
   hideTitle = false,
+  selectedPartyId,
 }: FormPreviewRendererProps) => {
   const form = useFormRendererContext();
   const formFiller = useFormFiller();
@@ -79,6 +81,31 @@ export const FormPreviewRenderer = ({
     return <div className="py-8 text-center text-sm text-slate-500">No blocks to display</div>;
   }
 
+  const handleBlurValidate = (
+    fieldKey: string,
+    _field: ClientField<any>,
+    nextValue?: unknown,
+  ) => {
+    // Recreate the field with current values as derivationBase so
+    // field-relative validators (e.g. dateOnOrAfterField) can read
+    // the reference field value via params.
+    const currentValues = formFiller.getFinalValues();
+    const valuesForParams =
+      nextValue === undefined
+        ? currentValues
+        : {
+            ...currentValues,
+            [fieldKey]:
+              nextValue == null ? "" : String(nextValue),
+          };
+
+    const updatedField = form.formMetadata
+      .getFieldsForClientService(selectedPartyId, undefined, valuesForParams)
+      .find((candidate) => candidate.field === fieldKey);
+
+    formFiller.validateField(fieldKey, updatedField ?? _field, undefined, nextValue);
+  };
+
   return (
     <div
       className={cn(
@@ -103,9 +130,7 @@ export const FormPreviewRenderer = ({
               form.setSelectedPreviewId(fieldId);
               onFieldClick?.(fieldId);
             }}
-            onBlurValidate={(fieldKey, field: ClientField<any>, nextValue) =>
-              formFiller.validateField(fieldKey, field, undefined, nextValue)
-            }
+            onBlurValidate={handleBlurValidate}
             fieldRefs={fieldRefs.current}
             selectedFieldId={selectedFieldId}
             editing={editing}

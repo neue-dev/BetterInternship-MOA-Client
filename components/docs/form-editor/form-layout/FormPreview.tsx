@@ -117,12 +117,14 @@ const FormPreviewFormPanel = ({
   generationResult,
   isGenerating,
   onGenerate,
+  selectedPartyId,
 }: {
   autoScrollToSelectedField: boolean;
   onFieldClick: (fieldId: string) => void;
   generationResult: string | null;
   isGenerating: boolean;
   onGenerate: () => void;
+  selectedPartyId: string;
 }) => {
   const editing = useFormPreviewEditing();
 
@@ -135,6 +137,7 @@ const FormPreviewFormPanel = ({
           editing={editing}
           hideTitle
           onFieldClick={onFieldClick}
+          selectedPartyId={selectedPartyId}
         />
       </div>
 
@@ -279,6 +282,7 @@ const FormPreviewContentBody = ({
           generationResult={generationResult}
           isGenerating={isGenerating}
           onGenerate={handleGenerateTestForm}
+          selectedPartyId={selectedPartyId}
         />
       }
       right={

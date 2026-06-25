@@ -219,9 +219,38 @@ const FormPreviewContentBody = ({
   const handleGenerateTestForm = useCallback(async () => {
     setIsGenerating(true);
     try {
+      const metadataClient = new FormMetadata(formMetadata);
+      const userValues = formFiller.getFinalValues();
+
+      // Build dummy prefill values by running each field's prefiller with dummy student data
+      const allClientFields = metadataClient.getFieldsForClientService(undefined);
+      const dummyValues: Record<string, string> = {};
+      for (const field of allClientFields) {
+        if (typeof field.prefiller === "function") {
+          try {
+            const raw = field.prefiller({
+              signatory: DEFAULT_PREVIEW_DUMMY_STUDENT_USER,
+              user: DEFAULT_PREVIEW_DUMMY_STUDENT_USER,
+            });
+            if (raw != null) {
+              dummyValues[field.field] = String(raw);
+            }
+          } catch {
+            // skip failing prefillers in test mode
+          }
+        }
+      }
+
+      // Build test values: dummy prefill as base, overlay derived, overlay user edits
+      const testValues = {
+        ...dummyValues,
+        ...withDerivedFormValues(metadataClient, { ...dummyValues, ...userValues }),
+        ...userValues,
+      };
+
       const result = await formsControllerGenerateTestForm({
         formName: formMetadata.name,
-        values: formFiller.getFinalValues(),
+        values: testValues,
       });
       const url = result?.data?.documentUrl || result?.documentUrl;
       if (url) setGenerationResult(url);
@@ -230,7 +259,7 @@ const FormPreviewContentBody = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [formFiller, formMetadata.name]);
+  }, [formFiller, formMetadata]);
 
   const handleFormFieldClick = useCallback(
     (fieldId: string) => {

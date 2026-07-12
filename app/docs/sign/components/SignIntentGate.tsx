@@ -3,7 +3,6 @@
 import { useFormProcess } from "@/components/docs/forms/form-process.ctx";
 import { useFormRendererContext } from "@/components/docs/forms/form-renderer.ctx";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 
 type SignIntentGateProps = {
   onSignSelf: () => void;
@@ -41,7 +40,7 @@ export function SignIntentGate({ onSignSelf, onDelegate }: SignIntentGateProps) 
           >
             <div className="flex w-28 shrink-0 items-center justify-center bg-gray-100 px-4 py-4 transition-colors group-hover:bg-gray-200 sm:min-h-36 sm:w-full sm:flex-1 sm:px-6 sm:py-8">
               <div className="bg-primary rounded-full p-4 opacity-85 sm:p-6">
-                <Image
+                <img
                   src="/assets/sign-document.png"
                   alt=""
                   width={96}
@@ -67,7 +66,7 @@ export function SignIntentGate({ onSignSelf, onDelegate }: SignIntentGateProps) 
           >
             <div className="flex w-28 shrink-0 items-center justify-center bg-gray-100 px-4 py-4 transition-colors group-hover:bg-gray-200 sm:min-h-36 sm:w-full sm:flex-1 sm:px-6 sm:py-8">
               <div className="bg-primary rounded-full p-4 opacity-85 sm:p-6">
-                <Image
+                <img
                   src="/assets/forward-document.png"
                   alt=""
                   width={96}

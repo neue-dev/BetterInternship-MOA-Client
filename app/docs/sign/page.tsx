@@ -28,6 +28,11 @@ import { MobileStepTabs } from "./components/MobileStepTabs";
 import { SignIntentGate } from "./components/SignIntentGate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveSignatureImageValue, useSignedUrl } from "@/lib/signed-url";
+import {
+  isFieldRequired,
+  type ClientField,
+  type ClientPhantomField,
+} from "@betterinternship/core/forms";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -42,7 +47,7 @@ const areFormValuesEqual = (left: Record<string, string>, right: Record<string, 
 };
 
 const getCanonicalSignatureFields = (
-  signatureFields: { field: string; signing_party_id?: string }[]
+  signatureFields: (ClientField<any[]> | ClientPhantomField<any[]>)[]
 ) => {
   const seenRecipientIds = new Set<string>();
   return signatureFields.filter((signatureField) => {
@@ -177,7 +182,9 @@ function PageContent() {
 
       formFiller.initializeValues(valuesWithSavedSignatureImages);
       signContext.setRequiredSignatures(
-        getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
+        getCanonicalSignatureFields(signatureFields)
+          .filter(isFieldRequired)
+          .map((signatureField) => signatureField.field)
       );
 
       for (const signatureField of signatureFields) {

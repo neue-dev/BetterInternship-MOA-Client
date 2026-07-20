@@ -4,6 +4,7 @@ import { memo, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 import { cn } from "@/lib/utils";
 import { RadioGroupOverlay } from "./RadioGroupOverlay";
+import { RepeatFieldOverlay } from "./RepeatFieldOverlay";
 import { FieldRegistryEntry } from "@/app/api";
 import { useEditorSelection } from "@/app/contexts/editor-selection.context";
 import { useFormEditorMetadata } from "@/app/contexts/form-editor-metadata.context";
@@ -238,6 +239,12 @@ export const PdfPageCanvas = memo(
             onGroupDragEnd={handleGroupDragEnd}
             onGroupClick={selectFirstFieldInGroup}
             activeDrag={activeGroupDrag}
+          />
+          <RepeatFieldOverlay
+            blocks={blocks.filter(
+              (b) => b.block_type === "form_field" && b.field_schema?.page === pageNumber
+            )}
+            pdfToDisplay={pdfToDisplay}
           />
 
           <PdfFieldLayer

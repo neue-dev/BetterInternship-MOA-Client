@@ -11,7 +11,7 @@ export interface IFormProcess {
   prefilled_document_id?: string;
   signed_document_id?: string;
   display_information?: Record<string, string>;
-  repeat_values?: Record<string, string>;
+  form_inputs?: Record<string, string>;
   timestamp?: string;
   my_signing_party_id?: string;
 
@@ -42,7 +42,7 @@ export const FormProcessContextProvider = ({ children }: { children: React.React
     gcTime: 10 * 60 * 1000,
   });
   const formProcess = _formProcess?.formProcess as unknown as
-    | (Partial<IFormProcess> & { display_information?: unknown; repeat_values?: unknown })
+    | (Partial<IFormProcess> & { display_information?: unknown; form_inputs?: unknown })
     | undefined;
 
   return (
@@ -51,7 +51,7 @@ export const FormProcessContextProvider = ({ children }: { children: React.React
         ...formProcess,
         id: formProcessId,
         display_information: formProcess?.display_information as Record<string, string> | undefined,
-        repeat_values: formProcess?.repeat_values as Record<string, string> | undefined,
+        form_inputs: formProcess?.form_inputs as Record<string, string> | undefined,
         setFormProcessId,
         setSupposedSigningPartyId,
         error: _formProcess?.message,

@@ -90,10 +90,10 @@ function PageContent() {
   const signContext = useSignContext();
   const finalValues = useMemo(
     () => ({
-      ...(formProcess.repeat_values ?? {}),
+      ...(formProcess.form_inputs ?? {}),
       ...formFiller.getFinalValues(autofillValues),
     }),
-    [formFiller, form, formProcess.repeat_values, autofillValues]
+    [formFiller, form, formProcess.form_inputs, autofillValues]
   );
   const previewValues = useMemo(
     () =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getPartyColorByIndex, getPartyColorByOrder } from "@betterinternship/core/pdf-viewer";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, Trash2 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type FormField = {
   id: string;
@@ -400,30 +401,29 @@ export const FieldBox = ({
   }, [isSelected, onDeselect]);
 
   return (
-    <div
-      ref={elementRef}
-      className={cn("group absolute inset-0 border transition-colors")}
-      onClick={onSelect}
-      onMouseDown={handleMouseDown}
-      role="button"
-      tabIndex={0}
-      title={field.label}
-      style={{
-        borderColor: partyColor.hex,
-        borderStyle: "solid",
-        borderWidth: "2px",
-        backgroundColor: isSelected ? partyColor.hex + "50" : partyColor.hex + "75",
-        cursor: isDragging ? "grabbing" : isResizing ? "grabbing" : isSelected ? "grab" : "pointer",
-      }}
-    >
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          ref={elementRef}
+          className={cn("group absolute inset-0 border transition-colors")}
+          onClick={onSelect}
+          onMouseDown={handleMouseDown}
+          role="button"
+          tabIndex={0}
+          style={{
+            borderColor: partyColor.hex,
+            borderStyle: "solid",
+            borderWidth: "2px",
+            backgroundColor: isSelected ? partyColor.hex + "50" : partyColor.hex + "75",
+            cursor: isDragging ? "grabbing" : isResizing ? "grabbing" : isSelected ? "grab" : "pointer",
+          }}
+        >
       <div
-        className="text-muted-foreground pointer-events-none overflow-hidden font-semibold"
+        className="text-muted-foreground pointer-events-none min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold"
         style={{
-          fontSize: `clamp(7px, ${Math.min(field.h * 0.75, 16)}px, 12px)`,
-          lineHeight: 1.2,
-          wordWrap: "break-word",
-          whiteSpace: "normal",
-          padding: "2px 2px",
+          fontSize: "13px",
+          lineHeight: 1.1,
+          padding: "2px 3px",
         }}
       >
         {field.label}
@@ -589,6 +589,22 @@ export const FieldBox = ({
           ))}
         </>
       )}
-    </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={6}
+        className="max-w-xs break-words border"
+        arrowClassName="fill-[var(--tooltip-bg)]"
+        style={{
+          backgroundColor: partyColor.hex,
+          borderColor: partyColor.hex,
+          color: "var(--muted-foreground)",
+          "--tooltip-bg": partyColor.hex,
+        } as CSSProperties}
+      >
+        {field.label}
+      </TooltipContent>
+    </Tooltip>
   );
 };

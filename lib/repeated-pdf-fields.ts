@@ -1,6 +1,6 @@
 import type { IFormBlock } from "@betterinternship/core/forms";
 
-type RepeatedPdfField = {
+export type RepeatedPdfField = {
   count: number;
   offset_x?: number;
   offset_y?: number;

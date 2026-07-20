@@ -31,6 +31,7 @@ import {
 } from "@/lib/default-field-preset-utils";
 import { resolveSystemPresetTemplates } from "@/lib/system-preset-resolver";
 import { RadioGroupFieldEditor } from "./RadioGroupFieldEditor";
+import type { RepeatedPdfField } from "@/lib/repeated-pdf-fields";
 
 type FieldOption = DefaultValueFieldOption;
 
@@ -78,6 +79,7 @@ export function RevampedBlockEditor() {
   const [editedBlock, setEditedBlock] = useState<IFormBlock | null>(activeBlock);
   const [presetIdOverride, setPresetIdOverride] = useState<string | null>(null);
   const [positionOpen, setPositionOpen] = useState(false);
+  const [repeatOpen, setRepeatOpen] = useState(false);
 
   type IntegerFieldKey = "size";
   const [integerDrafts, setIntegerDrafts] = useState<Partial<Record<IntegerFieldKey, string>>>({});
@@ -94,6 +96,7 @@ export function RevampedBlockEditor() {
     setIntegerDrafts({});
     setPlaceholderDraft(null);
     setPresetIdOverride(null);
+    setRepeatOpen(false);
   }, [selectedBlockId]);
 
   const presetTemplates = useMemo(
@@ -154,9 +157,7 @@ export function RevampedBlockEditor() {
       return;
     }
     if (key === "label") {
-      const radioGroupId = (editedBlock.field_schema as any)?.radio_group_id as
-        | string
-        | undefined;
+      const radioGroupId = (editedBlock.field_schema as any)?.radio_group_id as string | undefined;
       if (radioGroupId) {
         const updatedBlocks = (formMetadata.schema.blocks || []).map((b) => {
           if (
@@ -253,13 +254,18 @@ export function RevampedBlockEditor() {
   const isChildAuto = childSource === "auto";
   const showChildValidation = !isChildDerived && !isChildPrefill && !isChildAuto;
   const showChildPlaceholder = !isChildDerived && !isChildAuto;
-  const placeholderDisplay = placeholderDraft !== null
-    ? placeholderDraft
-    : (() => {
-        const parsed = parsePrefillerToCompactState((schema?.prefiller || "") as string);
-        return parsed.kind === "manual" ? parsed.manualValue : "";
-      })();
+  const placeholderDisplay =
+    placeholderDraft !== null
+      ? placeholderDraft
+      : (() => {
+          const parsed = parsePrefillerToCompactState((schema?.prefiller || "") as string);
+          return parsed.kind === "manual" ? parsed.manualValue : "";
+        })();
   const childFieldKey = String(schema?.field || "");
+  const repeat = schema?.repeat as RepeatedPdfField | undefined;
+  const repeatVisibleCountFields = childFieldOptions.filter(
+    (option) => option.id !== childFieldKey
+  );
   const isDefaultChildField = isDefaultPresetFieldKey(childFieldKey, presetTemplates);
   const matchedChildPreset = findPresetByFieldKey(childFieldKey, presetTemplates);
   const presetMatchingSchema = findPresetMatchingSchema(schema, presetTemplates);
@@ -443,13 +449,13 @@ export function RevampedBlockEditor() {
         <button
           type="button"
           onClick={() => setPositionOpen((v) => !v)}
-          className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase text-muted-foreground"
+          className="text-muted-foreground flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase"
         >
           Position &amp; Size
           <ChevronDown
             className={cn(
               "h-3.5 w-3.5 rounded transition-colors hover:bg-slate-100",
-              positionOpen && "rotate-180",
+              positionOpen && "rotate-180"
             )}
           />
         </button>
@@ -497,8 +503,138 @@ export function RevampedBlockEditor() {
 
       <div className="border-t border-slate-200" />
 
+      {editedBlock.field_schema && (
+        <>
+          <button
+            type="button"
+            onClick={() => setRepeatOpen((open) => !open)}
+            className="text-muted-foreground flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase"
+          >
+            <span className="flex items-center gap-2">
+              Repeat placement
+              {repeat && <span className="text-indigo-500 normal-case">Enabled</span>}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 rounded transition-colors hover:bg-slate-100",
+                repeatOpen && "rotate-180"
+              )}
+            />
+          </button>
+          {repeatOpen && (
+            <div className="space-y-2.5 px-3 pb-3">
+              <div className="flex h-8 items-center justify-between gap-3">
+                <span className="shrink-0 text-xs text-slate-600">Repeat field</span>
+                <Switch
+                  checked={Boolean(repeat)}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange(
+                      "repeat",
+                      checked ? { count: 1, offset_x: 0, offset_y: 0, start_index: 0 } : undefined
+                    )
+                  }
+                />
+              </div>
+              {repeat && (
+                <>
+                  <p className="text-xs leading-4 text-slate-500">
+                    Reuses this field&apos;s value at each placement in the generated PDF.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormInput
+                      type="number"
+                      label="Copies"
+                      min="1"
+                      step="1"
+                      value={String(repeat.count ?? 1)}
+                      setter={(value) =>
+                        handleFieldChange("repeat", {
+                          ...repeat,
+                          count: Math.max(1, Math.floor(Number(value) || 1)),
+                        })
+                      }
+                      required={false}
+                      className="h-8 text-xs"
+                    />
+                    <FormInput
+                      type="number"
+                      label="Start index"
+                      min="0"
+                      step="1"
+                      value={String(repeat.start_index ?? 0)}
+                      setter={(value) =>
+                        handleFieldChange("repeat", {
+                          ...repeat,
+                          start_index: Math.max(0, Math.floor(Number(value) || 0)),
+                        })
+                      }
+                      required={false}
+                      className="h-8 text-xs"
+                    />
+                    <FormInput
+                      type="number"
+                      label="X offset"
+                      step="0.01"
+                      value={String(repeat.offset_x ?? 0)}
+                      setter={(value) =>
+                        handleFieldChange("repeat", {
+                          ...repeat,
+                          offset_x: Number(value) || 0,
+                        })
+                      }
+                      required={false}
+                      className="h-8 text-xs"
+                    />
+                    <FormInput
+                      type="number"
+                      label="Y offset"
+                      step="0.01"
+                      value={String(repeat.offset_y ?? 0)}
+                      setter={(value) =>
+                        handleFieldChange("repeat", {
+                          ...repeat,
+                          offset_y: Number(value) || 0,
+                        })
+                      }
+                      required={false}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-600" htmlFor="repeat-visible-count-field">
+                      Visible copies field
+                    </label>
+                    <select
+                      id="repeat-visible-count-field"
+                      className="h-8 w-full rounded-[0.33em] border border-slate-300 px-2 text-xs"
+                      value={repeat.visible_count_field ?? ""}
+                      onChange={(event) =>
+                        handleFieldChange("repeat", {
+                          ...repeat,
+                          visible_count_field: event.target.value || undefined,
+                        })
+                      }
+                    >
+                      <option value="">Always show all copies</option>
+                      {repeatVisibleCountFields.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <div className="border-t border-slate-200" />
+        </>
+      )}
+
       <div className="space-y-2.5 p-3">
-        <h4 className="text-muted-foreground text-xs font-semibold uppercase">Value &amp; Validation</h4>
+        <h4 className="text-muted-foreground text-xs font-semibold uppercase">
+          Value &amp; Validation
+        </h4>
         <div className="flex h-8 items-center justify-between gap-3">
           <span className="shrink-0 text-xs text-slate-600">Derived value</span>
           <Switch
@@ -540,7 +676,9 @@ export function RevampedBlockEditor() {
               className="h-8 w-full rounded-[0.33em] border border-slate-300 px-2 text-xs"
               value={placeholderDisplay}
               onChange={(e) => setPlaceholderDraft(e.target.value)}
-              onBlur={() => handleFieldChange("prefiller", buildManualPrefiller(placeholderDisplay))}
+              onBlur={() =>
+                handleFieldChange("prefiller", buildManualPrefiller(placeholderDisplay))
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleFieldChange("prefiller", buildManualPrefiller(placeholderDisplay));

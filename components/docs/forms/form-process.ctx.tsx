@@ -11,6 +11,7 @@ export interface IFormProcess {
   prefilled_document_id?: string;
   signed_document_id?: string;
   display_information?: Record<string, string>;
+  repeat_values?: Record<string, string>;
   timestamp?: string;
   my_signing_party_id?: string;
 
@@ -27,7 +28,7 @@ export const FormProcessContextProvider = ({ children }: { children: React.React
   const [formProcessId, setFormProcessId] = useState("");
   const [supposedSigningPartyId, setSupposedSigningPartyId] = useState("");
   const { data: _formProcess } = useQuery({
-    queryKey: ["form-process", formProcessId],
+    queryKey: ["form-process", formProcessId, supposedSigningPartyId],
     queryFn: useCallback(
       () =>
         formsControllerGetFormProcess({
@@ -40,17 +41,17 @@ export const FormProcessContextProvider = ({ children }: { children: React.React
     staleTime: 10 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
+  const formProcess = _formProcess?.formProcess as unknown as
+    | (Partial<IFormProcess> & { display_information?: unknown; repeat_values?: unknown })
+    | undefined;
 
   return (
     <FormProcessContext.Provider
       value={{
-        ..._formProcess?.formProcess,
+        ...formProcess,
         id: formProcessId,
-        display_information: _formProcess?.formProcess?.display_information as unknown as Record<
-          string,
-          string
-        >,
-
+        display_information: formProcess?.display_information as Record<string, string> | undefined,
+        repeat_values: formProcess?.repeat_values as Record<string, string> | undefined,
         setFormProcessId,
         setSupposedSigningPartyId,
         error: _formProcess?.message,

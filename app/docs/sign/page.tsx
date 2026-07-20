@@ -89,8 +89,11 @@ function PageContent() {
   const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
   const finalValues = useMemo(
-    () => formFiller.getFinalValues(autofillValues),
-    [formFiller, form, autofillValues]
+    () => ({
+      ...(formProcess.repeat_values ?? {}),
+      ...formFiller.getFinalValues(autofillValues),
+    }),
+    [formFiller, form, formProcess.repeat_values, autofillValues]
   );
   const previewValues = useMemo(
     () =>

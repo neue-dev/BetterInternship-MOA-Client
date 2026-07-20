@@ -40,6 +40,7 @@ import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 import { useSignedUrl } from "@/lib/signed-url";
+import { expandRepeatedPreviewBlocks } from "@/lib/repeated-pdf-fields";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -218,6 +219,10 @@ const FormPreviewContentBody = ({
     new FormMetadata(formMetadata),
     formFiller.getFinalValues()
   );
+  const expandedPreviewBlocks = useMemo(
+    () => expandRepeatedPreviewBlocks(blocks, previewValues),
+    [blocks, previewValues]
+  );
 
   const handleGenerateTestForm = useCallback(async () => {
     setIsGenerating(true);
@@ -290,7 +295,7 @@ const FormPreviewContentBody = ({
           {documentUrl ? (
             <FormFillPdfViewer
               documentUrl={documentUrl}
-              blocks={blocks}
+              blocks={expandedPreviewBlocks}
               values={previewValues}
               scale={previewScale}
               onScaleChange={reportPreviewScale}

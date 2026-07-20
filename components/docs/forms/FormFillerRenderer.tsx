@@ -216,7 +216,9 @@ export const BlocksRenderer = <T extends any[]>({
     // Only check selection for form fields
     const signatureFieldsForRecipient =
       field?.type === "signature" && field.signing_party_id
-        ? form.formMetadata.getSignatureFieldsForClientService(field.signing_party_id)
+        ? form.formMetadata
+            .getSignatureFieldsForClientService(field.signing_party_id)
+            .filter((signatureField) => signatureField.source === "manual")
         : [];
     const isSelected =
       isForm &&

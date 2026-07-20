@@ -33,6 +33,7 @@ import {
   type ClientField,
   type ClientPhantomField,
 } from "@betterinternship/core/forms";
+import { expandRepeatedPreviewBlocks } from "@/lib/repeated-pdf-fields";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -88,8 +89,11 @@ function PageContent() {
   const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
   const finalValues = useMemo(
-    () => formFiller.getFinalValues(autofillValues),
-    [formFiller, form, autofillValues]
+    () => ({
+      ...(formProcess.form_inputs ?? {}),
+      ...formFiller.getFinalValues(autofillValues),
+    }),
+    [formFiller, form, formProcess.form_inputs, autofillValues]
   );
   const previewValues = useMemo(
     () =>
@@ -237,10 +241,11 @@ function PageContent() {
 
   const previewBlocks = useMemo(() => {
     if (!form.formMetadata) return [];
-    return form.formMetadata
+    const blocks = form.formMetadata
       .getBlocksForEditorService()
       .filter((block) => block.field_schema || block.phantom_field_schema);
-  }, [form.formMetadata]);
+    return expandRepeatedPreviewBlocks(blocks, previewValues);
+  }, [form.formMetadata, previewValues]);
 
   const signingParties = useMemo(
     () => (form.formMetadata ? form.formMetadata.getSigningParties() : []),

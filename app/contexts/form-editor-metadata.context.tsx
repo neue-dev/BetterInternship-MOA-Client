@@ -27,6 +27,7 @@ import {
   diffFormMetadata,
 } from "@/lib/form-editor-metadata/diff";
 import type { Delta, FormMetadataDiff } from "@/lib/form-editor-metadata/diff";
+import { rewriteAutoCurrentDateFieldKeyForParty } from "@/lib/form-editor-metadata";
 import {
   BLANK_FORM_METADATA,
   IFormMetadata,
@@ -267,7 +268,30 @@ export function FormEditorMetadataProvider({
   }, []);
 
   const updateSigningParties = useCallback((parties: IFormSigningParty[]) => {
-    dispatch({ type: "MUTATE", recipe: (prev) => ({ ...prev, signing_parties: parties }) });
+    dispatch({
+      type: "MUTATE",
+      recipe: (prev) => {
+        const validIds = new Set(parties.map((p) => p._id));
+        const fallbackId = parties[0]?._id;
+        if (!fallbackId) return { ...prev, signing_parties: parties };
+        const blocks = prev.schema.blocks.map((block) => {
+          if (!block.signing_party_id || validIds.has(block.signing_party_id)) return block;
+          const next = { ...block, signing_party_id: fallbackId };
+          if (block.field_schema?.field) {
+            next.field_schema = {
+              ...block.field_schema,
+              field: rewriteAutoCurrentDateFieldKeyForParty(
+                block.field_schema.field,
+                block.signing_party_id,
+                fallbackId,
+              ),
+            };
+          }
+          return next;
+        });
+        return { ...prev, signing_parties: parties, schema: { ...prev.schema, blocks } };
+      },
+    });
   }, []);
 
   const updateSubscribers = useCallback((subscribers: IFormSubscriber[]) => {

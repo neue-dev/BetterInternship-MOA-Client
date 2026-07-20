@@ -530,9 +530,12 @@ export function persistedIRToZod(ir: ValidatorIRv0): string {
     return `z.preprocess((v) => !!v, z.boolean().refine((v) => v === true, { message: "${message}" }).describe("checkbox"))`;
   }
 
-  // Keep time base validator stable when no-code mode recompiles from IR.
   if (ir.baseType === "time") {
-    return 'z.string().describe("time")';
+    const requiredRule = ir.rules.find((rule) => rule.kind === "required");
+    const validator = requiredRule
+      ? `z.string().nonempty({ message: ${JSON.stringify(requiredRule.message || "This field is required.")} })`
+      : "z.string()";
+    return `${validator}.describe("time")`;
   }
 
   if (ir.baseType === "email") {

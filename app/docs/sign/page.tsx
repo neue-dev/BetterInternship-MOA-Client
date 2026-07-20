@@ -28,6 +28,12 @@ import { MobileStepTabs } from "./components/MobileStepTabs";
 import { SignIntentGate } from "./components/SignIntentGate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveSignatureImageValue, useSignedUrl } from "@/lib/signed-url";
+import {
+  isFieldRequired,
+  type ClientField,
+  type ClientPhantomField,
+} from "@betterinternship/core/forms";
+import { expandRepeatedPreviewBlocks } from "@/lib/repeated-pdf-fields";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -42,7 +48,7 @@ const areFormValuesEqual = (left: Record<string, string>, right: Record<string, 
 };
 
 const getCanonicalSignatureFields = (
-  signatureFields: { field: string; signing_party_id?: string }[]
+  signatureFields: (ClientField<any[]> | ClientPhantomField<any[]>)[]
 ) => {
   const seenRecipientIds = new Set<string>();
   return signatureFields.filter((signatureField) => {
@@ -83,8 +89,11 @@ function PageContent() {
   const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
   const finalValues = useMemo(
-    () => formFiller.getFinalValues(autofillValues),
-    [formFiller, form, autofillValues]
+    () => ({
+      ...(formProcess.form_inputs ?? {}),
+      ...formFiller.getFinalValues(autofillValues),
+    }),
+    [formFiller, form, formProcess.form_inputs, autofillValues]
   );
   const previewValues = useMemo(
     () =>
@@ -177,7 +186,9 @@ function PageContent() {
 
       formFiller.initializeValues(valuesWithSavedSignatureImages);
       signContext.setRequiredSignatures(
-        getCanonicalSignatureFields(signatureFields).map((signatureField) => signatureField.field)
+        getCanonicalSignatureFields(signatureFields)
+          .filter(isFieldRequired)
+          .map((signatureField) => signatureField.field)
       );
 
       for (const signatureField of signatureFields) {
@@ -230,10 +241,11 @@ function PageContent() {
 
   const previewBlocks = useMemo(() => {
     if (!form.formMetadata) return [];
-    return form.formMetadata
+    const blocks = form.formMetadata
       .getBlocksForEditorService()
       .filter((block) => block.field_schema || block.phantom_field_schema);
-  }, [form.formMetadata]);
+    return expandRepeatedPreviewBlocks(blocks, previewValues);
+  }, [form.formMetadata, previewValues]);
 
   const signingParties = useMemo(
     () => (form.formMetadata ? form.formMetadata.getSigningParties() : []),

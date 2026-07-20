@@ -35,6 +35,7 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
   const [, _setValues] = useState({});
   const [errors, _setErrors] = useState({});
   const valuesRef = useRef<FormValues>({});
+  const clearedFieldsRef = useRef(new Set<string>());
 
   const getFinalValues = (additionalValues?: FormValues) => {
     return { ...additionalValues, ...valuesRef.current };
@@ -45,6 +46,8 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
     const stringValue = value === null || value === undefined ? "" : String(value);
     const next = { ...valuesRef.current, [field]: stringValue };
     valuesRef.current = next;
+    if (stringValue.trim()) clearedFieldsRef.current.delete(field);
+    else clearedFieldsRef.current.add(field);
     _setValues(next);
   };
 
@@ -59,6 +62,10 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
     );
     const next = { ...valuesRef.current, ...stringifiedValues };
     valuesRef.current = next;
+    for (const [key, value] of Object.entries(stringifiedValues)) {
+      if (value.trim()) clearedFieldsRef.current.delete(key);
+      else clearedFieldsRef.current.add(key);
+    }
     _setValues(next);
   };
 
@@ -68,9 +75,10 @@ export const FormFillerContextProvider = ({ children }: { children: React.ReactN
       (acc, [key, val]) => {
         const currentValue = prev[key];
         const hasExistingValue =
-          currentValue !== null &&
-          currentValue !== undefined &&
-          String(currentValue).trim().length > 0;
+          (currentValue !== null &&
+            currentValue !== undefined &&
+            String(currentValue).trim().length > 0) ||
+          clearedFieldsRef.current.has(key);
 
         acc[key] = hasExistingValue
           ? String(currentValue)

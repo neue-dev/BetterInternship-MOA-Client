@@ -40,6 +40,7 @@ import { useFormPreviewEditing } from "./useFormPreviewEditing";
 import { StaticFormRendererContextProvider } from "@/components/docs/forms/form-renderer.ctx";
 import { FormFillerContextProvider, useFormFiller } from "@/components/docs/forms/form-filler.ctx";
 import { useSignedUrl } from "@/lib/signed-url";
+import { expandRepeatedPreviewBlocks } from "@/lib/repeated-pdf-fields";
 
 interface FormPreviewProps {
   metadata?: IFormMetadata;
@@ -117,12 +118,14 @@ const FormPreviewFormPanel = ({
   generationResult,
   isGenerating,
   onGenerate,
+  selectedPartyId,
 }: {
   autoScrollToSelectedField: boolean;
   onFieldClick: (fieldId: string) => void;
   generationResult: string | null;
   isGenerating: boolean;
   onGenerate: () => void;
+  selectedPartyId: string;
 }) => {
   const editing = useFormPreviewEditing();
 
@@ -135,6 +138,7 @@ const FormPreviewFormPanel = ({
           editing={editing}
           hideTitle
           onFieldClick={onFieldClick}
+          selectedPartyId={selectedPartyId}
         />
       </div>
 
@@ -215,13 +219,46 @@ const FormPreviewContentBody = ({
     new FormMetadata(formMetadata),
     formFiller.getFinalValues()
   );
+  const expandedPreviewBlocks = useMemo(
+    () => expandRepeatedPreviewBlocks(blocks, previewValues),
+    [blocks, previewValues]
+  );
 
   const handleGenerateTestForm = useCallback(async () => {
     setIsGenerating(true);
     try {
+      const metadataClient = new FormMetadata(formMetadata);
+      const userValues = formFiller.getFinalValues();
+
+      // Build dummy prefill values by running each field's prefiller with dummy student data
+      const allClientFields = metadataClient.getFieldsForClientService(undefined);
+      const dummyValues: Record<string, string> = {};
+      for (const field of allClientFields) {
+        if (typeof field.prefiller === "function") {
+          try {
+            const raw = field.prefiller({
+              signatory: DEFAULT_PREVIEW_DUMMY_STUDENT_USER,
+              user: DEFAULT_PREVIEW_DUMMY_STUDENT_USER,
+            });
+            if (raw != null) {
+              dummyValues[field.field] = String(raw);
+            }
+          } catch {
+            // skip failing prefillers in test mode
+          }
+        }
+      }
+
+      // Build test values: dummy prefill as base, overlay derived, overlay user edits
+      const testValues = {
+        ...dummyValues,
+        ...withDerivedFormValues(metadataClient, { ...dummyValues, ...userValues }),
+        ...userValues,
+      };
+
       const result = await formsControllerGenerateTestForm({
         formName: formMetadata.name,
-        values: formFiller.getFinalValues(),
+        values: testValues,
       });
       const url = result?.data?.documentUrl || result?.documentUrl;
       if (url) setGenerationResult(url);
@@ -230,7 +267,7 @@ const FormPreviewContentBody = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [formFiller, formMetadata.name]);
+  }, [formFiller, formMetadata]);
 
   const handleFormFieldClick = useCallback(
     (fieldId: string) => {
@@ -250,6 +287,7 @@ const FormPreviewContentBody = ({
           generationResult={generationResult}
           isGenerating={isGenerating}
           onGenerate={handleGenerateTestForm}
+          selectedPartyId={selectedPartyId}
         />
       }
       right={
@@ -257,7 +295,7 @@ const FormPreviewContentBody = ({
           {documentUrl ? (
             <FormFillPdfViewer
               documentUrl={documentUrl}
-              blocks={blocks}
+              blocks={expandedPreviewBlocks}
               values={previewValues}
               scale={previewScale}
               onScaleChange={reportPreviewScale}

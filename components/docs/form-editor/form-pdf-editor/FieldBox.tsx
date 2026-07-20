@@ -594,12 +594,12 @@ export const FieldBox = ({
       <TooltipContent
         side="top"
         sideOffset={6}
-        className="max-w-xs break-words border"
+        className="max-w-xs break-words border text-sm font-semibold rounded-[0.33em]"
         arrowClassName="fill-[var(--tooltip-bg)]"
         style={{
           backgroundColor: partyColor.hex,
           borderColor: partyColor.hex,
-          color: "var(--muted-foreground)",
+          color: "#ffffff",
           "--tooltip-bg": partyColor.hex,
         } as CSSProperties}
       >

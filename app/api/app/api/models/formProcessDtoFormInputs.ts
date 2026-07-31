@@ -6,6 +6,4 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface GetExportForSignatoryDto {
-  formName: string;
-}
+export type FormProcessDtoFormInputs = { [key: string]: unknown };

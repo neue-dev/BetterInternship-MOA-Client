@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface GetExportForSignatoryDto {
-  formName: string;
-}
+export type FormsControllerGetAlterRecipientContextInternallyParams = {
+  apiKey: string;
+  eventId: string;
+};

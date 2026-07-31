@@ -14,3 +14,4 @@ export * from "./app/api/endpoints/signatory-magic-link/signatory-magic-link";
 export * from "./app/api/endpoints/form-groups/form-groups";
 export * from "./app/api/endpoints/form-sync/form-sync";
 export * from "./app/api/endpoints/process-callback/process-callback";
+export * from "./app/api/endpoints/ses-bounce-webhook/ses-bounce-webhook";

@@ -21,4 +21,6 @@ export interface _SignatoryForm {
   first_viewed: string | null;
   /** @nullable */
   signing_party_id: string | null;
+  /** @nullable */
+  signing_keyring_id: string | null;
 }

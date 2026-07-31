@@ -23,12 +23,7 @@ import type {
   UseSuspenseQueryResult,
 } from "@tanstack/react-query";
 
-import type {
-  ErrorResponse,
-  QueryDocResponse,
-  QueryMoaResponse,
-  SignatoryFormtemplatesResponse,
-} from "../../models";
+import type { ErrorResponse, QueryDocResponse, SignatoryFormtemplatesResponse } from "../../models";
 
 import { preconfiguredAxiosFunction } from "../../../../preconfig.axios";
 
@@ -288,261 +283,31 @@ export function useDocsControllerGetByVerificationCodeSuspense<
   return query;
 }
 
-export const docsControllerGetMoaSignedDocument = (
-  id: string | undefined | null,
-  signal?: AbortSignal
-) => {
-  return preconfiguredAxiosFunction<QueryMoaResponse>({
-    url: `/api/docs/moa/${id}`,
-    method: "GET",
+export const docsControllerResolveUrl = (signal?: AbortSignal) => {
+  return preconfiguredAxiosFunction<unknown>({
+    url: `/api/docs/resolve-url`,
+    method: "POST",
     signal,
   });
 };
 
-export const getDocsControllerGetMoaSignedDocumentQueryKey = (id?: string | undefined | null) => {
-  return [`/api/docs/moa/${id}`] as const;
-};
-
-export const getDocsControllerGetMoaSignedDocumentQueryOptions = <
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
+export const getDocsControllerResolveUrlMutationOptions = <
   TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>, TError, TData>
-    >;
-  }
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getDocsControllerGetMoaSignedDocumentQueryKey(id);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>> = ({
-    signal,
-  }) => docsControllerGetMoaSignedDocument(id, signal);
-
-  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type DocsControllerGetMoaSignedDocumentQueryResult = NonNullable<
-  Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>
->;
-export type DocsControllerGetMoaSignedDocumentQueryError = ErrorResponse;
-
-export function useDocsControllerGetMoaSignedDocument<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-          TError,
-          Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetMoaSignedDocument<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-          TError,
-          Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetMoaSignedDocument<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-export function useDocsControllerGetMoaSignedDocument<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getDocsControllerGetMoaSignedDocumentQueryOptions(id, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}
-
-export const getDocsControllerGetMoaSignedDocumentSuspenseQueryOptions = <
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-        TError,
-        TData
-      >
-    >;
-  }
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getDocsControllerGetMoaSignedDocumentQueryKey(id);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>> = ({
-    signal,
-  }) => docsControllerGetMoaSignedDocument(id, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseSuspenseQueryOptions<
-    Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type DocsControllerGetMoaSignedDocumentSuspenseQueryResult = NonNullable<
-  Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>
->;
-export type DocsControllerGetMoaSignedDocumentSuspenseQueryError = ErrorResponse;
-
-export function useDocsControllerGetMoaSignedDocumentSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options: {
-    query: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetMoaSignedDocumentSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetMoaSignedDocumentSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-export function useDocsControllerGetMoaSignedDocumentSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-  TError = ErrorResponse,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetMoaSignedDocument>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getDocsControllerGetMoaSignedDocumentSuspenseQueryOptions(id, options);
-
-  const query = useSuspenseQuery(queryOptions, queryClient) as UseSuspenseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}
-
-export const docsControllerPushStudentMoa = (signal?: AbortSignal) => {
-  return preconfiguredAxiosFunction<null>({ url: `/api/docs/student-moa`, method: "POST", signal });
-};
-
-export const getDocsControllerPushStudentMoaMutationOptions = <
-  TError = unknown,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof docsControllerPushStudentMoa>>,
+    Awaited<ReturnType<typeof docsControllerResolveUrl>>,
     TError,
     void,
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof docsControllerPushStudentMoa>>,
+  Awaited<ReturnType<typeof docsControllerResolveUrl>>,
   TError,
   void,
   TContext
 > => {
-  const mutationKey = ["docsControllerPushStudentMoa"];
+  const mutationKey = ["docsControllerResolveUrl"];
   const { mutation: mutationOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -550,25 +315,25 @@ export const getDocsControllerPushStudentMoaMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof docsControllerPushStudentMoa>>,
+    Awaited<ReturnType<typeof docsControllerResolveUrl>>,
     void
   > = () => {
-    return docsControllerPushStudentMoa();
+    return docsControllerResolveUrl();
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DocsControllerPushStudentMoaMutationResult = NonNullable<
-  Awaited<ReturnType<typeof docsControllerPushStudentMoa>>
+export type DocsControllerResolveUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof docsControllerResolveUrl>>
 >;
 
-export type DocsControllerPushStudentMoaMutationError = unknown;
+export type DocsControllerResolveUrlMutationError = ErrorResponse;
 
-export const useDocsControllerPushStudentMoa = <TError = unknown, TContext = unknown>(
+export const useDocsControllerResolveUrl = <TError = ErrorResponse, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof docsControllerPushStudentMoa>>,
+      Awaited<ReturnType<typeof docsControllerResolveUrl>>,
       TError,
       void,
       TContext
@@ -576,249 +341,82 @@ export const useDocsControllerPushStudentMoa = <TError = unknown, TContext = unk
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof docsControllerPushStudentMoa>>,
+  Awaited<ReturnType<typeof docsControllerResolveUrl>>,
   TError,
   void,
   TContext
 > => {
-  const mutationOptions = getDocsControllerPushStudentMoaMutationOptions(options);
+  const mutationOptions = getDocsControllerResolveUrlMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
-export const docsControllerGetStudentMoa = (
-  id: string | undefined | null,
-  signal?: AbortSignal
-) => {
-  return preconfiguredAxiosFunction<null>({
-    url: `/api/docs/student-moa/${id}`,
-    method: "GET",
+export const docsControllerResolveUrlInternal = (signal?: AbortSignal) => {
+  return preconfiguredAxiosFunction<unknown>({
+    url: `/api/docs/resolve-url/__internal`,
+    method: "POST",
     signal,
   });
 };
 
-export const getDocsControllerGetStudentMoaQueryKey = (id?: string | undefined | null) => {
-  return [`/api/docs/student-moa/${id}`] as const;
-};
-
-export const getDocsControllerGetStudentMoaQueryOptions = <
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>, TError, TData>
-    >;
-  }
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getDocsControllerGetStudentMoaQueryKey(id);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>> = ({
-    signal,
-  }) => docsControllerGetStudentMoa(id, signal);
-
-  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
+export const getDocsControllerResolveUrlInternalMutationOptions = <
+  TError = ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>,
     TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+    void,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["docsControllerResolveUrlInternal"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
 
-export type DocsControllerGetStudentMoaQueryResult = NonNullable<
-  Awaited<ReturnType<typeof docsControllerGetStudentMoa>>
->;
-export type DocsControllerGetStudentMoaQueryError = unknown;
-
-export function useDocsControllerGetStudentMoa<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-          TError,
-          Awaited<ReturnType<typeof docsControllerGetStudentMoa>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetStudentMoa<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-          TError,
-          Awaited<ReturnType<typeof docsControllerGetStudentMoa>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetStudentMoa<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-export function useDocsControllerGetStudentMoa<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getDocsControllerGetStudentMoaQueryOptions(id, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>,
+    void
+  > = () => {
+    return docsControllerResolveUrlInternal();
   };
 
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}
-
-export const getDocsControllerGetStudentMoaSuspenseQueryOptions = <
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-        TError,
-        TData
-      >
-    >;
-  }
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getDocsControllerGetStudentMoaQueryKey(id);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof docsControllerGetStudentMoa>>> = ({
-    signal,
-  }) => docsControllerGetStudentMoa(id, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseSuspenseQueryOptions<
-    Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  return { mutationFn, ...mutationOptions };
 };
 
-export type DocsControllerGetStudentMoaSuspenseQueryResult = NonNullable<
-  Awaited<ReturnType<typeof docsControllerGetStudentMoa>>
+export type DocsControllerResolveUrlInternalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>
 >;
-export type DocsControllerGetStudentMoaSuspenseQueryError = unknown;
 
-export function useDocsControllerGetStudentMoaSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options: {
-    query: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetStudentMoaSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
+export type DocsControllerResolveUrlInternalMutationError = ErrorResponse;
+
+export const useDocsControllerResolveUrlInternal = <TError = ErrorResponse, TContext = unknown>(
   options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-        TError,
-        TData
-      >
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>,
+      TError,
+      void,
+      TContext
     >;
   },
   queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useDocsControllerGetStudentMoaSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+): UseMutationResult<
+  Awaited<ReturnType<typeof docsControllerResolveUrlInternal>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationOptions = getDocsControllerResolveUrlInternalMutationOptions(options);
 
-export function useDocsControllerGetStudentMoaSuspense<
-  TData = Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-  TError = unknown,
->(
-  id: string | undefined | null,
-  options?: {
-    query?: Partial<
-      UseSuspenseQueryOptions<
-        Awaited<ReturnType<typeof docsControllerGetStudentMoa>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient
-): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getDocsControllerGetStudentMoaSuspenseQueryOptions(id, options);
-
-  const query = useSuspenseQuery(queryOptions, queryClient) as UseSuspenseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}
-
+  return useMutation(mutationOptions, queryClient);
+};
 export const docsControllerGetEntityForms = (signal?: AbortSignal) => {
   return preconfiguredAxiosFunction<SignatoryFormtemplatesResponse>({
     url: `/api/docs/entity-forms`,

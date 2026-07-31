@@ -38,6 +38,7 @@ import type {
   FormProcessResponse,
   FormRegistryResponse,
   FormTemplatesResponse,
+  FormsControllerGetAlterRecipientContextInternallyParams,
   FormsControllerGetFieldFromRegistryParams,
   FormsControllerGetFormGroupTemplatesParams,
   FormsControllerGetFormProcessParams,
@@ -3578,6 +3579,341 @@ export const useFormsControllerAlterRecipient = <TError = ErrorResponse, TContex
   TContext
 > => {
   const mutationOptions = getFormsControllerAlterRecipientMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+export const formsControllerGetAlterRecipientContextInternally = (
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  signal?: AbortSignal
+) => {
+  return preconfiguredAxiosFunction<BaseResponse>({
+    url: `/api/forms/edit-recipient/__internal`,
+    method: "GET",
+    params,
+    signal,
+  });
+};
+
+export const getFormsControllerGetAlterRecipientContextInternallyQueryKey = (
+  params?: FormsControllerGetAlterRecipientContextInternallyParams
+) => {
+  return [`/api/forms/edit-recipient/__internal`, ...(params ? [params] : [])] as const;
+};
+
+export const getFormsControllerGetAlterRecipientContextInternallyQueryOptions = <
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getFormsControllerGetAlterRecipientContextInternallyQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+  > = ({ signal }) => formsControllerGetAlterRecipientContextInternally(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type FormsControllerGetAlterRecipientContextInternallyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+>;
+export type FormsControllerGetAlterRecipientContextInternallyQueryError = ErrorResponse;
+
+export function useFormsControllerGetAlterRecipientContextInternally<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params: undefined | FormsControllerGetAlterRecipientContextInternallyParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+          TError,
+          Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useFormsControllerGetAlterRecipientContextInternally<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+          TError,
+          Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useFormsControllerGetAlterRecipientContextInternally<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useFormsControllerGetAlterRecipientContextInternally<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getFormsControllerGetAlterRecipientContextInternallyQueryOptions(
+    params,
+    options
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getFormsControllerGetAlterRecipientContextInternallySuspenseQueryOptions = <
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseSuspenseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getFormsControllerGetAlterRecipientContextInternallyQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+  > = ({ signal }) => formsControllerGetAlterRecipientContextInternally(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseSuspenseQueryOptions<
+    Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type FormsControllerGetAlterRecipientContextInternallySuspenseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>
+>;
+export type FormsControllerGetAlterRecipientContextInternallySuspenseQueryError = ErrorResponse;
+
+export function useFormsControllerGetAlterRecipientContextInternallySuspense<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params: undefined | FormsControllerGetAlterRecipientContextInternallyParams,
+  options: {
+    query: Partial<
+      UseSuspenseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useFormsControllerGetAlterRecipientContextInternallySuspense<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseSuspenseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useFormsControllerGetAlterRecipientContextInternallySuspense<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseSuspenseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+export function useFormsControllerGetAlterRecipientContextInternallySuspense<
+  TData = Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+  TError = ErrorResponse,
+>(
+  params?: FormsControllerGetAlterRecipientContextInternallyParams,
+  options?: {
+    query?: Partial<
+      UseSuspenseQueryOptions<
+        Awaited<ReturnType<typeof formsControllerGetAlterRecipientContextInternally>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient
+): UseSuspenseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getFormsControllerGetAlterRecipientContextInternallySuspenseQueryOptions(
+    params,
+    options
+  );
+
+  const query = useSuspenseQuery(queryOptions, queryClient) as UseSuspenseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const formsControllerAlterRecipientInternally = (signal?: AbortSignal) => {
+  return preconfiguredAxiosFunction<BaseResponse>({
+    url: `/api/forms/edit-recipient/__internal`,
+    method: "POST",
+    signal,
+  });
+};
+
+export const getFormsControllerAlterRecipientInternallyMutationOptions = <
+  TError = ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>,
+    TError,
+    void,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["formsControllerAlterRecipientInternally"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>,
+    void
+  > = () => {
+    return formsControllerAlterRecipientInternally();
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FormsControllerAlterRecipientInternallyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>
+>;
+
+export type FormsControllerAlterRecipientInternallyMutationError = ErrorResponse;
+
+export const useFormsControllerAlterRecipientInternally = <
+  TError = ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>,
+      TError,
+      void,
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof formsControllerAlterRecipientInternally>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationOptions = getFormsControllerAlterRecipientInternallyMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

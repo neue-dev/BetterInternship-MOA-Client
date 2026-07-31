@@ -6,10 +6,12 @@
  * OpenAPI spec version: 1.0
  */
 import type { FormProcessDtoDisplayInformation } from "./formProcessDtoDisplayInformation";
+import type { FormProcessDtoFormInputs } from "./formProcessDtoFormInputs";
 
 export interface FormProcessDto {
   my_signing_party_id: string;
   display_information: FormProcessDtoDisplayInformation;
+  form_inputs: FormProcessDtoFormInputs;
   form_label: string;
   form_name: string;
   form_version: number;

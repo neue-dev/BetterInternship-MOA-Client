@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { FormFieldType } from "./formFieldType";
+import type { FormFieldRepeat } from "./formFieldRepeat";
 import type { FormFieldSource } from "./formFieldSource";
 import type { FormFieldValidatorIr } from "./formFieldValidatorIr";
 
@@ -17,6 +18,7 @@ export interface FormField {
   w: number;
   h: number;
   page: number;
+  repeat?: FormFieldRepeat;
   label: string;
   tooltip_label: string;
   shared: boolean;

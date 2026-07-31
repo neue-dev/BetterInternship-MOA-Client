@@ -51,7 +51,6 @@ export function DelegateEmailScreen({ email, onEmailChange }: DelegateEmailScree
           title="Request sent successfully"
           description="The new recipient has been notified. You can head back to your forms now."
           buttonLabel="View my forms"
-          redirectPath="/docs/dashboard"
           onClose={() => closeModal("delegate-recipient-success")}
         />,
         {

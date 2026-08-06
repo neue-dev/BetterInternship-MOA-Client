@@ -16,8 +16,8 @@ const SerialSchema = z
   .string()
   .trim()
   .regex(
-    /^\d{10}-[A-Fa-f0-9]{8}-[A-Fa-f0-9]{8}$/,
-    "Serial must be 10-8-8 characters (e.g., 1234567890-abcdefg-xyzwlmno)"
+    /^(?:IOM-)?\d{10}-[A-Fa-f0-9]{8}-[A-Fa-f0-9]{8}$/,
+    "Serial must be 10-8-8 characters (e.g., 0123456789-abcdefgh-1234abcd), optionally prefixed with IOM-",
   );
 
 export default function VerifyDocsPage() {

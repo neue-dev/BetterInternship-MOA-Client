@@ -192,8 +192,27 @@ const validateFieldHelper = <T extends any[]>(
     return;
   }
 
-  const value = finalValues[field.field];
-  const coerced = field.coerce(value);
+  const value = finalValues[field.field] ?? "";
+  if (field.type === "multiselect" && !value?.trim() && field.validator?.safeParse([]).success) {
+    return null;
+  }
+
+  const isDateMultiSelect =
+    field.type === "multiselect" &&
+    (field.validator as { _def?: { element?: { _def?: { type?: string } } } } | null)?._def?.element
+      ?._def?.type === "date";
+  const dateMultiSelectValue = isDateMultiSelect
+    ? value
+        .split("\n")
+        .filter(Boolean)
+        .map((item) => new Date(Number(item)))
+    : undefined;
+
+  // Empty multiselect values are stored as an empty string, while the core
+  // coercer splits all multiselects by newline. Validate the intended empty array.
+  const coerced =
+    dateMultiSelectValue ??
+    (field.type === "multiselect" && !value?.trim() ? [] : field.coerce(value));
   const result = field.validator?.safeParse(coerced);
 
   if (result?.error) {

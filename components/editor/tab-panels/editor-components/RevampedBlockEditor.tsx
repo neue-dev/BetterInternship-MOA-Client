@@ -497,6 +497,16 @@ export function RevampedBlockEditor() {
               required={false}
               className="h-8 text-xs"
             />
+            <FormInput
+              type="number"
+              label="Page"
+              step="1"
+              min="1"
+              value={String(schema?.page ?? 1)}
+              setter={(v) => handleFieldChange("page", Math.max(1, Number(v)))}
+              required={false}
+              className="h-8 text-xs"
+            />
           </div>
         )}
       </div>

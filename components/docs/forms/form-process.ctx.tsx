@@ -1,4 +1,5 @@
 import { formsControllerGetFormProcess } from "@/app/api";
+import type { SigningPartyMapParty } from "./SignignPartyTimeline";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useState } from "react";
 
@@ -14,6 +15,7 @@ export interface IFormProcess {
   form_inputs?: Record<string, string>;
   timestamp?: string;
   my_signing_party_id?: string;
+  signing_parties?: SigningPartyMapParty[];
 
   setSupposedSigningPartyId: (supposedSigningPartyId: string) => void;
   setFormProcessId: (formProcessId: string) => void;

@@ -14,6 +14,8 @@ import { CompleteProfileModal } from "./docs/modals/CompleteProfileModal";
 import { ISignatoryFormSettings } from "@/app/docs/auth/provider/form-settings.ctx";
 import { SetupFormSettings } from "./modals/SetupFormSettings";
 import { CancelledFormDetailsModal } from "./modals/CancelledFormDetailsModal";
+import { SigningMapModal } from "./modals/SigningMapModal";
+import { SigningPartyMapParty } from "./docs/forms/SignignPartyTimeline";
 
 /**
  * Simplifies modal config since we usually reuse each of these modal stuffs.
@@ -120,6 +122,23 @@ export const useModalRegistry = () => {
           }
         ),
       close: () => close("cancelled-form-details"),
+    },
+
+    signingMap: {
+      open: (signingParties: SigningPartyMapParty[], currentSigningPartyId?: string) =>
+        open(
+          "signing-map",
+          <SigningMapModal
+            signingParties={signingParties}
+            currentSigningPartyId={currentSigningPartyId}
+          />,
+          {
+            title: "Signing progress",
+            panelClassName: "sm:!h-auto sm:!w-auto sm:!max-w-2xl",
+            contentClassName: "max-h-[calc(var(--vh,1vh)*100-4rem)] overflow-auto px-6 pb-6 pt-2",
+          }
+        ),
+      close: () => close("signing-map"),
     },
 
     // Complete profile modal

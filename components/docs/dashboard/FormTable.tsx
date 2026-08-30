@@ -23,6 +23,7 @@ import {
 import { downloadFormsAsCsv } from "./CsvExporter";
 import { RowEntry } from "@/lib/types";
 import useModalRegistry from "@/components/modal-registry";
+import { SigningPartyTimeline } from "../forms/SignignPartyTimeline";
 
 export type FormRow = {
   form_label: string;
@@ -313,6 +314,15 @@ export default function MyFormsTable({
       sortingStorageKey="docs-dashboard-forms-sorting"
       pageSizes={[20, 50]}
       className="h-full"
+      renderExpandedRow={(form) => (
+        <div className="max-w-md">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Signing map</h2>
+          <SigningPartyTimeline
+            signingParties={form.signing_parties}
+            isCancelled={!!form.rejection_reason}
+          />
+        </div>
+      )}
       toolbarActions={
         exportEnabled ? (
           <DropdownMenu open={isExportDropdownOpen} onOpenChange={handleDropdownOpenChange}>

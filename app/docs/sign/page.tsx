@@ -16,9 +16,9 @@ import { useSignContext } from "../auth/provider/sign.ctx";
 import { useSignatoryProfile } from "../auth/provider/signatory.ctx";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
+import { Stepper, type StepperStep } from "@/components/ui/stepper";
 import { toast } from "sonner";
-import { ArrowLeft, LucideClipboardCheck } from "lucide-react";
+import { ArrowLeft, ChevronDown, LucideClipboardCheck, Route } from "lucide-react";
 import { formsControllerMarkFormAsFirstViewed } from "@/app/api";
 import { withDerivedFormValues } from "@/lib/derived-form-values";
 import { withSavedSignatureImagesForFields } from "@/lib/saved-signature-image";
@@ -34,6 +34,7 @@ import {
   type ClientPhantomField,
 } from "@betterinternship/core/forms";
 import { expandRepeatedPreviewBlocks } from "@/lib/repeated-pdf-fields";
+import useModalRegistry from "@/components/modal-registry";
 
 type MobileSigningStep = "fields" | "preview-review" | "confirm";
 const COMPACT_SIGNING_LAYOUT_BREAKPOINT_PX = 1150;
@@ -85,6 +86,7 @@ function PageContent() {
   const form = useFormRendererContext();
   const formProcess = useFormProcess();
   const formFiller = useFormFiller();
+  const modalRegistry = useModalRegistry();
   const autofillValues = useMyAutofill();
   const { url: resolvedDocumentUrl } = useSignedUrl(formProcess.latest_document_url ?? "");
   const signContext = useSignContext();
@@ -247,30 +249,43 @@ function PageContent() {
     return expandRepeatedPreviewBlocks(blocks, previewValues);
   }, [form.formMetadata, previewValues]);
 
-  const signingParties = useMemo(
+  const templateSigningParties = useMemo(
     () => (form.formMetadata ? form.formMetadata.getSigningParties() : []),
     [form.formMetadata]
   );
-  const mySigningParty = signingParties.find(
+  const signingMapParties =
+    formProcess.signing_parties && formProcess.signing_parties.length > 0
+      ? formProcess.signing_parties
+      : templateSigningParties;
+  const mySigningParty = templateSigningParties.find(
     (signingParty) => signingParty._id === formProcess.my_signing_party_id
   );
   const shouldShowSignIntentGate =
     typeof mySigningParty?.signatory_source?._id === "string" &&
     mySigningParty.signatory_source._id.trim().length > 0;
   const currentView = shouldShowSignIntentGate ? view : "form";
+  const renderSigningProgressButton = () => (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-7 gap-1 px-2 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      onClick={() =>
+        modalRegistry.signingMap.open(signingMapParties, formProcess.my_signing_party_id)
+      }
+    >
+      <Route className="h-4 w-4" />
+      Signing progress
+      <ChevronDown className="h-3.5 w-3.5" />
+    </Button>
+  );
   const hideHeaderForIntentGate = shouldShowSignIntentGate && currentView === "choice";
   const showOuterHeader = !hideHeaderForIntentGate && (isMobileLayout || currentView !== "form");
-  const desktopHeaderTaskTitle =
+  const desktopSigningSteps: StepperStep[] =
     currentView === "delegate"
-      ? "Forward this form to the actual signer"
-      : desktopStep === "confirm"
-        ? "Confirm before submitting"
-        : "Fill required fields or reject this form";
-  const desktopHeaderStepNumber =
-    currentView === "delegate" ? 1 : desktopStep === "confirm" ? 2 : 1;
-  const desktopHeaderTotalSteps = currentView === "delegate" ? 1 : 2;
-  const desktopHeaderProgressPercent =
-    desktopHeaderTotalSteps <= 1 ? 100 : (desktopHeaderStepNumber / desktopHeaderTotalSteps) * 100;
+      ? [{ title: "Delegate signer" }]
+      : [{ title: "Complete form" }, { title: "Review & submit" }];
+  const desktopSigningStep = currentView === "delegate" ? 0 : desktopStep === "confirm" ? 1 : 0;
 
   useEffect(() => {
     const didValuesChange = !areFormValuesEqual(latestPreviewValuesRef.current, previewValues);
@@ -293,16 +308,16 @@ function PageContent() {
   }, [currentView, isMobileLayout, mobileFieldsTab, mobileStep, previewValues]);
 
   const mobileSteps: MobileSigningStep[] = ["fields", "preview-review", "confirm"];
-  const mobileStepNumber = mobileSteps.indexOf(mobileStep) + 1;
   const mobileStepIndexByStep = useMemo(
     () => new Map(mobileSteps.map((step, index) => [step, index])),
     [mobileSteps]
   );
-  const mobileStepTitles: Record<MobileSigningStep, string> = {
-    fields: "Fill required fields or reject this form",
-    "preview-review": "Review your inputs",
-    confirm: "Confirm before submitting",
-  };
+  const mobileStepperSteps: StepperStep[] = [
+    { title: "Fill" },
+    { title: "Review" },
+    { title: "Submit" },
+  ];
+  const mobileStepperStep = mobileStepIndexByStep.get(mobileStep) ?? 0;
   const mobileFieldsTabs = [
     { id: "form", label: "Fill Details" },
     { id: "preview", label: "PDF Preview", attentionState: mobilePreviewNeedsAttention },
@@ -427,17 +442,11 @@ function PageContent() {
                 </h3>
               </div>
 
-              <div className="hidden min-w-[210px] flex-col items-end gap-1 md:flex">
-                <span className="text-[11px] font-medium text-gray-500">
-                  {desktopHeaderTaskTitle}
-                  <span className="px-1.5 text-gray-300">•</span>
-                  Step {desktopHeaderStepNumber} of {desktopHeaderTotalSteps}
-                </span>
-                <Progress
-                  value={desktopHeaderProgressPercent}
-                  className="[&>div]:bg-primary/75 h-[3px] w-[210px] bg-gray-200"
-                />
-              </div>
+              <Stepper
+                currentStep={desktopSigningStep}
+                steps={desktopSigningSteps}
+                className="hidden md:flex"
+              />
             </div>
           </div>
         </div>
@@ -476,12 +485,12 @@ function PageContent() {
           ) : (
             <motion.div
               key="form"
-              className="h-full"
+              className="flex h-full min-h-0 flex-col"
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0, transition: nextScreenEnterTransition }}
               exit={{ opacity: 0, y: -16, transition: choiceExitTransition }}
             >
-              <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[0.33em] border border-gray-300 bg-white">
+              <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden rounded-[0.33em] border border-gray-300 bg-white">
                 {!isMobileLayout && (
                   <div className="border-b border-gray-300 bg-white">
                     <div className="flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
@@ -503,15 +512,12 @@ function PageContent() {
                         </span>
                       </div>
 
-                      <div className="hidden min-w-[210px] flex-col items-end gap-1 md:flex">
-                        <span className="text-[11px] font-medium text-gray-500">
-                          {desktopHeaderTaskTitle}
-                          <span className="px-1.5 text-gray-300">•</span>
-                          Step {desktopHeaderStepNumber} of {desktopHeaderTotalSteps}
-                        </span>
-                        <Progress
-                          value={desktopHeaderProgressPercent}
-                          className="[&>div]:bg-primary/75 h-[3px] w-[210px] bg-gray-200"
+                      <div className="flex items-center gap-5">
+                        {renderSigningProgressButton()}
+                        <Stepper
+                          currentStep={desktopSigningStep}
+                          steps={desktopSigningSteps}
+                          className="hidden md:flex"
                         />
                       </div>
                     </div>
@@ -520,10 +526,14 @@ function PageContent() {
 
                 {isMobileLayout && (
                   <div className="border-b border-gray-300 bg-gray-100 px-4 py-2">
-                    <div className="truncate text-xs font-medium whitespace-nowrap text-gray-700">
-                      Step {mobileStepNumber} of {mobileSteps.length}
-                      <span className="px-1 text-gray-400">•</span>
-                      {mobileStepTitles[mobileStep]}
+                    <div className="flex items-center justify-between gap-3">
+                      <Stepper
+                        currentStep={0}
+                        stepNumberOffset={mobileStepperStep}
+                        steps={[mobileStepperSteps[mobileStepperStep]]}
+                        className="min-w-0 flex-1"
+                      />
+                      {renderSigningProgressButton()}
                     </div>
                   </div>
                 )}
@@ -562,7 +572,7 @@ function PageContent() {
                                 onFieldClick={handlePdfFieldSelect}
                                 selectedFieldId={form.selectedPreviewId ?? undefined}
                                 scale={0.5}
-                                signingParties={signingParties}
+                                signingParties={templateSigningParties}
                                 currentSigningPartyId={formProcess.my_signing_party_id}
                                 showOwnership
                                 defaultFieldVisibility="mine"
@@ -648,7 +658,7 @@ function PageContent() {
                               }}
                               selectedFieldId={form.selectedPreviewId ?? undefined}
                               scale={0.5}
-                              signingParties={signingParties}
+                              signingParties={templateSigningParties}
                               currentSigningPartyId={formProcess.my_signing_party_id}
                               showOwnership
                               defaultFieldVisibility="mine"
@@ -753,7 +763,7 @@ function PageContent() {
                             onFieldClick={handlePdfFieldSelect}
                             selectedFieldId={form.selectedPreviewId ?? undefined}
                             scale={0.7}
-                            signingParties={signingParties}
+                            signingParties={templateSigningParties}
                             currentSigningPartyId={formProcess.my_signing_party_id}
                             showOwnership
                             defaultFieldVisibility="mine"

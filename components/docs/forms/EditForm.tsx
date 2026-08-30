@@ -10,6 +10,7 @@ import * as RadioGroup from "@radix-ui/react-radio-group";
 import {
   CalendarDays,
   Check,
+  X,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -156,7 +157,7 @@ export function LabelWithTooltip({
             className={cn("text-primary h-3.5 w-3.5", hasTooltip ? "" : "invisible")}
           />
           {hasTooltip && (
-            <div className="pointer-events-none absolute top-full left-1/2 z-[1400] mt-1 hidden w-max max-w-[min(18rem,80vw)] -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-[10px] leading-snug whitespace-normal text-white shadow-lg group-hover:block group-focus-within:block">
+            <div className="pointer-events-none absolute top-full left-1/2 z-[1400] mt-1 hidden w-max max-w-[min(18rem,80vw)] -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-[10px] leading-snug whitespace-normal text-white shadow-lg group-focus-within:block group-hover:block">
               {tooltip}
             </div>
           )}
@@ -626,6 +627,125 @@ export const FormDatePicker = ({
           />
         </PopoverContent>
       </Popover>
+    </div>
+  );
+};
+
+interface FormDateMultiPickerProps {
+  label?: string;
+  dates?: number[];
+  setter?: (value: number[]) => void;
+  className?: string;
+  contentClassName?: string;
+  required?: boolean;
+  tooltip?: string;
+  labelAddon?: React.ReactNode;
+}
+
+export const FormDateMultiPicker = ({
+  label,
+  dates = [],
+  setter,
+  className,
+  contentClassName,
+  required = false,
+  tooltip,
+  labelAddon,
+}: FormDateMultiPickerProps) => {
+  const [open, setOpen] = React.useState(false);
+  const selected = dates
+    .filter((value) => Number.isFinite(value))
+    .map((value) => {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).formatToParts(new Date(value));
+      const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+      return new Date(get("year"), get("month") - 1, get("day"));
+    });
+
+  return (
+    <div className={cn("flex flex-col", className)}>
+      {label && (
+        <LabelWithTooltip
+          label={label}
+          required={required}
+          tooltip={tooltip}
+          labelAddon={labelAddon}
+        />
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="min-h-9 justify-between font-normal">
+            {selected.length
+              ? `${selected.length} date${selected.length === 1 ? "" : "s"} selected`
+              : "Select dates"}
+            <CalendarDays className="h-4 w-4 opacity-70" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          className={cn("w-auto overflow-hidden p-0", contentClassName)}
+        >
+          <Calendar
+            mode="multiple"
+            selected={selected}
+            onSelect={(next) => {
+              setter?.(
+                (next ?? [])
+                  .map(
+                    (date) =>
+                      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) -
+                      8 * 60 * 60 * 1000
+                  )
+                  .sort((a, b) => a - b)
+              );
+            }}
+          />
+          <div className="text-muted-foreground border-t px-3 py-2 text-xs">
+            Select scheduled dates to remove from the table.
+          </div>
+        </PopoverContent>
+      </Popover>
+      {!!selected.length && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selected.map((date) => (
+            <Button
+              key={date.getTime()}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs"
+              onClick={() => {
+                setter?.(
+                  selected
+                    .filter((selectedDate) => selectedDate.getTime() !== date.getTime())
+                    .map(
+                      (selectedDate) =>
+                        Date.UTC(
+                          selectedDate.getFullYear(),
+                          selectedDate.getMonth(),
+                          selectedDate.getDate()
+                        ) -
+                        8 * 60 * 60 * 1000
+                    )
+                );
+              }}
+            >
+              {date.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+              <X className="h-3 w-3" />
+              <span className="sr-only">Remove {date.toLocaleDateString()}</span>
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

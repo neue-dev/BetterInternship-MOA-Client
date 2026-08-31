@@ -87,6 +87,8 @@ interface DataTableProps<TData, TValue> {
   pageSizes?: number[];
   /** Optional: className for wrapper */
   className?: string;
+  /** Optional: render content beneath an expandable row. */
+  renderExpandedRow?: (row: TData) => React.ReactNode;
   onSelectionChange?: (rows: TData[]) => void;
 }
 
@@ -182,6 +184,7 @@ export function DataTable<TData, TValue>({
   rowLabelPlural = "forms",
   pageSizes = [5, 10, 20, 50],
   className,
+  renderExpandedRow,
 }: DataTableProps<TData, TValue>) {
   const columnSizingStorageKey = React.useMemo(() => `data-table:${id}:column-sizing`, [id]);
 
@@ -196,6 +199,7 @@ export function DataTable<TData, TValue>({
   );
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({} as Record<string, boolean>);
+  const [expandedRowIds, setExpandedRowIds] = React.useState<Set<string>>(() => new Set());
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   const handleSortingChange = React.useCallback(
@@ -297,7 +301,7 @@ export function DataTable<TData, TValue>({
 
   const filteredRowCount = table.getFilteredRowModel().rows.length;
   const indexColumnWidthRem = Math.max(
-    3.25,
+    renderExpandedRow ? 4.5 : 3.25,
     String(Math.max(filteredRowCount, 1)).length * 0.625 + 2
   );
   const indexColumnStyle: React.CSSProperties = {
@@ -316,6 +320,17 @@ export function DataTable<TData, TValue>({
     table.getTotalSize() + (enableRowSelection ? 42 : 0) + indexColumnWidthRem * 16
   );
   const { pageIndex, pageSize } = table.getState().pagination;
+  const toggleExpandedRow = (rowId: string) => {
+    setExpandedRowIds((current) => {
+      const next = new Set(current);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  };
 
   return (
     <div id={id} className={cn("flex min-h-0 flex-col gap-3", className)}>
@@ -474,49 +489,84 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row, rowIndex) => (
-                <TableRow
-                  className="group even:bg-muted/40 hover:bg-primary/10 odd:bg-white"
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  <TableCell
-                    className={cn(
-                      "text-muted-foreground sticky left-0 z-10 pr-2 text-right font-medium shadow-[inset_-2px_0_0_theme(colors.gray.200)]",
-                      row.getIsSelected()
-                        ? "bg-muted"
-                        : rowIndex % 2 === 0
-                          ? "bg-white"
-                          : "bg-gray-50"
-                    )}
-                    style={indexColumnStyle}
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    className="group even:bg-muted/40 hover:bg-primary/10 odd:bg-white"
+                    data-state={row.getIsSelected() && "selected"}
                   >
-                    <span
-                      className="absolute top-1/2 left-1.5 ml-1 h-2.5 w-2.5 -translate-y-1/2 scale-50 rounded-full bg-gray-400 opacity-0 transition-all duration-300 ease-out group-hover:scale-100 group-hover:opacity-100"
-                      aria-hidden="true"
-                    />
-                    <span>{pageIndex * pageSize + rowIndex + 1}</span>
-                  </TableCell>
-                  {enableRowSelection && (
-                    <TableCell className="w-[42px]">
-                      <Checkbox
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(val) => row.toggleSelected(!!val)}
-                        aria-label="Select row"
-                      />
-                    </TableCell>
-                  )}
-                  {row.getVisibleCells().map((cell) => (
                     <TableCell
-                      key={cell.id}
-                      className="max-w-0"
-                      style={{ width: cell.column.getSize() }}
+                      className={cn(
+                        "text-muted-foreground sticky left-0 z-10 pr-2 text-right font-medium shadow-[inset_-2px_0_0_theme(colors.gray.200)]",
+                        row.getIsSelected()
+                          ? "bg-muted"
+                          : rowIndex % 2 === 0
+                            ? "bg-white"
+                            : "bg-gray-50"
+                      )}
+                      style={indexColumnStyle}
                     >
-                      <TruncatedCellValue tooltip={getCellTooltipText(cell.getValue())}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TruncatedCellValue>
+                      <span
+                        className="absolute top-1/2 left-1.5 ml-1 h-2.5 w-2.5 -translate-y-1/2 scale-50 rounded-full bg-gray-400 opacity-0 transition-all duration-300 ease-out group-hover:scale-100 group-hover:opacity-100"
+                        aria-hidden="true"
+                      />
+                      <span>{pageIndex * pageSize + rowIndex + 1}</span>
+                      {renderExpandedRow && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="ml-1 h-6 w-6"
+                          onClick={() => toggleExpandedRow(row.id)}
+                          aria-label={
+                            expandedRowIds.has(row.id)
+                              ? "Collapse signing map"
+                              : "Expand signing map"
+                          }
+                          aria-expanded={expandedRowIds.has(row.id)}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "h-3.5 w-3.5 transition-transform",
+                              expandedRowIds.has(row.id) && "rotate-180"
+                            )}
+                          />
+                        </Button>
+                      )}
                     </TableCell>
-                  ))}
-                </TableRow>
+                    {enableRowSelection && (
+                      <TableCell className="w-[42px]">
+                        <Checkbox
+                          checked={row.getIsSelected()}
+                          onCheckedChange={(val) => row.toggleSelected(!!val)}
+                          aria-label="Select row"
+                        />
+                      </TableCell>
+                    )}
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className="max-w-0"
+                        style={{ width: cell.column.getSize() }}
+                      >
+                        <TruncatedCellValue tooltip={getCellTooltipText(cell.getValue())}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TruncatedCellValue>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {renderExpandedRow && expandedRowIds.has(row.id) && (
+                    <TableRow className="bg-gray-50">
+                      <TableCell
+                        colSpan={
+                          table.getVisibleLeafColumns().length + (enableRowSelection ? 1 : 0) + 1
+                        }
+                        className="p-4"
+                      >
+                        {renderExpandedRow(row.original)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))
             ) : (
               <TableRow>

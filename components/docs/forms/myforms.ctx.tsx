@@ -26,7 +26,7 @@ export interface IMyForm {
   timestamp: string;
   rejection_reason?: string;
   display_information?: Record<string, string>;
-  signing_parties: Omit<IFormSigningParty, "signatory_title">[];
+  signing_parties: IFormSigningParty[];
 }
 
 interface IMyForms {
@@ -71,7 +71,8 @@ export const MyFormsContextProvider = ({ children }: { children: React.ReactNode
         rejection_reason: f.form_processes.rejection_reason,
         display_information: f.form_processes.display_information,
         timestamp: f.timestamp,
-        signing_parties: f.form_processes.signing_parties,
+        // The generated endpoint model is stale; the server already returns these titles.
+        signing_parties: f.form_processes.signing_parties as IMyForm["signing_parties"],
       })) ?? [];
 
   return (
